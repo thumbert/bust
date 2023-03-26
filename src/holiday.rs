@@ -12,12 +12,12 @@ pub struct _NercCalendar {}
 impl<T: Datelike + Copy + PartialOrd> HolidayTrait<T> for _NercCalendar {
     fn is_holiday(&self, date: &T) -> bool {
         match date.month() {
-            1 => if is_new_year(date) { true } else { false }
-            5 => if is_memorial_day(date) { true } else { false }
-            7 => if is_independence_day(date) { true } else { false }
-            9 => if is_labor_day(date) { true } else { false }
-            11 => if is_thanksgiving(date) { true } else { false }
-            12 => if is_christmas(date) { true } else { false }
+            1 => is_new_year(date),
+            5 => is_memorial_day(date),
+            7 => is_independence_day(date),
+            9 => is_labor_day(date),
+            11 => is_thanksgiving(date),
+            12 => is_christmas(date),
             _ => false
         }
     }
@@ -29,11 +29,7 @@ pub fn is_new_year<T: Datelike>(date: &T) -> bool {
     if date.month() == 1 {
         if date.day() == 1 && date.weekday() != Weekday::Sun {
             true
-        } else if date.day() == 2 && date.weekday() == Weekday::Mon {
-            true
-        } else {
-            false
-        }
+        } else { date.day() == 2 && date.weekday() == Weekday::Mon }
     } else {
         false
     }
@@ -45,11 +41,7 @@ pub fn is_memorial_day<T: Datelike>(date: &T) -> bool {
         let (yy, mm, dd) = (date.year(), date.month(), date.day());
         let weekday = NaiveDate::from_ymd_opt(yy, mm, 31).unwrap().weekday().number_from_monday();
         let candidate = NaiveDate::from_ymd_opt(yy, 5, 32 - weekday).unwrap();
-        if candidate.day() == dd {
-            true
-        } else {
-            false
-        }
+        candidate.day() == dd
     } else {
         false
     }
@@ -60,13 +52,9 @@ pub fn is_independence_day<T: Datelike>(date: &T) -> bool {
         let mut candidate = NaiveDate::from_ymd_opt(date.year(), 7, 4).unwrap();
         // If it falls on Sun, celebrate it on Mon
         if candidate.weekday() == Weekday::Sun {
-            candidate = candidate + Duration::days(1);
+            candidate += Duration::days(1);
         }
-        if candidate.day() == date.day() {
-            true
-        } else {
-            false
-        }
+        candidate.day() == date.day()
     } else {
         false
     }
@@ -76,11 +64,7 @@ pub fn is_labor_day<T: Datelike>(date: &T) -> bool {
     if date.month() == 9 {
         let day = _dayofmonth_holiday(date.year(), 9, 1, 1);
         let candidate = NaiveDate::from_ymd_opt(date.year(), 9, day).unwrap();
-        if candidate.day() == date.day() {
-            true
-        } else {
-            false
-        }
+        candidate.day() == date.day()
     } else {
         false
     }
@@ -90,11 +74,7 @@ pub fn is_thanksgiving<T: Datelike>(date: &T) -> bool {
     if date.month() == 11 {
         let day = _dayofmonth_holiday(date.year(), 11, 4, 4);
         let candidate = NaiveDate::from_ymd_opt(date.year(), 9, day).unwrap();
-        if candidate.day() == date.day() {
-            true
-        } else {
-            false
-        }
+        candidate.day() == date.day()
     } else {
         false
     }
@@ -104,12 +84,8 @@ pub fn is_christmas<T: Datelike>(date: &T) -> bool {
     if date.month() == 12 {
         let candidate = NaiveDate::from_ymd_opt(date.year(), 12, 25).unwrap();
         if candidate.weekday() == Weekday::Sun {
-            if date.day() == 26 { true } else { false }
-        } else if date.day() == 25 {
-            true
-        } else {
-            false
-        }
+            date.day() == 26
+        } else { date.day() == 25 }
     } else {
         false
     }
@@ -121,7 +97,7 @@ pub fn is_christmas<T: Datelike>(date: &T) -> bool {
 fn _dayofmonth_holiday(year: i32, month: u32, week_of_month: u32, weekday: u32) -> u32 {
     let wday_bom = NaiveDate::from_ymd_opt(year, month, 1).unwrap().weekday().number_from_monday();
     let inc = (weekday + 7 - wday_bom) % 7;
-    return 7 * (week_of_month - 1) + inc + 1;
+    7 * (week_of_month - 1) + inc + 1
 }
 
 
