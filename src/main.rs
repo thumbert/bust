@@ -1,11 +1,12 @@
 use std::time::Instant;
 use chrono::prelude::*;
 use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
-use chrono_tz::{Tz, America::New_York};
+use chrono_tz::Tz;
+use chrono_tz::America::New_York;
 
 mod holiday;
 
-use crate::holiday::{HolidayTrait, NERC_CALENDAR};
+use crate::holiday::{HolidayTrait, NercCalendar};
 
 
 /// See https://github.com/felipenoris/bdays/blob/master/src/tests.rs
@@ -29,7 +30,7 @@ fn examples_datetimes() {
         dt = dt + Duration::hours(1);
     }
 
-    /// Use of a timezone string to get a timezone
+    // Use of a timezone string to get a timezone
     let tz: Tz = "America/New_York".parse().unwrap();
     let mut fall = tz.with_ymd_and_hms(2023, 11, 5, 0, 0, 0).unwrap();
     assert_eq!(fall.to_rfc3339(), "2023-11-05T00:00:00-04:00");
@@ -42,6 +43,10 @@ fn examples_datetimes() {
     println!("{:?}", New_York);
 }
 
+// fn speed_test_datetime() {
+//     let mut dt = New_York.
+// }
+//
 
 
 fn main() {

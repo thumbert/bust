@@ -4,12 +4,12 @@ pub trait HolidayTrait<T> {
     fn is_holiday(&self, date: &T) -> bool;
 }
 
-pub const NERC_CALENDAR: _NercCalendar = _NercCalendar {};
+pub const NERC_CALENDAR: NercCalendar = NercCalendar {};
 
 // I don't know how not to make this public
-pub struct _NercCalendar {}
+pub struct NercCalendar {}
 
-impl<T: Datelike + Copy + PartialOrd> HolidayTrait<T> for _NercCalendar {
+impl<T: Datelike + Copy + PartialOrd> HolidayTrait<T> for NercCalendar {
     fn is_holiday(&self, date: &T) -> bool {
         match date.month() {
             1 => is_new_year(date),

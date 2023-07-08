@@ -1,10 +1,10 @@
-pub mod holiday;
 pub mod buckets;
+pub mod holiday;
 pub mod interval;
+mod tests;
 
 use chrono::prelude::*;
-use chrono::{Datelike};
-
+use chrono::Datelike;
 
 fn is_weekend<T: Datelike + Copy>(date: T) -> bool {
     matches!(date.weekday(), Weekday::Sat | Weekday::Sun)
