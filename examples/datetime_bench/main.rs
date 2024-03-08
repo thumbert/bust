@@ -1,15 +1,15 @@
 extern crate chrono;
 extern crate chrono_tz;
 
-use std::time::{Instant};
-
+use std::time::Instant;
 use chrono::prelude::*;
-use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
-use chrono_tz::{Tz, America::New_York};
+use chrono::Duration;
+use chrono_tz::America::New_York;
 
 
 fn main() {
-    let mut dt = New_York.ymd(2000, 1, 1).and_hms(0,0,0);
+    // let mut dt = New_York.ymd_opt(2000, 1, 1).and_hms_opt(0,0,0).unwrap();
+    let mut dt = New_York.with_ymd_and_hms(2000, 1, 1, 0, 0, 0).unwrap();
     let mut count = 0;
 
     let start = Instant::now();

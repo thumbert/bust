@@ -1,0 +1,176 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'bust'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "bust",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'bust'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=bust",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "bust",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'bust'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=bust",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "bust",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'demo_plotly'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=demo_plotly",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "demo_plotly",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'demo_plotly'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=demo_plotly",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "demo_plotly",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'calendar_bench'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=calendar_bench",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "calendar_bench",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'calendar_bench'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=calendar_bench",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "calendar_bench",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'datetime_bench'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=datetime_bench",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "datetime_bench",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'datetime_bench'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=datetime_bench",
+                    "--package=bust"
+                ],
+                "filter": {
+                    "name": "datetime_bench",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

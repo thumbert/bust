@@ -4,6 +4,9 @@ use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use chrono_tz::Tz;
 use chrono_tz::America::New_York;
 
+use plotly::{Plot, Scatter};
+
+
 mod holiday;
 
 use crate::holiday::{HolidayTrait, NercCalendar};
@@ -31,7 +34,7 @@ fn examples_datetimes() {
     }
 
     // Use of a timezone string to get a timezone
-    let tz: Tz = "America/New_York".parse().unwrap();
+    let tz = "America/New_York".parse::<Tz>().unwrap();
     let mut fall = tz.with_ymd_and_hms(2023, 11, 5, 0, 0, 0).unwrap();
     assert_eq!(fall.to_rfc3339(), "2023-11-05T00:00:00-04:00");
     println!("\nShow the DST Fall back transition from -04:00 offset to -05:00 offset");
@@ -47,6 +50,7 @@ fn examples_datetimes() {
 //     let mut dt = New_York.
 // }
 //
+
 
 
 fn main() {

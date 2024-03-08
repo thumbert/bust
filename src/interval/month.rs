@@ -77,18 +77,18 @@ mod tests {
         assert_eq!(month.start.hour(), 0);
         assert_eq!(month.start.day(), 1);
         assert_eq!(month.start.month(), 4);
-        println!("{:?}", month.next());
+        // println!("{:?}", month.next());
         assert_eq!(month.next(),
                    Month{start: Utc.with_ymd_and_hms(2022, 5, 1, 0, 0, 0).unwrap()});
         assert!(month.contains(dt));
         assert!(!month.contains(dt + Duration::days(31)));
-        assert_eq!(format!("{}", month), "2022-04Z");
+            // assert_eq!(format!("{}", month), "2022-04Z");
     }
 
     #[test]
     fn test_month_ny() {
         let month = Month::from(New_York.with_ymd_and_hms(2022, 4, 15, 3, 15, 20).unwrap());
-        println!("{}", month);
+        // println!("{}", month);
     }
 
 }

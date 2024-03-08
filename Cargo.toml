@@ -8,6 +8,11 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.26"
 chrono-tz = "0.8.3"
+futures = "0.3.28"
+mongodb = "2.8.1"
+plotly = "0.8.4"
+serde = "1.0.188"
+tokio = {version = "1.32.0", features = ["full"]}
 
 [[example]]
 name = "calendar_bench"
