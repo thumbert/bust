@@ -1,7 +1,7 @@
 pub mod buckets;
 pub mod holiday;
 pub mod interval;
-
+pub mod timeseries;
 
 mod tests;
 

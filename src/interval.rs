@@ -1,22 +1,18 @@
-mod hour;
-mod month;
+pub mod hour;
+pub mod month;
 
 use std::fmt;
 use std::fmt::{Debug, Formatter, Write};
 use std::ops::Add;
 use chrono::{Datelike, DateTime, Duration, Timelike, TimeZone};
 
-// pub enum Interval<T: TimeZone> {
-//     Instant {start: DateTime<T>},
-//     Hour(Hour<T>),
-//     Date {start: DateTime<T>},
-//     // Month {start: DateTime<T>},
-//     Year {start: DateTime<T>},
-// }
+pub trait IntervalLike<T: TimeZone> {
+    fn start(self: &Self) -> DateTime<T>;
+    fn end(self: &Self) -> DateTime<T>;
+}
 
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Interval<T: TimeZone> {
     start: DateTime<T>,
     end: DateTime<T>,
@@ -26,7 +22,8 @@ impl<T: TimeZone> Interval<T> {
     
     /// Return the hour that contains this datetime.
     fn from(start: &DateTime<T>, duration: Duration) -> Interval<T> {
-        let end = start.checked_add_signed(duration).unwrap();
+        let start2 = start.clone();
+        let end = start2.checked_add_signed(duration).unwrap();
         Interval{start: start.clone(), end: end}
     }
 
@@ -35,6 +32,15 @@ impl<T: TimeZone> Interval<T> {
     }
 }
 
+impl<T:TimeZone> IntervalLike<T> for Interval<T> {
+    fn start(&self) -> DateTime<T> {
+        self.start.clone()
+    }
+
+    fn end(&self) -> DateTime<T> {
+        self.end.clone()
+    }
+}
 
 
 // #[derive(PartialEq)]

@@ -1,12 +1,13 @@
 use std::fmt;
-use std::fmt::{Debug, Formatter, Write};
-use chrono::{Datelike, DateTime, Duration, Timelike, TimeZone};
+use std::fmt::{Debug, Formatter};
+use chrono::{DateTime, Duration, Timelike, TimeZone};
+
+use super::IntervalLike;
 
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Hour<T: TimeZone> {
-    start: DateTime<T>,
+    pub start: DateTime<T>,
 }
 
 impl<T: TimeZone> Hour<T> {
@@ -14,10 +15,6 @@ impl<T: TimeZone> Hour<T> {
     fn from(dt: DateTime<T>) -> Hour<T> {
         let start = dt.with_minute(0).unwrap().with_second(0).unwrap();
         Hour {start}
-    }
-
-    fn end(&self) -> DateTime<T> {
-        self.start.clone() + Duration::hours(1)    
     }
 
     fn next(&self) -> Hour<T> {
@@ -29,6 +26,18 @@ impl<T: TimeZone> Hour<T> {
     }
 
 }
+
+
+impl<T:TimeZone> IntervalLike<T> for Hour<T> {
+    fn start(&self) -> DateTime<T> {
+        self.start.clone()
+    }
+
+    fn end(&self) -> DateTime<T> {
+        self.start.clone() + Duration::hours(1)    
+    }
+}
+
 
 impl<T: TimeZone> fmt::Display for Hour<T> where
     T::Offset: std::fmt::Display,{
@@ -47,7 +56,7 @@ impl<T: TimeZone> fmt::Display for Hour<T> where
 mod tests {
     use super::*;
     use chrono::{Datelike, Timelike, TimeZone, Utc};
-    use chrono_tz::America::New_York;
+    // use chrono_tz::America::New_York;
     // use crate::interval::*;
     // use crate::interval::Interval::Hour;
 
@@ -70,7 +79,7 @@ mod tests {
 
     // #[test]
     // fn test_month_ny() {
-    //     let month = Month::from(New_York.with_ymd_and_hms(2022, 4, 15, 3, 15, 20).unwrap());
+    //     let month = Hour::from(New_York.with_ymd_and_hms(2022, 4, 15, 3, 15, 20).unwrap());
     //     println!("{}", month);
     // }
 

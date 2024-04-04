@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.26"
-chrono-tz = "0.8.3"
+actix-web = "4"
+chrono = "0.4.37"
+chrono-tz = "0.8.6"
+env_logger = "0.11.3"
 futures = "0.3.28"
 mongodb = "2.8.1"
 plotly = "0.8.4"
