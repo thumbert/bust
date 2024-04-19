@@ -1,87 +1,55 @@
-use std::{marker, str::FromStr};
-
 use chrono::{DateTime, Datelike, Timelike, Weekday};
 use chrono_tz::Tz;
 
 use crate::holiday::*;
 
-pub const ATC: Bucket<Atc> = Bucket {
-    state: std::marker::PhantomData::<Atc>,
-};
-pub const B5X16: Bucket<_B5x16> = Bucket {
-    state: std::marker::PhantomData::<_B5x16>,
-};
-pub const B2X16H: _B2x16H = _B2x16H {};
-pub const B7X8: _B7x8 = _B7x8 {};
+// some convenience definitions
+pub const ATC: Bucket = Bucket::Atc;
 
-/// I don't know how to parse a string into the correct bucket
-/// I can parse an individual bucket...
+#[derive(Debug, PartialEq, Eq)]
+pub enum Bucket {
+    Atc,
+    B5x16,
+    B2x16H,
+    B7x8,
+}
+
+fn parse(s: &str) -> Result<Bucket, ParseError> {
+    match s.to_uppercase().as_str() {
+        "FLAT" | "ATC" => Ok(Bucket::Atc),
+        "5X16" | "PEAK" => Ok(Bucket::B5x16),
+        "2X16H" => Ok(Bucket::B2x16H),
+        "7X8" => Ok(Bucket::B7x8),
+        _ => Err(ParseError),
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseError;
+
 
 pub trait BucketLike {
     fn name(self) -> String;
     fn contains(self, datetime: DateTime<Tz>) -> bool;
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Bucket<B> {
-    state: std::marker::PhantomData<B>,
-}
-
-impl FromStr for Bucket<Atc> {
-    type Err = ParseBucketError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "ATC" | "FLAT" => Ok(ATC),
-            _ => Err(ParseBucketError),
+impl BucketLike for Bucket {
+    fn name(self) -> String {
+        match self {
+            Bucket::Atc => String::from("ATC"),
+            Bucket::B5x16 => String::from("5x16"),
+            Bucket::B2x16H => String::from("2x16H"),
+            Bucket::B7x8 => String::from("7x8"),
         }
     }
-}
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ParseBucketError;
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Atc {}
-impl BucketLike for Bucket<Atc> {
-    fn name(self) -> String {
-        String::from("ATC")
-    }
-
-    fn contains(self, _: DateTime<Tz>) -> bool {
-        true
-    }
-}
-
-pub struct _B5x16 {}
-impl BucketLike for _B5x16 {
-    fn name(self) -> String {
-        String::from("5x16")
-    }
-
-    fn contains(self, dt: DateTime<Tz>) -> bool {
-        contains_5x16(dt)
-    }
-}
-
-pub struct _B2x16H {}
-impl BucketLike for _B2x16H {
-    fn name(self) -> String {
-        String::from("2x16H")
-    }
-
-    fn contains(self, dt: DateTime<Tz>) -> bool {
-        contains_2x16h(dt)
-    }
-}
-
-pub struct _B7x8 {}
-impl BucketLike for _B7x8 {
-    fn name(self) -> String {
-        String::from("7x8")
-    }
-
-    fn contains(self, dt: DateTime<Tz>) -> bool {
-        contains_7x8(dt)
+    fn contains(self, datetime: DateTime<Tz>) -> bool {
+        match self {
+            Bucket::Atc => true,
+            Bucket::B5x16 => contains_5x16(datetime),
+            Bucket::B2x16H => contains_2x16h(datetime),
+            Bucket::B7x8 => contains_7x8(datetime),
+        }
     }
 }
 
@@ -116,13 +84,29 @@ mod tests {
     use chrono::TimeZone;
     use chrono_tz::America::New_York;
 
-    use crate::bucket::*;
+    use crate::{bucket::*, interval::*};
 
     #[test]
     fn test_bucket_atc() {
-        assert_eq!(ATC.name(), "ATC");
-        assert!(ATC.contains(New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap()));
-        let b ="Flat".parse::<Bucket<Atc>>().unwrap(); 
-        assert_eq!(b, ATC);
+        let dt = New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap();
+        assert!(Bucket::Atc.contains(dt));
+        assert!(ATC.contains(dt));
+        assert_eq!(parse("Flat"), Ok(ATC));
     }
+
+    fn test_bucket_5x16() {
+        let term = Interval::with_start_end(
+            New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap(),
+            New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap(),
+        );
+        let hours = term.unwrap().hours();
+
+     
+        let dt = New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap();
+        assert!(Bucket::Atc.contains(dt));
+        assert!(ATC.contains(dt));
+        assert_eq!(parse("Flat"), Ok(ATC));
+    }
+
+
 }
