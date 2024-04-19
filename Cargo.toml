@@ -8,9 +8,10 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 chrono = "0.4.37"
-chrono-tz = "0.8.6"
+chrono-tz = "0.9.0"
 env_logger = "0.11.3"
 futures = "0.3.28"
+itertools = "0.12.1"
 mongodb = "2.8.1"
 plotly = "0.8.4"
 serde = "1.0.188"
@@ -19,3 +20,7 @@ tokio = {version = "1.32.0", features = ["full"]}
 [[example]]
 name = "calendar_bench"
 path = "examples/calendar_bench/main.rs"
+
+[[example]]
+name = "inheritance"
+path = "examples/learn/inheritance.rs"

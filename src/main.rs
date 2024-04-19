@@ -30,7 +30,7 @@ fn examples_datetimes() {
     println!("Show the DST Spring forward transition from -05:00 offset to -04:00 offset");
     for _i in 0..5 {
         println!("{}", dt.to_rfc3339());
-        dt = dt + Duration::hours(1);
+        dt += Duration::hours(1);
     }
 
     // Use of a timezone string to get a timezone
@@ -40,7 +40,7 @@ fn examples_datetimes() {
     println!("\nShow the DST Fall back transition from -04:00 offset to -05:00 offset");
     for _i in 0..5 {
         println!("{}", fall.to_rfc3339());
-        fall = fall + Duration::hours(1);
+        fall += Duration::hours(1);
     }
 
     println!("{:?}", New_York);

@@ -1,4 +1,4 @@
-pub mod buckets;
+pub mod bucket;
 pub mod holiday;
 pub mod interval;
 pub mod timeseries;
