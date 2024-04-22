@@ -1,20 +1,29 @@
 use chrono::offset::LocalResult;
-use chrono::{
-    DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike,
-};
+use chrono::{DateTime, Datelike, TimeZone, Timelike};
 use chrono_tz::Tz;
 use std::fmt;
 use std::fmt::{Debug, Formatter, Write};
 
 use super::IntervalLike;
 
-#[derive(PartialEq, Debug, Clone, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
 pub struct Month {
     start: DateTime<Tz>,
 }
 
 impl Month {
     pub fn new(year: i32, month: u32, tz: Tz) -> Option<Month> {
+        let start = tz.with_ymd_and_hms(year, month, 1, 0, 0, 0);
+        match start {
+            LocalResult::Single(start) => Some(Month { start }),
+            LocalResult::Ambiguous(_, _) => panic!("Wrong inputs!"),
+            LocalResult::None => None,
+        }
+    }
+
+    pub fn from_int(yyyymm: u32, tz: Tz) -> Option<Month> {
+        let year = i32::try_from( yyyymm / 100).unwrap();
+        let month = yyyymm % 100;
         let start = tz.with_ymd_and_hms(year, month, 1, 0, 0, 0);
         match start {
             LocalResult::Single(start) => Some(Month { start }),
@@ -129,6 +138,7 @@ mod tests {
         let month = month.next();
         assert_eq!(format!("{}", month), "2024-04");
         assert_eq!(month.timezone(), New_York);
+        assert_eq!(Month::from_int(202404, New_York).unwrap(), month);
     }
 
     #[test]
@@ -145,12 +155,12 @@ mod tests {
     #[test]
     fn test_count() {
         let m = Month::new(2024, 1, New_York).unwrap();
-        assert_eq!(m.hour_count(), 744); 
+        assert_eq!(m.hour_count(), 744);
         let m = Month::new(2024, 2, New_York).unwrap();
         assert_eq!(m.hour_count(), 696);
         let m = Month::new(2024, 3, New_York).unwrap();
-        assert_eq!(m.hour_count(), 743);  // DST
+        assert_eq!(m.hour_count(), 743); // DST
         let m = Month::new(2024, 11, New_York).unwrap();
-        assert_eq!(m.hour_count(), 721);  // DST
+        assert_eq!(m.hour_count(), 721); // DST
     }
 }

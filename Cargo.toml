@@ -7,12 +7,15 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4"
+cargo-watch = "8.5.2"
 chrono = "0.4.37"
 chrono-tz = "0.9.0"
 env_logger = "0.11.3"
 futures = "0.3.28"
 itertools = "0.12.1"
 mongodb = "2.8.1"
+pest = "2.7.9"
+pest_derive = "2.7.9"
 plotly = "0.8.4"
 serde = "1.0.188"
 tokio = {version = "1.32.0", features = ["full"]}

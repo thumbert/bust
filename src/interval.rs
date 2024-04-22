@@ -1,17 +1,21 @@
 pub mod hour;
 pub mod month;
+pub mod term;
 
-use chrono::{DateTime, Datelike, Duration, NaiveTime, TimeZone, Timelike};
+use chrono::{DateTime, Duration, NaiveTime, TimeZone, Timelike};
 use std::cmp;
-use std::fmt;
-use std::fmt::{Debug, Formatter, Write};
-use std::ops::Add;
+use std::fmt::Debug;
 
 use chrono_tz::Tz;
 
 use crate::interval::hour::Hour;
 
+use self::month::Month;
+
 pub trait IntervalLike {
+    fn tz(&self) -> Tz {
+        self.start().timezone()
+    }
     fn start(&self) -> DateTime<Tz>;
     fn end(&self) -> DateTime<Tz>;
     fn contains(&self, dt: DateTime<Tz>) -> bool {
@@ -70,9 +74,36 @@ impl Interval {
         Some(Interval { start, end })
     }
 
-    fn with_start(start: DateTime<Tz>, duration: Duration) -> Interval {
+    pub fn with_start(start: DateTime<Tz>, duration: Duration) -> Interval {
         let end = start.checked_add_signed(duration).unwrap();
         Interval { start, end }
+    }
+
+    /// Make an interval that spans years, e.g. [2023-2026)
+    pub fn with_y(start: i32, end: i32, tz: Tz) -> Option<Interval> {
+        if start > end {
+            return None;
+        }
+        let start_dt = tz.with_ymd_and_hms(start, 1, 1, 0, 0, 0).unwrap();
+        let end_dt = tz.with_ymd_and_hms(end + 1, 1, 1, 0, 0, 0).unwrap();
+        return Some(Interval {
+            start: start_dt,
+            end: end_dt,
+        });
+    }
+
+    /// Make an interval that spans months, e.g. [Feb23-Mar26)
+    pub fn with_ym(start: (i32, u32), end: (i32, u32), tz: Tz) -> Option<Interval> {
+        let start_m = Month::new(start.0, start.1, tz).unwrap();
+        let end_m = Month::new(end.0, end.1, tz).unwrap().next();
+        if start_m > end_m {
+            return None;
+        } else {
+            return Some(Interval {
+                start: start_m.start(),
+                end: end_m.start(),
+            });
+        }
     }
 }
 
@@ -107,6 +138,30 @@ mod tests {
             Interval::with_start_end(start, end).unwrap(),
             Interval { start, end }
         ); // works
+    }
+
+    #[test]
+    fn test_special_constructors() {
+        // with_y
+        let term = Interval::with_y(2022, 2024, New_York).unwrap();
+        assert_eq!(
+            term.start,
+            New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            term.end,
+            New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap()
+        );
+        // with_ym
+        let term = Interval::with_ym((2023, 2), (2026, 3), New_York).unwrap();
+        assert_eq!(
+            term.start,
+            New_York.with_ymd_and_hms(2023, 2, 1, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            term.end,
+            New_York.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap()
+        );
     }
 
     #[test]

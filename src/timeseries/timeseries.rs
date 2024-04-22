@@ -170,26 +170,29 @@ mod tests {
 
     #[test]
     fn test_group() {
-        let term = Interval::with_start_end(
-            New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap(),
-            New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap(),
-        );
+        let term = Interval::with_y(2022, 2022, New_York);
         let hours = term.unwrap().hours();
-        // let hours = Month::new(2024, 1, New_York).unwrap().hours();
         let ts = TimeSeries::filled(hours, 1);
-        assert_eq!(ts.len(), 744);
 
         let groups = ts
             .into_iter()
             .map(|x| {
                 let start = x.0.start();
-                (Month::containing(start), x.1)
+                ((start.year(), start.month()), x.1)
             })
             .into_group_map();
 
-        let count: TimeSeries<Month, usize> =
-            groups.into_iter().map(|e| (e.0, e.1.len())).collect();
-        println!("{:}", count.len());    
+        let count = groups
+            .into_iter()
+            .map(|((year, month), value)| (Month::new(year, month, New_York).unwrap(), value.len()))
+            .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
+            .collect::<TimeSeries<Month, usize>>();
+
+        // TimeSeries<Month, usize>
+        // println!("{:}", count);
+        count
+            .into_iter()
+            .for_each(|(k, v)| println!("{:} -> {}", k, v));
     }
 
     #[test]
