@@ -19,6 +19,7 @@ pest_derive = "2.7.9"
 plotly = "0.8.4"
 serde = "1.0.188"
 tokio = {version = "1.32.0", features = ["full"]}
+winnow = "0.6.6"
 
 [[example]]
 name = "calendar_bench"

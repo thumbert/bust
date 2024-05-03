@@ -1,20 +1,42 @@
-term = {SOI ~ (compound | simple) ~ EOI}
-compound = {simple ~ "-" ~ simple}
-simple = {year | month}
-year = @{ASCII_DIGIT{4}}
-month = @{mon ~ (year | yy)}
+term = {SOI ~ (range | simple) ~ EOI}
+
+range = {range_cal | range_month }
+simple = {month | cal | quarter}
+range_cal = {cal ~" "* ~ "-" ~ " "* ~ cal}
+range_month = {range_month_txt | range_month_abb | range_month_us}
+range_month_abb = {month_abb ~ " "? ~ "-" ~ " "? ~ month_abb}
+range_month_txt = {month_txt ~" "? ~ "-" ~ " "? ~ month_txt}
+range_month_us = {month_us ~ " "? ~ "-" ~ " "? ~ month_us}
+
+month = {month_iso | month_txt | month_abb | month_us}
+month_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2}}
+month_txt = {mon ~ " "? ~ (year | yy)}
+month_abb = {("F" | "G" | "H" | "J" | "K" | "M" | "N" | "Q" | "U" | "V" | "X" | "Z") ~ yy}
+month_us = {("10" | "11" | "12" | "0"? ~ "1" | "0"? ~  "2" | "0"? ~ "3" | "0"? ~ "4" | "0"? ~ "5" | "0"? ~ "6" | "0"? ~ "7" | "0"? ~ "8" | "0"? ~ "9") ~ "/" ~ (year | yy)}
 mon = {jan | feb | mar | apr | may | jun | jul | aug | sep | oct | nov | dec}
-jan = _{^"January" | ^"Jan"}
-feb = _{^"February" | ^"Feb"}
-mar = _{^"March" | ^"Mar" }
-apr = _{^"April" | ^"Apr"}
-may = _{^"May"}
-jun = _{^"June" | ^"Jun"}
-jul = _{^"July" | ^"Jul"}
-aug = _{^"August" | ^"Aug"}
-sep = _{^"September" | ^"Sep"}
-oct = _{^"October" | ^"Oct"}
-nov = _{^"November" | ^"Nov"}
-dec = _{^"December" | ^"Dec"}
+jan = {^"January" | ^"Jan"}
+feb = {^"February" | ^"Feb"}
+mar = {^"March" | ^"Mar"}
+apr = {^"April" | ^"Apr"}
+may = {^"May"}
+jun = {^"June" | ^"Jun"}
+jul = {^"July" | ^"Jul"}
+aug = {^"August" | ^"Aug"}
+sep = {^"September" | ^"Sep"}
+oct = {^"October" | ^"Oct"}
+nov = {^"November" | ^"Nov"}
+dec = {^"December" | ^"Dec"}
+
+quarter = {"Q" ~ ("1" | "2" | "3" | "4") ~ ("," | " ") ~ " "* ~ (year | yy)}
+cal = {((("CAL" | "Cal") ~ " "?) ~  (year | yy)) | year}
+
+
 yy = {ASCII_DIGIT{2}}
-WHITESPACE = _{ " "}
+year = {ASCII_DIGIT{4}}
+
+
+//WHITESPACE = _{ " "}
+// Reminders:
+// ^ means match case insensitive
+// @ means it's a block
+// Not using a WHITESPACE rule because you can't preclude "Jan 24" it would still parse as "Jan24". 

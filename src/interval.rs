@@ -1,6 +1,7 @@
 pub mod hour;
 pub mod month;
 pub mod term;
+pub mod term2;
 
 use chrono::{DateTime, Duration, NaiveTime, TimeZone, Timelike};
 use std::cmp;
