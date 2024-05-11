@@ -1,7 +1,10 @@
 
 TODO:
-- Continue to add rule checks in process_xxx functions to make sure you panic 
-  if the wrong rule is passed in. 
+- For term parsing, continue to add rule checks in process_xxx functions to 
+  make sure you panic if the wrong rule is passed in. 
+
+# 2024-05-11
+- Experiment with DuckDb.  Promising.
 
 # 2024-04-28
 - Have a term parser working using the Pest parsing library.  
