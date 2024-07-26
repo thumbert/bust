@@ -8,6 +8,8 @@ pub mod timeseries;
 #[path = "db/isone/mod.rs"]
 pub mod isone;
 
+pub mod api;
+
 // use crate::
 
 
