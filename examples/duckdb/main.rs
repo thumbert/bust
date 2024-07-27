@@ -3,6 +3,9 @@ use duckdb::{Connection, Result};
 #[derive(Debug)]
 struct Person { id: i32, name: String, }
 
+/// IMPORT DATABASE '/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/Duck';
+
+
 fn main() -> Result<()> {
     let conn = Connection::open_in_memory()?;
 
