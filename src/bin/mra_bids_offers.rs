@@ -115,10 +115,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     plot.add_trace(trace1);
     plot.set_layout(
         Layout::new()
-            .x_axis(Axis::new().title(Title::new("Quantity, MW")))
+            .x_axis(Axis::new().title( Title::with_text("Quantity, MW")))
             .y_axis(
                 Axis::new()
-                    .title(Title::new("Price, $/kW-month"))
+                    .title(Title::with_text("Price, $/kW-month"))
                     .type_(AxisType::Log),
             )
             .width(900)

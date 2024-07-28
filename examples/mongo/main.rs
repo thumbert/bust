@@ -12,8 +12,7 @@ async fn main() -> mongodb::error::Result<()> {
 
     let db = client.database("isoexpress");
     let coll: Collection<Document> = db.collection("da_lmp_hourly");
-
-    let hub = coll.find_one(doc! {"date": "2024-01-01", "ptid": 4000}, None).await?;
+    let hub = coll.find_one(doc!{"date": "2024-01-01", "ptid": 4000}).await?;
     println!("Found the hub price:\n{:#?}", hub);
 
     Ok(())
