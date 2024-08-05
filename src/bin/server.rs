@@ -1,9 +1,7 @@
-use actix_web::http::StatusCode;
 use actix_web::middleware::{self, Logger};
-use actix_web::web::Data;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
-use bust::api::nyiso;
-use duckdb::Connection;
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use bust::api::{isone, nyiso};
+use clap::Parser;
 use env_logger::Env;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -23,92 +21,26 @@ extern crate duckdb;
 
 // }
 
-lazy_static! {
-    static ref PERSONS: Vec<Person> = vec![
-        Person {
-            name: "John".to_string(),
-            age: 42,
-        },
-        Person {
-            name: "Jane".to_string(),
-            age: 37,
-        },
-        Person {
-            name: "Taylor".to_string(),
-            age: 4,
-        },
-        Person {
-            name: "Luke".to_string(),
-            age: 4,
-        },
-        Person {
-            name: "Bob".to_string(),
-            age: 82,
-        }
-    ];
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Port number
+    #[arg(short, long, default_value = "8111")]
+    port: u16,
 }
 
 
-#[derive(Serialize, Clone)]
-struct Person {
-    name: String,
-    age: u8,
-}
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+    HttpResponse::Ok().body("Hello world!  This is a Rust server.")
 }
-
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
-}
-
-
-#[get("/name/{name}")]
-async fn person(name: web::Path<String>) -> impl Responder {
-    let person = PERSONS.clone().into_iter().find(|x| x.name == *name);
-    match person {
-        Some(p) => HttpResponse::Ok().body(serde_json::to_string(&p).unwrap()),
-        None => HttpResponse::Ok().body(json!({"Error": format!("Person {} not found", name)}).to_string()),
-    }
-}
-
-#[derive(Deserialize)]
-struct PersonQuery {
-    name: Option<String>,
-    age: Option<String>,
-}
-
-/// Example of a query with parameters
-/// http://127.0.0.1:8111/person?name=Taylor
-/// http://127.0.0.1:8111/person?age=42
-/// http://127.0.0.1:8111/person?age=37|42               <-- special separator 
-/// http://127.0.0.1:8111/person?name=Bob&age=82         <-- multiple filters
-/// 
-#[get("/person")]
-async fn query_person(query: web::Query<PersonQuery>) -> String {
-    format!("Person query name: {:?}, age: {:?}", query.name, query.age)
-}
-
-#[get("/isone/capacity/bid_offer/mra/participant_ids")]
-async fn participant_ids() -> impl Responder {
-    let conn = Connection::open("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb").unwrap();
-    // let conn = pool.get().expect("couldn't get db connection from pool");
-    let ids = bust::api::isone::monthly_capacity_auction::get_participant_ids(conn);
-    HttpResponse::Ok().json(ids) 
-}
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    let args = Args::parse();
 
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
     // See https://actix.rs/docs/databases/  Not working well with DuckDb (yet)
     // let manager = DuckDBConnectionManager::file("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb");
     // let pool = r2d2::Pool::builder().build(manager).unwrap();
@@ -119,15 +51,83 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Compress::default())
             // .app_data(Data::new(pool.clone()))
             .service(hello)
-            .service(echo)
-            .service(query_person)
-            .service(person)
-            .service(participant_ids)
+            // ISONE
+            .service(isone::capacity::monthly_capacity_results::results_interface)
+            .service(isone::capacity::monthly_capacity_results::results_zone)
+            .service(isone::capacity::monthly_capacity_bidsoffers::bids_offers)
+            .service(isone::energy_offers::api_offers)
+            .service(isone::energy_offers::api_stack)
+            // NYISO
             .service(nyiso::energy_offers::api_da_offers)
-            .route("/hey", web::get().to(manual_hello))
     })
-    .bind(("127.0.0.1", 8111))?
+    .bind(("127.0.0.1", args.port))?
     // .bind(("0.0.0.0", 8111))? // use this if you want to allow all connections
     .run()
     .await
 }
+
+
+
+
+
+
+
+
+
+
+
+// lazy_static! {
+//     static ref PERSONS: Vec<Person> = vec![
+//         Person {
+//             name: "John".to_string(),
+//             age: 42,
+//         },
+//         Person {
+//             name: "Jane".to_string(),
+//             age: 37,
+//         },
+//         Person {
+//             name: "Taylor".to_string(),
+//             age: 4,
+//         },
+//         Person {
+//             name: "Luke".to_string(),
+//             age: 4,
+//         },
+//         Person {
+//             name: "Bob".to_string(),
+//             age: 82,
+//         }
+//     ];
+// }
+// #[derive(Serialize, Clone)]
+// struct Person {
+//     name: String,
+//     age: u8,
+// }
+// #[get("/name/{name}")]
+// async fn person(name: web::Path<String>) -> impl Responder {
+//     let person = PERSONS.clone().into_iter().find(|x| x.name == *name);
+//     match person {
+//         Some(p) => HttpResponse::Ok().body(serde_json::to_string(&p).unwrap()),
+//         None => HttpResponse::Ok().body(json!({"Error": format!("Person {} not found", name)}).to_string()),
+//     }
+// }
+// #[derive(Deserialize)]
+// struct PersonQuery {
+//     name: Option<String>,
+//     age: Option<String>,
+// }
+// /// Example of a query with parameters
+// /// http://127.0.0.1:8111/person?name=Taylor
+// /// http://127.0.0.1:8111/person?age=42
+// /// http://127.0.0.1:8111/person?age=37|42               <-- special separator 
+// /// http://127.0.0.1:8111/person?name=Bob&age=82         <-- multiple filters
+// /// 
+// #[get("/person")]
+// async fn query_person(query: web::Query<PersonQuery>) -> String {
+//     format!("Person query name: {:?}, age: {:?}", query.name, query.age)
+// }
+
+
+

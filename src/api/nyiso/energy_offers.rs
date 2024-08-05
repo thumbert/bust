@@ -1,27 +1,18 @@
 use actix_web::{get, web, HttpResponse, Responder};
 
-use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
+use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{
-    civil::{date, Date},
-    tz::TimeZone,
-    Timestamp, ToSpan, Zoned,
+    civil::Date,
+    ToSpan,
 };
 use serde::{Deserialize, Serialize};
 
-// async fn api_masked_unit_ids() -> impl Responder {
-//     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-//     let conn = Connection::open_with_flags("C:/Data/duckdb/ice.duckdb", config).unwrap();
-//     let ids = get_masked_unit_ids(&conn);
-//     HttpResponse::Ok().json(ids)
-// }
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
     /// one or more masked asset ids, separated by commas
     masked_asset_ids: Option<String>,
-    // one or more masked participant ids, separated by commas
-    // masked_participant_ids: Option<String>,
 }
 
 #[get("/nyiso/energy_offers/dam/energy_offers/start/{start}/end/{end}")]
@@ -47,7 +38,6 @@ async fn api_da_offers(
 pub struct EnergyOffer {
     masked_asset_id: u32,
     timestamp_s: i64, // seconds since epoch of hour beginning
-    // hour_beginning: Zoned,
     segment: u8,
     price: f32,
     quantity: f32,
@@ -275,9 +265,7 @@ pub fn get_stack(
 }
 
 
-
-
-pub fn get_path() -> String {
+fn get_path() -> String {
     "/home/adrian/Downloads/Archive/Nyiso/nyiso_energy_offers.duckdb".to_string()
 }
 
