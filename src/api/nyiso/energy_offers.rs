@@ -1,3 +1,6 @@
+use core::fmt;
+use std::{fmt::{Debug, Display}, str::FromStr};
+
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{AccessMode, Config, Connection, Result};
@@ -15,22 +18,38 @@ struct OffersQuery {
     masked_asset_ids: Option<String>,
 }
 
-#[get("/nyiso/energy_offers/dam/energy_offers/start/{start}/end/{end}")]
-async fn api_da_offers(
-    path: web::Path<(String, String)>,
+#[get("/nyiso/energy_offers/{market}/start/{start}/end/{end}")]
+async fn api_offers(
+    path: web::Path<(String, String, String)>,
     query: web::Query<OffersQuery>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(), config).unwrap();
 
-    let start_date: Date = path.0.to_string().parse().unwrap();
-    let end_date: Date = path.1.to_string().parse().unwrap();
+    let market: Market = match path.0.parse() {
+        Ok(v) => v,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
+
+    let start_date: Date = match path.1.to_string().parse() {
+        Ok(v) => v,
+        Err(_) => {
+            return HttpResponse::BadRequest().body(format!("Unable to parse {} as a date", path.1))
+        }
+    };
+
+    let end_date: Date = match path.2.to_string().parse() {
+        Ok(v) => v,
+        Err(_) => {
+            return HttpResponse::BadRequest().body(format!("Unable to parse {} as a date", path.1))
+        }
+    };
     let asset_ids: Option<Vec<i32>> = query
         .masked_asset_ids
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
 
-    let offers = get_energy_offers(&conn, start_date, end_date, asset_ids).unwrap();
+    let offers = get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
 }
 
@@ -42,6 +61,33 @@ pub struct EnergyOffer {
     price: f32,
     quantity: f32,
 }
+
+#[derive(Debug, PartialEq, Serialize)]
+pub enum Market {
+    Dam,
+    Ham,
+    Rtm,
+}
+
+impl fmt::Display for Market {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl FromStr for Market {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_uppercase().as_str() {
+            "DA" | "DAM" => Ok(Market::Dam),
+            "HAM" => Ok(Market::Ham),
+            "RT" | "RTM" => Ok(Market::Rtm),
+            _ => Err(format!("Can't parse market: {}", s)),
+        }
+    }
+}
+
 
 // Get the masked unit ids between a [start, end] date
 pub fn get_unit_ids(conn: &Connection, start: Date, end: Date) -> Vec<u32> {
@@ -67,6 +113,7 @@ pub fn get_unit_ids(conn: &Connection, start: Date, end: Date) -> Vec<u32> {
 // Get the energy offers between a [start, end] date for a list of units and participant ids
 pub fn get_energy_offers(
     conn: &Connection,
+    market: Market,
     start: Date,
     end: Date,
     masked_unit_ids: Option<Vec<i32>>,
@@ -105,7 +152,7 @@ WITH unpivot_alias AS (
         WHERE "Date Time" >= '{}'
         AND "Date Time" < '{}'
         {}
-        AND "Market" == 'DAM'
+        AND "Market" == '{}'
     )
     ON  ("MW1", "Dispatch $/MW1") AS "0", 
         ("MW2", "Dispatch $/MW2") AS "1", 
@@ -143,7 +190,8 @@ ORDER BY "Masked Gen ID", "Date Time", "Price";
         match masked_unit_ids {
             Some(ids) => format!("AND \"Masked Gen ID\" in ({}) ", ids.iter().join(", ")),
             None => "".to_string(),
-        }
+        },
+        market.to_string().to_uppercase(),    
     );
     // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
@@ -272,10 +320,20 @@ fn get_path() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::{env, path::Path};
+
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::{date, Date};
+    use serde_json::Value;
 
     use crate::api::nyiso::energy_offers::*;
+
+    #[test]
+    fn test_market() {
+        assert_eq!("DAM".parse::<Market>(), Ok(Market::Dam));
+        assert_eq!("DA".parse::<Market>(), Ok(Market::Dam));
+        assert_eq!("dam".parse::<Market>(), Ok(Market::Dam));
+    }
 
     #[test]
     fn test_get_masked_unit_ids() -> Result<()> {
@@ -295,6 +353,7 @@ mod tests {
         let conn = Connection::open_with_flags(get_path(), config).unwrap();
         let xs = get_energy_offers(
             &conn,
+            Market::Dam,
             date(2024, 3, 1),
             date(2024, 3, 1),
             Some(vec![35537750, 55537750, 67537750, 75537750]),
@@ -315,4 +374,23 @@ mod tests {
         assert_eq!(xs.len(), 672);
         Ok(())
     }
+
+
+    #[test]
+    fn api_energy_offers() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let url = format!(
+            "{}/nyiso/energy_offers/dam/start/2024-01-01/end/2024-01-02?masked_asset_ids=35537750",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        println!("{}", url);
+        let response = reqwest::blocking::get(url)?.text()?;
+        let v: Value = serde_json::from_str(&response).unwrap();
+        match v {
+            Value::Array(xs) => assert_eq!(xs.len(), 336),
+            _ => panic!("Oops, wrong state"),
+        };
+        Ok(())
+    }
+
 }

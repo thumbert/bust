@@ -19,7 +19,7 @@ struct OffersQuery {
 }
 
 /// Get DA or RT offers between a start/end date
-#[get("/isone/energy_offers/{market}/energy_offers/start/{start}/end/{end}")]
+#[get("/isone/energy_offers/{market}/start/{start}/end/{end}")]
 async fn api_offers(
     path: web::Path<(String, String, String)>,
     query: web::Query<OffersQuery>,
@@ -63,10 +63,7 @@ struct StackQuery {
 
 /// Get DA or RT stack for a list of timestamps (seconds from epoch)
 #[get("/isone/energy_offers/{market}/stack")]
-async fn api_stack(
-    path: web::Path<String>,
-    query: web::Query<StackQuery>,
-) -> impl Responder {
+async fn api_stack(path: web::Path<String>, query: web::Query<StackQuery>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(), config).unwrap();
 
@@ -167,7 +164,7 @@ SELECT
     Price,
 FROM {:?}_offers
 WHERE HourBeginning >= '{}'
-AND HourBeginning <= '{}'
+AND HourBeginning < '{}'
 {}
 ORDER BY "MaskedAssetId", "HourBeginning";    
     "#,
@@ -298,8 +295,11 @@ fn get_path() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::{env, path::Path};
+
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
+    use serde_json::Value;
 
     use crate::api::isone::energy_offers::*;
 
@@ -388,6 +388,22 @@ mod tests {
             }
         );
         assert_eq!(xs.len(), 1566);
+        Ok(())
+    }
+
+    #[test]
+    fn api_energy_offers() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let url = format!(
+            "{}/isone/energy_offers/da/start/2024-01-01/end/2024-01-02?masked_asset_ids=77459",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        let response = reqwest::blocking::get(url)?.text()?;
+        let v: Value = serde_json::from_str(&response).unwrap();
+        match v {
+            Value::Array(xs) => assert!(xs.len() == 192),
+            _ => panic!("Oops, wrong state"),
+        };
         Ok(())
     }
 }

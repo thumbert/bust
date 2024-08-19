@@ -13,7 +13,9 @@ pub mod api;
 // use crate::
 
 
-mod tests;
+pub mod tests;
+
+
 
 use chrono::prelude::*;
 use chrono::Datelike;

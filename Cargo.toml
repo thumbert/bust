@@ -8,10 +8,12 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 cargo-watch = "8.5.2"
-chrono = "0.4.37"
+chrono = "0.4.38"
 chrono-tz = "0.9.0"
 clap = { version = "4.5.4", features = ["derive"] }
 csv = "1.3"
+dotenvy = "0.15.7"
+dotenvy_macro = "0.15.7"
 duckdb = { version = "1.0.0", features = ["bundled", "r2d2"] }
 env_logger = "0.11.3"
 futures = "0.3.28"
@@ -24,9 +26,10 @@ pest_derive = "2.7.9"
 plotly = "0.9.0"
 r2d2 = "0.8.10"
 # r2d2-duckdb = "0.1.0"
-reqwest = {version="0.12.5", features = ["blocking"]}
+reqwest = {version="0.12", features = ["json", "blocking"]}
 serde = {version="1.0.188", features = ["derive"]}
 serde_json = "1.0"
+time = "0.3.36"
 tokio = {version = "1.32.0", features = ["full"]}
 winnow = "0.6.6"
 
@@ -41,3 +44,4 @@ path = "examples/duckdb/main.rs"
 [[example]]
 name = "inheritance"
 path = "examples/learn/inheritance.rs"
+

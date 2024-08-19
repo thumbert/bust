@@ -31,7 +31,7 @@ impl SevendayForecastArchive {
             let url = "https://webservices.iso-ne.com/api/v1.1/sevendayforecast/day/".to_string()
                 + &yyyymmdd
                 + "/all";
-            println!("url:{}", url);    
+            // println!("url:{}", url);    
             let response = client
                 .get(url)
                 .basic_auth(&user_name, Some(&password))
