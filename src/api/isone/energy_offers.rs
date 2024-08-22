@@ -55,28 +55,24 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-#[derive(Debug, Deserialize)]
-struct StackQuery {
-    /// One or more timestamps (seconds from epoch), separated by commas
-    timestamps: String,
-}
 
 /// Get DA or RT stack for a list of timestamps (seconds from epoch)
-#[get("/isone/energy_offers/{market}/stack")]
-async fn api_stack(path: web::Path<String>, query: web::Query<StackQuery>) -> impl Responder {
+#[get("/isone/energy_offers/{market}/stack/timestamps/{timestamps}")]
+async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(), config).unwrap();
 
-    let market: Market = match path.parse() {
+    let market: Market = match path.0.parse() {
         Ok(v) => v,
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };
 
-    let timestamps = match query
-        .timestamps
+    let timestamps = match path
+        .1
         .split(',')
         .map(|n| {
-            n.parse::<i64>()
+            n.trim()
+                .parse::<i64>()
                 .map_err(|_| format!("Failed to parse {} to an integer", n))
                 .and_then(|e| Timestamp::from_second(e).map_err(|e| e.to_string()))
         })
@@ -86,7 +82,7 @@ async fn api_stack(path: web::Path<String>, query: web::Query<StackQuery>) -> im
         Err(_) => {
             return HttpResponse::BadRequest().body(format!(
                 "Unable to parse {} to a list of timestamps",
-                query.timestamps
+                path.1
             ))
         }
     };
@@ -393,17 +389,32 @@ mod tests {
 
     #[test]
     fn api_energy_offers() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        dotenvy::from_path(Path::new(".env")).unwrap();
         let url = format!(
             "{}/isone/energy_offers/da/start/2024-01-01/end/2024-01-02?masked_asset_ids=77459",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Value = serde_json::from_str(&response).unwrap();
-        match v {
-            Value::Array(xs) => assert!(xs.len() == 192),
-            _ => panic!("Oops, wrong state"),
-        };
+        if let Value::Array(xs) = v {
+            assert_eq!(xs.len(), 192);
+        }
         Ok(())
     }
+
+    #[test]
+    fn api_stack() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env")).unwrap();
+        let url = format!(
+            "{}/isone/energy_offers/da/stack/timestamps/1709269200",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        let response = reqwest::blocking::get(url)?.text()?;
+        let v: Value = serde_json::from_str(&response).unwrap();
+        if let Value::Array(xs) = v {
+            assert_eq!(xs.len(), 780);
+        }
+        Ok(())
+    }
+
 }

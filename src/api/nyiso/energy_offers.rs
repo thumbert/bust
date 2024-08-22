@@ -1,16 +1,12 @@
 use core::fmt;
-use std::{fmt::{Debug, Display}, str::FromStr};
+use std::{fmt::Debug, str::FromStr};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
-use jiff::{
-    civil::Date,
-    ToSpan,
-};
+use jiff::{civil::Date, Timestamp, ToSpan};
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -44,13 +40,55 @@ async fn api_offers(
             return HttpResponse::BadRequest().body(format!("Unable to parse {} as a date", path.1))
         }
     };
-    let asset_ids: Option<Vec<i32>> = query
-        .masked_asset_ids
-        .as_ref()
-        .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
+    let asset_ids: Option<Vec<i32>> = query.masked_asset_ids.as_ref().map(|ids| {
+        ids.split(',')
+            .map(|e| e.trim().parse::<i32>().unwrap())
+            .collect()
+    });
 
     let offers = get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
+}
+
+#[derive(Debug, Deserialize)]
+struct StackQuery {
+    /// One or more timestamps (seconds from epoch), separated by commas
+    timestamps: String,
+}
+
+/// Get DAM or HAM stack for a list of timestamps (seconds from epoch)
+#[get("/nyiso/energy_offers/{market}/stack/timestamps/{timestamps}")]
+async fn api_stack(path: web::Path<(String,String)>) -> impl Responder {
+    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
+    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+
+    let market: Market = match path.0.parse() {
+        Ok(v) => v,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
+
+    let timestamps = match path.1
+        .split(',')
+        .map(|n| {
+            n.trim()
+                .parse::<i64>()
+                .map_err(|_| format!("Failed to parse {} to an integer", n))
+                .and_then(|e| Timestamp::from_second(e).map_err(|e| e.to_string()))
+        })
+        .collect::<Result<Vec<Timestamp>, _>>()
+    {
+        Ok(v) => v,
+        Err(_) => {
+            return HttpResponse::BadRequest().body(format!(
+                "Unable to parse {} to a list of timestamps",
+                path.1
+            ))
+        }
+    };
+    match get_stack(&conn, market, timestamps) {
+        Ok(offers) => HttpResponse::Ok().json(offers),
+        Err(_) => HttpResponse::BadRequest().body("Error executing the query"),
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -66,7 +104,6 @@ pub struct EnergyOffer {
 pub enum Market {
     Dam,
     Ham,
-    Rtm,
 }
 
 impl fmt::Display for Market {
@@ -80,18 +117,16 @@ impl FromStr for Market {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_uppercase().as_str() {
-            "DA" | "DAM" => Ok(Market::Dam),
-            "HAM" => Ok(Market::Ham),
-            "RT" | "RTM" => Ok(Market::Rtm),
+            "DAM" | "DA" => Ok(Market::Dam),
+            "HAM" | "RT" | "RTM" => Ok(Market::Ham),
             _ => Err(format!("Can't parse market: {}", s)),
         }
     }
 }
 
-
 // Get the masked unit ids between a [start, end] date
 pub fn get_unit_ids(conn: &Connection, start: Date, end: Date) -> Vec<u32> {
-    let mut query = String::from("SELECT DISTINCT \"Masked Gen ID\" from da_offers ");
+    let mut query = String::from("SELECT DISTINCT \"Masked Gen ID\" from offers ");
     query.push_str(&format!("WHERE \"Date Time\" >= '{}' ", start));
     query.push_str(&format!(
         "AND \"Date Time\" < '{}' ",
@@ -148,7 +183,7 @@ WITH unpivot_alias AS (
             ROUND("Dispatch MW10" - "Dispatch MW9", 1) AS MW10, 
             ROUND("Dispatch MW11" - "Dispatch MW10", 1) AS MW11, 
             ROUND("Dispatch MW12" - "Dispatch MW11", 1) AS MW12,  
-        FROM da_offers
+        FROM offers
         WHERE "Date Time" >= '{}'
         AND "Date Time" < '{}'
         {}
@@ -191,7 +226,7 @@ ORDER BY "Masked Gen ID", "Date Time", "Price";
             Some(ids) => format!("AND \"Masked Gen ID\" in ({}) ", ids.iter().join(", ")),
             None => "".to_string(),
         },
-        market.to_string().to_uppercase(),    
+        market.to_string().to_uppercase(),
     );
     // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
@@ -213,10 +248,11 @@ ORDER BY "Masked Gen ID", "Date Time", "Price";
 /// Construct the stack
 pub fn get_stack(
     conn: &Connection,
-    start: Date,
-    end: Date,
+    market: Market,
+    timestamps: Vec<Timestamp>,
 ) -> Result<Vec<EnergyOffer>> {
-    let query = format!(r#"
+    let query = format!(
+        r#"
         WITH unpivot_alias AS (
             UNPIVOT (
                 SELECT "Masked Gen ID", "Date Time", 
@@ -244,13 +280,9 @@ pub fn get_stack(
                     ROUND("Dispatch MW10" - "Dispatch MW9", 1) AS MW10, 
                     ROUND("Dispatch MW11" - "Dispatch MW10", 1) AS MW11, 
                     ROUND("Dispatch MW12" - "Dispatch MW11", 1) AS MW12,  
-                FROM da_offers
-                WHERE "Date Time" >= '{}'
-                AND "Date Time" < '{}'
-
-                WHERE "Date Time" >= '2024-03-01 00:00:00-05:00'
-                AND "Date Time" < '2024-03-01 23:00:00-05:00'
-                AND "Market" == 'DAM'
+                FROM offers
+                WHERE "Market" == '{}'
+                {}
             )
             ON  ("MW1", "Dispatch $/MW1") AS "0", 
                 ("MW2", "Dispatch $/MW2") AS "1", 
@@ -284,18 +316,30 @@ pub fn get_stack(
         )
         ORDER BY "Date Time", "Idx";
     "#,
-        start
-            .intz("America/New_York")
-            .unwrap()
-            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
-        end.intz("America/New_York")
-            .unwrap()
-            .checked_add(1.day())
-            .ok()
-            .unwrap()
-            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        market.to_string().to_uppercase(),
+        match timestamps.len() {
+            1 => format!(
+                r#"AND "Date Time" == '{}' "#,
+                timestamps
+                    .first()
+                    .unwrap()
+                    .intz("America/New_York")
+                    .unwrap()
+                    .strftime("%Y-%m-%d %H:%M:%S.000%:z")
+            ),
+            _ => format!(
+                r#"AND "Date Time" in ('{}')"#,
+                timestamps
+                    .iter()
+                    .map(|e| e
+                        .intz("America/New_York")
+                        .unwrap()
+                        .strftime("%Y-%m-%d %H:%M:%S.000%:z"))
+                    .join("', '")
+            ),
+        }
     );
-    // println!("{}", query);
+    println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
     let offers_iter = stmt.query_map([], |row| {
         let micro: i64 = row.get(1).unwrap();
@@ -312,11 +356,9 @@ pub fn get_stack(
     Ok(offers)
 }
 
-
 fn get_path() -> String {
     "/home/adrian/Downloads/Archive/Nyiso/nyiso_energy_offers.duckdb".to_string()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -375,10 +417,36 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn test_get_stack() -> Result<()> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let xs = get_stack(
+            &conn,
+            Market::Dam,
+            vec!["2024-03-01 00:00:00-05".parse().unwrap()],
+        )
+        .unwrap();
+        conn.close().unwrap();
+        let x0 = xs.iter().find(|&x| x.masked_asset_id == 37796180).unwrap();
+        // println!("{:?}", x0);
+        assert_eq!(
+            *x0,
+            EnergyOffer {
+                masked_asset_id: 37796180,
+                timestamp_s: 1709269200,
+                segment: 0,
+                quantity: 50.0,
+                price: -999.0,
+            }
+        );
+        assert_eq!(xs.len(), 766);
+        Ok(())
+    }
 
     #[test]
     fn api_energy_offers() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        dotenvy::from_path(Path::new(".env")).unwrap();
         let url = format!(
             "{}/nyiso/energy_offers/dam/start/2024-01-01/end/2024-01-02?masked_asset_ids=35537750",
             env::var("RUST_SERVER").unwrap(),
@@ -386,11 +454,25 @@ mod tests {
         println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Value = serde_json::from_str(&response).unwrap();
-        match v {
-            Value::Array(xs) => assert_eq!(xs.len(), 336),
-            _ => panic!("Oops, wrong state"),
-        };
+        if let Value::Array(xs) = v {
+            assert_eq!(xs.len(), 336);
+        }
         Ok(())
     }
 
+    #[test]
+    fn api_stack() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env")).unwrap();
+        let url = format!(
+            "{}/nyiso/energy_offers/dam/stack/timestamps/1709269200",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        println!("{}", url);
+        let response = reqwest::blocking::get(url)?.text()?;
+        let v: Value = serde_json::from_str(&response).unwrap();
+        if let Value::Array(xs) = v {
+            assert_eq!(xs.len(), 766);
+        }
+        Ok(())
+    }
 }

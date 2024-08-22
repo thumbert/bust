@@ -186,7 +186,7 @@ AND month <= {};
 
 fn get_participant_ids(conn: Connection) -> Vec<i64> {
     let mut stmt = conn
-        .prepare("SELECT DISTINCT maskedParticipantId from mra")
+        .prepare("SELECT DISTINCT maskedParticipantId from bids_offers")
         .unwrap();
     let mut rows = stmt.query([]).unwrap();
     let mut ids: Vec<i64> = Vec::new();

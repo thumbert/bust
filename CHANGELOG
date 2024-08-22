@@ -3,6 +3,11 @@ TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
 
+
+## 2024-08-22
+- Move to only one .env file
+- Clean nyiso energy offers endpoints
+
 ## 2024-08-19
 - Cleanup and more tests for the energy offers
 
