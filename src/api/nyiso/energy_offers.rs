@@ -50,11 +50,6 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-#[derive(Debug, Deserialize)]
-struct StackQuery {
-    /// One or more timestamps (seconds from epoch), separated by commas
-    timestamps: String,
-}
 
 /// Get DAM or HAM stack for a list of timestamps (seconds from epoch)
 #[get("/nyiso/energy_offers/{market}/stack/timestamps/{timestamps}")]
@@ -300,21 +295,13 @@ pub fn get_stack(
                 NAME Segment
                 VALUE MW, Price
         )
-        SELECT *, 
-            ROUND(SUM("MW") OVER (PARTITION BY "Date Time" ORDER BY "Idx"), 1) AS "cum_MW"   
-        FROM (
-            SELECT *,
-                row_number() OVER (PARTITION BY "Date Time") AS "Idx",
-            FROM (
-                SELECT "Masked Gen ID", 
-                    "Date Time", 
-                    CAST("Segment" as UTINYINT) AS Segment, 
-                    "MW", "Price", 
-                FROM unpivot_alias
-                ORDER BY "Date Time" ASC, Price ASC
-            )
-        )
-        ORDER BY "Date Time", "Idx";
+        SELECT "Masked Gen ID", 
+            "Date Time", 
+            CAST("Segment" as UTINYINT) AS Segment, 
+            "MW", "Price", 
+        FROM unpivot_alias
+        WHERE MW > 0
+        ORDER BY "Masked Gen ID", "Date Time", "Price";    
     "#,
         market.to_string().to_uppercase(),
         match timestamps.len() {
@@ -440,7 +427,7 @@ mod tests {
                 price: -999.0,
             }
         );
-        assert_eq!(xs.len(), 766);
+        assert_eq!(xs.len(), 751);
         Ok(())
     }
 
@@ -467,11 +454,11 @@ mod tests {
             "{}/nyiso/energy_offers/dam/stack/timestamps/1709269200",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
+        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Value = serde_json::from_str(&response).unwrap();
         if let Value::Array(xs) = v {
-            assert_eq!(xs.len(), 766);
+            assert_eq!(xs.len(), 751);
         }
         Ok(())
     }

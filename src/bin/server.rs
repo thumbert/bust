@@ -1,12 +1,8 @@
 use actix_web::middleware::{self, Logger};
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use bust::api::{isone, nyiso};
 use clap::Parser;
 use env_logger::Env;
-use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-// use serde_json::Result;
 
 // extern crate r2d2;
 // extern crate r2d2_duckdb;

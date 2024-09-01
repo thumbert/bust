@@ -212,7 +212,8 @@ ORDER BY "MaskedAssetId", "HourBeginning";
 
 /// Get the energy offers for the units that are available, for one timestamp
 /// (or more), sorted by timestamp and price
-///
+/// Don't return the Unavailable units.
+/// 
 pub fn get_stack(
     conn: &Connection,
     market: Market,

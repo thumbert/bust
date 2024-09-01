@@ -202,25 +202,11 @@ fn get_path() -> String {
 
 #[cfg(test)]
 mod tests {
-    use core::panic;
 
     use duckdb::{
-        arrow::array::AnyDictionaryArray, types::Value, AccessMode, Config, Connection, Result,
+        AccessMode, Config, Connection, Result,
     };
-
     use crate::api::isone::capacity::monthly_capacity_results::*;
-
-    #[derive(Debug)]
-    enum State {
-        CA,
-        NY,
-    }
-
-    #[derive(Debug)]
-    struct Data {
-        state: State,
-        value: i32,
-    }
 
     #[test]
     fn test_get_results_zone() -> Result<()> {
