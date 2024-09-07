@@ -1,6 +1,6 @@
 use actix_web::middleware::{self, Logger};
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{isone, nyiso};
+use bust::api::{epa, isone, nyiso};
 use clap::Parser;
 use env_logger::Env;
 
@@ -25,8 +25,6 @@ struct Args {
     port: u16,
 }
 
-
-
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!  This is a Rust server.")
@@ -47,6 +45,10 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Compress::default())
             // .app_data(Data::new(pool.clone()))
             .service(hello)
+            // EPA
+            .service(epa::hourly_emissions::all_facilities)
+            .service(epa::hourly_emissions::all_columns)
+            .service(epa::hourly_emissions::api_data)
             // ISONE
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)
@@ -62,16 +64,6 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
-
-
-
-
-
-
-
-
-
-
 
 // lazy_static! {
 //     static ref PERSONS: Vec<Person> = vec![
@@ -118,13 +110,10 @@ async fn main() -> std::io::Result<()> {
 // /// Example of a query with parameters
 // /// http://127.0.0.1:8111/person?name=Taylor
 // /// http://127.0.0.1:8111/person?age=42
-// /// http://127.0.0.1:8111/person?age=37|42               <-- special separator 
+// /// http://127.0.0.1:8111/person?age=37|42               <-- special separator
 // /// http://127.0.0.1:8111/person?name=Bob&age=82         <-- multiple filters
-// /// 
+// ///
 // #[get("/person")]
 // async fn query_person(query: web::Query<PersonQuery>) -> String {
 //     format!("Person query name: {:?}, age: {:?}", query.name, query.age)
 // }
-
-
-
