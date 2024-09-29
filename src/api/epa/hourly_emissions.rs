@@ -12,7 +12,7 @@ use jiff::{civil::Date, ToSpan};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-#[get("/epa/state/{state}/all_facilities")]
+#[get("/epa/emissions/state/{state}/all_facilities")]
 async fn all_facilities(path: web::Path<String>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(path.to_string()), config).unwrap();
@@ -20,7 +20,7 @@ async fn all_facilities(path: web::Path<String>) -> impl Responder {
     HttpResponse::Ok().json(names.unwrap())
 }
 
-#[get("/epa/state/{state}/all_columns")]
+#[get("/epa/emissions/state/{state}/all_columns")]
 async fn all_columns(path: web::Path<String>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(path.to_string()), config).unwrap();
@@ -30,7 +30,7 @@ async fn all_columns(path: web::Path<String>) -> impl Responder {
 
 /// Get generation data between a start/end date for some units as specified in the query
 /// http://127.0.0.1:8111/epa/state/ma/start/2023-01-01/end/2023-01-01?names=Mystic&columns=Facility%20Name|Unit%20ID|Date|Hour|Gross%20Load%20(MW)
-#[get("/epa/state/{state}/start/{start}/end/{end}")]
+#[get("/epa/emissions/state/{state}/start/{start}/end/{end}")]
 async fn api_data(
     path: web::Path<(String, Date, Date)>,
     query: web::Query<DataQuery>,
@@ -320,9 +320,9 @@ mod tests {
 
     #[test]
     fn api_all_facilities() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/state/ma/all_facilities",
+            "{}/epa/emissions/state/ma/all_facilities",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
@@ -336,9 +336,9 @@ mod tests {
 
     #[test]
     fn api_all_columns() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/state/ma/all_columns",
+            "{}/epa/emissions/state/ma/all_columns",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
@@ -353,9 +353,9 @@ mod tests {
 
     #[test]
     fn api_data() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/state/ma/start/2023-01-01/end/2023-01-06?facility_names=Mystic&columns=Facility Name|Unit ID|Date|Hour|Gross Load (MW)&non_null_generation_only=true",
+            "{}/epa/emissions/state/ma/start/2023-01-01/end/2023-01-06?facility_names=Mystic&columns=Facility Name|Unit ID|Date|Hour|Gross Load (MW)&non_null_generation_only=true",
             env::var("RUST_SERVER").unwrap(),
         );
         println!("{}", url);

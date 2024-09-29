@@ -433,7 +433,7 @@ mod tests {
 
     #[test]
     fn api_energy_offers() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
             "{}/nyiso/energy_offers/dam/start/2024-01-01/end/2024-01-02?masked_asset_ids=35537750",
             env::var("RUST_SERVER").unwrap(),
@@ -449,7 +449,7 @@ mod tests {
 
     #[test]
     fn api_stack() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
             "{}/nyiso/energy_offers/dam/stack/timestamps/1709269200",
             env::var("RUST_SERVER").unwrap(),

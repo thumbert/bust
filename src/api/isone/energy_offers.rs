@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn api_energy_offers() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
             "{}/isone/energy_offers/da/start/2024-01-01/end/2024-01-02?masked_asset_ids=77459",
             env::var("RUST_SERVER").unwrap(),
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn api_stack() -> Result<(), reqwest::Error> {
-        dotenvy::from_path(Path::new(".env")).unwrap();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
             "{}/isone/energy_offers/da/stack/timestamps/1709269200",
             env::var("RUST_SERVER").unwrap(),
