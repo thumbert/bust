@@ -2,7 +2,7 @@ use chrono::offset::LocalResult;
 use chrono::{DateTime, Datelike, TimeZone, Timelike};
 use chrono_tz::Tz;
 use std::fmt;
-use std::fmt::{Debug, Formatter, Write};
+use std::fmt::{Debug, Formatter};
 
 use super::IntervalLike;
 

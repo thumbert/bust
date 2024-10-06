@@ -1,7 +1,9 @@
 pub mod bucket;
+pub mod elec;
 pub mod holiday;
 pub mod interval;
 pub mod timeseries;
+
 
 
 // pub mod db; //capacity/bids_offers/monthly_auction; //monthly_capacity_auction_archive;
