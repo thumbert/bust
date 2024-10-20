@@ -23,7 +23,7 @@ impl MisReport {
             .collect();
         parts.reverse();
         println!("{:?}", parts);
-        let zdt = Zoned::strptime("%Y%m%d%H%M%S%Z", format!("{}Z",parts[0]));
+        let zdt = Zoned::strptime("%Y%m%d%H%M%S%Z", format!("{}Z", parts[0]));
         println!("{:?}", zdt);
         let timestamp = parts[0].parse::<Timestamp>().unwrap();
         let report_date = parts[1].to_string()[..10].parse::<Date>().unwrap();
@@ -50,6 +50,7 @@ mod tests {
     fn from_filename() -> Result<(), Box<dyn Error>> {
         let filename = "SD_RTLOAD_000000003_2017060100_20190205151707.CSV";
         let report = MisReport::from_filename(filename);
+        assert_eq!(report.report_name, "SD_RTLOAD".to_string());
         assert_eq!(report.account_id, 3);
         assert_eq!(report.report_date, "2017-06-01".parse::<Date>()?);
         assert_eq!(
