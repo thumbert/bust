@@ -2,11 +2,11 @@ use std::{fs::File, path::Path};
 
 use jiff::{civil::{Date, Time}, Timestamp, Zoned};
 
-struct MisReport {
-    report_name: String,
-    account_id: usize,
-    report_date: Date,
-    timestamp: Timestamp,
+pub struct MisReport {
+    pub report_name: String,
+    pub account_id: usize,
+    pub report_date: Date,
+    pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ struct MisReportError;
 impl MisReport {
     /// Parse a filename to return an MisReport.
     /// SD_RTLOAD_000000003_2017060100_20190205151707.CSV
-    fn from_filename(filename: &str) -> MisReport {
+    pub fn from_filename(filename: &str) -> MisReport {
         let path = Path::new(filename);
         let mut parts: Vec<&str> = path
             .file_stem()
@@ -54,9 +54,9 @@ impl MisReport {
 mod tests {
     use std::error::Error;
 
-    use jiff::civil::Date;
+    use jiff::{civil::Date, Timestamp};
 
-    use crate::isone::mis::lib_mis::*;
+    use crate::db::isone::mis::lib_mis::MisReport;
 
     #[test]
     fn from_filename() -> Result<(), Box<dyn Error>> {

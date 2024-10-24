@@ -1,20 +1,24 @@
 use std::str::FromStr;
 
 use super::IntervalLike;
-use super::{month::Month, Interval};
+use super::{month_tz::MonthTz, Interval};
 use chrono::TimeZone;
 use chrono_tz::Tz;
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use thiserror::Error;
 
 #[derive(Parser)]
 #[grammar = "grammars/term.pest"]
 pub struct TermParser;
 
-#[derive(Debug)]
-pub struct ParseError(String);
+
+#[derive(Error, Debug)]
+#[error("{0}")]
+pub struct ParseError(pub String);
+
 
 #[derive(Debug, PartialEq)]
 pub enum TermType {
@@ -56,7 +60,7 @@ pub enum TokenType {
     Month((i32, u32)),
 }
 
-impl FromStr for Month {
+impl FromStr for MonthTz {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -68,7 +72,7 @@ impl FromStr for Month {
         if month > 12 {
             return Err(ParseError(format!("Month of year {} > 12", month)));
         }
-        Ok(Month::new(year, month, Tz::UTC).unwrap())
+        Ok(MonthTz::new(year, month, Tz::UTC).unwrap())
     }
 }
 
@@ -82,7 +86,7 @@ impl FromStr for Interval {
                 TermType::DayRange => todo!(),
                 TermType::Month(year, month) => {
                     let start = Tz::UTC.with_ymd_and_hms(year, month, 1, 0, 0, 0).unwrap();
-                    let month = Month::containing(start);
+                    let month = MonthTz::containing(start);
                     Interval {
                         start,
                         end: month.end(),
@@ -91,7 +95,7 @@ impl FromStr for Interval {
                 TermType::MonthRange(p1, p2) => {
                     let start = Tz::UTC.with_ymd_and_hms(p1.0, p1.1, 1, 0, 0, 0).unwrap();
                     let dt2 = Tz::UTC.with_ymd_and_hms(p2.0, p2.1, 1, 0, 0, 0).unwrap();
-                    let month = Month::containing(dt2);
+                    let month = MonthTz::containing(dt2);
                     let end = month.end();
                     // if end < start {
                     //     return 
@@ -388,7 +392,7 @@ mod tests {
     use chrono_tz::Tz;
     use pest::Parser;
 
-    use crate::interval::{month::Month, term::*};
+    use crate::interval::{month_tz::MonthTz, term::*};
 
     #[test]
     fn test_interval_from_str() {
@@ -482,8 +486,8 @@ mod tests {
         //     parse_month("Apr24").ok().unwrap(), (2024, 4)
         // );
         assert_eq!(
-            "Apr24".parse::<Month>().unwrap(),
-            Month::new(2024, 4, Tz::UTC).unwrap()
+            "Apr24".parse::<MonthTz>().unwrap(),
+            MonthTz::new(2024, 4, Tz::UTC).unwrap()
         );
         // assert_eq!(
         //     parse_month("J24", Tz::UTC).unwrap(),

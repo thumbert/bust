@@ -1,166 +1,205 @@
-use chrono::offset::LocalResult;
-use chrono::{DateTime, Datelike, TimeZone, Timelike};
-use chrono_tz::Tz;
-use std::fmt;
+use jiff::{
+    civil::{self as jc, date, datetime},
+    ToSpan,
+};
+// use pest::error::Error;
+use pest::{iterators::Pair, Parser};
 use std::fmt::{Debug, Formatter};
 
-use super::IntervalLike;
+use std::{error::Error, fmt, str::FromStr};
 
-#[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
+use super::term::{ParseError, Rule, TermParser, TermType};
+
 pub struct Month {
-    start: DateTime<Tz>,
+    start_datetime: jc::DateTime,
 }
 
 impl Month {
-    pub fn new(year: i32, month: u32, tz: Tz) -> Option<Month> {
-        let start = tz.with_ymd_and_hms(year, month, 1, 0, 0, 0);
-        match start {
-            LocalResult::Single(start) => Some(Month { start }),
-            LocalResult::Ambiguous(_, _) => panic!("Wrong inputs!"),
-            LocalResult::None => None,
+    pub fn containing(datetime: jc::DateTime) -> Month {
+        Month {
+            start_datetime: jc::datetime(datetime.year(), datetime.month(), 1, 0, 0, 0, 0),
         }
     }
 
-    pub fn from_int(yyyymm: u32, tz: Tz) -> Option<Month> {
-        let year = i32::try_from( yyyymm / 100).unwrap();
-        let month = yyyymm % 100;
-        let start = tz.with_ymd_and_hms(year, month, 1, 0, 0, 0);
-        match start {
-            LocalResult::Single(start) => Some(Month { start }),
-            LocalResult::Ambiguous(_, _) => panic!("Wrong inputs!"),
-            LocalResult::None => None,
-        }
+    pub fn start(&self) -> jc::DateTime {
+        self.start_datetime
     }
 
-    /// Return the hour that contains this datetime.
-    pub fn containing(dt: DateTime<Tz>) -> Month {
-        let start = dt
-            .with_day(1)
-            .unwrap()
-            .with_hour(0)
-            .unwrap()
-            .with_minute(0)
-            .unwrap()
-            .with_second(0)
-            .unwrap();
-        Month { start }
+    pub fn end(&self) -> jc::DateTime {
+        self.start_datetime.saturating_add(1.month())
     }
 
-    pub fn year(&self) -> i32 {
-        self.start.year()
+    pub fn start_date(&self) -> jc::Date {
+        date(self.start_datetime.year(), self.start_datetime.month(), 1)
     }
 
-    pub fn month(&self) -> u32 {
-        self.start.month()
+    pub fn end_date(&self) -> jc::Date {
+        date(self.start_datetime.year(), self.start_datetime.month(), 1).last_of_month()
     }
 
-    pub fn next(&self) -> Month {
-        Month { start: self.end() }
-    }
-
-    pub fn day_count(&self) -> usize {
-        usize::try_from(
-            self.next()
-                .start
-                .signed_duration_since(self.start)
-                .num_days(),
-        )
-        .unwrap()
-    }
-
-    pub fn hour_count(&self) -> usize {
-        usize::try_from(
-            self.next()
-                .start
-                .signed_duration_since(self.start)
-                .num_hours(),
-        )
-        .unwrap()
-    }
-}
-
-impl IntervalLike for Month {
-    fn start(&self) -> DateTime<Tz> {
-        self.start
-    }
-
-    fn end(&self) -> DateTime<Tz> {
-        let month = self.start.month();
-        if month < 12 {
-            self.start.with_month(month + 1).unwrap()
-        } else {
-            self.start
-                .with_year(self.start.year() + 1)
-                .unwrap()
-                .with_month(1)
-                .unwrap()
-        }
+    pub fn days(&self) -> Vec<jc::Date> {
+        let end = self.end_date();
+        self.start_date().series(1.day()).take_while(|e| e < &end).collect()
     }
 }
 
 impl fmt::Display for Month {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.start.format("%Y-%m").to_string())
+        f.write_str(&self.start_datetime.strftime("%Y-%m").to_string())
     }
 }
 
+impl FromStr for Month {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match parse_month(s) {
+            Ok(month) => Ok(month),
+            Err(_) => Err(ParseError(format!("Failed parsing {} as a month", s))),
+        }
+    }
+}
+
+/// Parse various formats for a month:
+/// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"
+fn parse_month(input: &str) -> Result<Month, Box<dyn Error>> {
+    let token = TermParser::parse(Rule::month, input)?.next().unwrap();
+    let record = token.into_inner().next().unwrap();
+    match record.as_rule() {
+        Rule::month_iso => process_month_iso(record), // "2023-04"
+        // Rule::month_txt => process_month_txt(record),  // "Apr23", "APR23", "April2023"
+        // Rule::month_abb => process_month_abb(record),  // "J23"
+        // Rule::month_us => process_month_us(record),    // "4/2023", "4/23"
+        _ => unreachable!(),
+    }
+}
+
+/// Parse "2023-03" like strings.  It will parse Ok() even strings
+/// that are not real months, e.g. "2023-15".  
+fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
+    let v: Vec<_> = token.as_str().split('-').collect();
+    // println!("v={:?}", v);
+    let year = v[0].parse::<i16>().unwrap();
+    let m = v[1].parse::<i8>().unwrap();
+    let dt = jc::Date::new(year, m, 1)?;
+    Ok(Month {
+        start_datetime: dt.at(0, 0, 0, 0),
+    })
+}
+
+/// Parse "Apr23" or "August2024" like strings.
+/// - month > month_txt
+///   - mon > feb: "Feb"
+///   - yy: "23"
+// fn process_month_txt(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     let mut record = token.into_inner().into_iter();
+//     let m = match record
+//         .next()
+//         .unwrap()
+//         .into_inner()
+//         .next()
+//         .unwrap()
+//         .as_rule()
+//     {
+//         Rule::jan => 1,
+//         Rule::feb => 2,
+//         Rule::mar => 3,
+//         Rule::apr => 4,
+//         Rule::may => 5,
+//         Rule::jun => 6,
+//         Rule::jul => 7,
+//         Rule::aug => 8,
+//         Rule::sep => 9,
+//         Rule::oct => 10,
+//         Rule::nov => 11,
+//         Rule::dec => 12,
+//         _ => unreachable!(),
+//     };
+//     let year = match record.next() {
+//         Some(y) => match y.as_rule() {
+//             Rule::year => y.as_str().parse::<i32>().unwrap(),
+//             Rule::yy => y.as_str().parse::<i32>().unwrap() + 2000, // no more 1900!
+//             _ => unreachable!(),
+//         },
+//         None => unreachable!(),
+//     };
+//     Ok(TermType::Month(year, m))
+// }
+
+/// Parse "Z23" like strings.
+/// - month > month_abb
+///   - abb: "Z"
+///   - yy: "23"
+// fn process_month_abb(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     if token.as_rule() != Rule::month_abb {
+//         panic!("Expecting Rule::abb, got {:?}", token.as_rule());
+//     }
+//     let m = match token.as_str().chars().next().unwrap() {
+//         'F' => 1,
+//         'G' => 2,
+//         'H' => 3,
+//         'J' => 4,
+//         'K' => 5,
+//         'M' => 6,
+//         'N' => 7,
+//         'Q' => 8,
+//         'U' => 9,
+//         'V' => 10,
+//         'X' => 11,
+//         'Z' => 12,
+//         _ => unreachable!(),
+//     };
+//     let mut record = token.into_inner();
+
+//     let year = match record.next() {
+//         Some(y) => match y.as_rule() {
+//             Rule::year => y.as_str().parse::<i32>().unwrap(),
+//             Rule::yy => y.as_str().parse::<i32>().unwrap() + 2000, // no more 1900!
+//             _ => unreachable!(),
+//         },
+//         None => unreachable!(),
+//     };
+//     Ok(TermType::Month(year, m))
+// }
+
+/// Parse "4/28", "04/2028", etc.  This parser will fail on incorrect months, e.g. "15/2028".
+// fn process_month_us(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     if token.as_rule() != Rule::month_us {
+//         panic!("Expecting Rule::month_us, got {:?}", token.as_rule());
+//     }
+//     let v: Vec<_> = token.as_str().split('/').collect();
+//     // println!("v={:?}", v);
+//     let m = v[0].parse::<u32>().unwrap();
+//     let mut record = token.into_inner();
+
+//     let year = match record.next() {
+//         Some(y) => match y.as_rule() {
+//             Rule::year => y.as_str().parse::<i32>().unwrap(),
+//             Rule::yy => y.as_str().parse::<i32>().unwrap() + 2000, // no more 1900!
+//             _ => unreachable!(),
+//         },
+//         None => unreachable!(),
+//     };
+//     Ok(TermType::Month(year, m))
+// }
+
 #[cfg(test)]
 mod tests {
-    use crate::interval::{month::Month, IntervalLike};
-    use chrono::{Datelike, Duration, TimeZone, Timelike};
-    use chrono_tz::{America::New_York, Tz};
+    use std::error::Error;
+
+    use jiff::civil::DateTime;
+
+    use super::Month;
 
     #[test]
-    fn test_month_utc() {
-        let dt = Tz::UTC.with_ymd_and_hms(2022, 4, 15, 3, 15, 20).unwrap();
-        let month = Month::containing(dt);
-        assert_eq!(month.start.hour(), 0);
-        assert_eq!(month.start.day(), 1);
-        assert_eq!(month.start.month(), 4);
-        // println!("{:?}", month.next());
-        assert_eq!(
-            month.next(),
-            Month {
-                start: Tz::UTC.with_ymd_and_hms(2022, 5, 1, 0, 0, 0).unwrap()
-            }
-        );
-        assert!(month.contains(dt));
-        assert!(!month.contains(dt + Duration::days(31)));
-        // assert_eq!(format!("{}", month), "2022-04Z");
-    }
-
-    #[test]
-    fn test_month_ny() {
-        let month = Month::new(2024, 3, New_York).unwrap();
-        assert_eq!(month.year(), 2024);
-        assert_eq!(month.month(), 3);
+    fn test_month() -> Result<(), Box<dyn Error>> {
+        let month = Month::containing("2024-03-15".parse::<DateTime>()?);
+        assert_eq!(month.start(), "2024-03-01".parse::<DateTime>()?);
+        assert_eq!(month.end(), "2024-04-01".parse::<DateTime>()?);
         assert_eq!(format!("{}", month), "2024-03");
-        let month = month.next();
-        assert_eq!(format!("{}", month), "2024-04");
-        assert_eq!(month.timezone(), New_York);
-        assert_eq!(Month::from_int(202404, New_York).unwrap(), month);
-    }
-
-    #[test]
-    fn test_month_eq() {
-        let m1 = Month::new(2024, 3, New_York).unwrap();
-        let m2 = Month::new(2024, 4, New_York).unwrap();
-        let m3 = Month::new(2024, 3, Tz::UTC).unwrap();
-        let m4 = m1.clone();
-        assert!(m1 != m2);
-        assert!(m1 != m3);
-        assert_eq!(m1, m4);
-    }
-
-    #[test]
-    fn test_count() {
-        let m = Month::new(2024, 1, New_York).unwrap();
-        assert_eq!(m.hour_count(), 744);
-        let m = Month::new(2024, 2, New_York).unwrap();
-        assert_eq!(m.hour_count(), 696);
-        let m = Month::new(2024, 3, New_York).unwrap();
-        assert_eq!(m.hour_count(), 743); // DST
-        let m = Month::new(2024, 11, New_York).unwrap();
-        assert_eq!(m.hour_count(), 721); // DST
+        // let month = "2024-07".parse::<Month>()?;
+        // println!("{}",month);
+        // println!("{:?}", month.days());
+        Ok(())
     }
 }

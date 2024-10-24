@@ -1,40 +1,46 @@
 use csv::StringRecord;
+use itertools::Itertools;
 use jiff::civil::*;
 use jiff::Zoned;
-use reqwest::blocking::{get, Client};
-use reqwest::header::{
-    ACCEPT, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_ORIGIN, COOKIE, DNT, SET_COOKIE,
-    UPGRADE_INSECURE_REQUESTS,
-};
-use reqwest::Error;
+use regex::Regex;
+use reqwest::blocking::Client;
+use reqwest::header::COOKIE;
+use reqwest::header::SET_COOKIE;
+use std::error::Error;
 use std::fs::{self, File};
-use std::io::{self, Read};
+use std::io::Read;
+use std::path::Path;
+use std::process::Command;
+
+use crate::interval::month::Month;
 
 #[derive(Debug)]
-struct Row {
+pub struct Row {
     report_date: Date,
     forecast_hour_beginning: Zoned,
     forecast_generation: usize,
 }
 
-struct SevendaySolarForecastArchive {}
+pub struct SevendaySolarForecastArchive {
+    pub base_dir: String,
+    pub duckdb_path: String,
+}
 
 impl SevendaySolarForecastArchive {
-    fn base_dir() -> String {
-        "/home/adrian/Downloads/Archive/IsoExpress/7daySolarForecast".to_string()
+    /// Path to the CSV file with the ISO report for a given day
+    fn filename(&self, date: Date) -> String {
+        self.base_dir.to_owned() + "/Raw" + "/solar_forecast_" + &date.to_string() + ".csv"
     }
 
-    fn filename(date: Date) -> String {
-        SevendaySolarForecastArchive::base_dir()
-            + "/Raw"
-            + "/solar_forecast_"
-            + &date.to_string()
-            + ".csv"
-    }
-
-    fn read_file(filename: String) {
+    /// Read a raw CSV file as provided by the ISONE
+    pub fn read_file(&self, path: String) -> Result<Vec<Row>, Box<dyn Error>> {
         let timezone_name = "America/New_York";
-        let mut file = File::open(filename).unwrap();
+        let filename = Path::new(&path).file_name().unwrap().to_str().unwrap();
+        let re = Regex::new(r"[0-9]{4}-[0-9]{2}-[0-9]{2}").unwrap();
+        let report_date = re.find(filename).unwrap().as_str().parse::<Date>().unwrap();
+
+        // let report = MisReport::from_filename(filename);
+        let mut file = File::open(path).unwrap();
         let mut buffer = String::new();
         file.read_to_string(&mut buffer).unwrap();
 
@@ -47,13 +53,13 @@ impl SevendaySolarForecastArchive {
             .filter(|x| x.as_ref().unwrap().get(0) == Some("D"))
             .map(|x| x.unwrap())
             .collect();
-        let report_date = date(2024, 10, 19);
         let future_dates: Vec<Date> = rows[1]
             .iter()
             .skip(3)
             .map(|e| Date::strptime("%m/%d/%Y", e).unwrap())
             .collect();
 
+        let mut out: Vec<Row> = Vec::new();
         for row in rows.iter().skip(2) {
             let n = row.len();
             let hour = row.get(2).unwrap().parse::<i8>().expect("hour value") - 1;
@@ -61,103 +67,119 @@ impl SevendaySolarForecastArchive {
                 if row.get(j) == Some("") {
                     continue;
                 }
-                let forecast_hour_beginning =
-                    future_dates[j - 3].at(hour, 0, 0, 0).intz(timezone_name).unwrap();
-                let forecast_generation = row.get(j).unwrap().parse::<usize>().expect("generation value");    
-                let one = Row {report_date, forecast_hour_beginning, forecast_generation};
-                println!("{:?}", one);
+                let forecast_hour_beginning = future_dates[j - 3]
+                    .at(hour, 0, 0, 0)
+                    .intz(timezone_name)
+                    .unwrap();
+                let forecast_generation = row
+                    .get(j)
+                    .unwrap()
+                    .parse::<usize>()
+                    .expect("generation value");
+                let one = Row {
+                    report_date,
+                    forecast_hour_beginning,
+                    forecast_generation,
+                };
+                out.push(one);
+                // println!("{:?}", one);
             }
         }
+        out.sort_by_key(|e| e.forecast_hour_beginning.clone());
+
+        Ok(out)
     }
 
-    /// https://crates.io/crates/reqwest_cookie_store
-    fn download_days(days: Vec<Date>) -> Result<(), Error> {
-        let client = Client::builder()
-            .cookie_store(true)
-            .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
-            .build()?;
-        for day in days.into_iter() {
-            let yyyymmdd = day.to_string().replace('-', "");
-            let url = "https://www.iso-ne.com/transform/csv/sphf?start=".to_string() + &yyyymmdd;
-            println!("url:{}", url);
-            // let response = get(url).expect("request failed");
-            // let body = response.text().expect("body invalid");
-            // let mut out = File::create(SevendaySolarForecastArchive::filename(day)).expect("failed to create file");
-            // io::copy(&mut body.as_bytes(), &mut out).expect("failed to copy content");
+    /// Aggregate all the daily files into one file per month for convenience.
+    /// File is ready to be uploaded into DuckDB.
+    fn make_gzfile_for_month(&self, month: Month) -> Result<(), Box<dyn Error>> {
+        let file_out = format!(
+            "{}/month/solar_forecast_{}.csv",
+            self.base_dir.to_owned(),
+            month
+        );
+        let mut wtr = csv::Writer::from_path(&file_out)?;
 
-            // NEED to set a cookie with the right token.
-            // Not sure how long it will be valid (about 1 day)
-            let response = client
-                .get(url)
-                // .header(DNT, 1)
-                // .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                // .header(ACCESS_CONTROL_ALLOW_CREDENTIALS, "cross-origin")
-                .header(COOKIE, "isox_token=\"8C7Vl2RfY4h/S49Vg4E5lYcfAGfy/S+CWLiP3rvk5pjXqYineAJYPgKT63zIUYSG43m7y0tKtI555aRc49hgHHuRfy1I58blzu5P4yfSdanJmn+AQAGUhvG+GbCtxQubJAHqiRhjL1Tcdy2KJCNIxb6uBNCD/XyMNhlyFWmm2+k=\"")
-                // .header(UPGRADE_INSECURE_REQUESTS, 1)
-                .send();
-            // println!("{:?}", response.as_ref().unwrap().headers().get_all(SET_COOKIE));
-
-            // response.inspect(|e| e.headers().get_all(SET_COOKIE));
-
-            if let Ok(res) = response {
-                if let Ok(data) = res.text() {
-                    fs::write(SevendaySolarForecastArchive::filename(day), data)
-                        .expect("Writing to file failed");
+        for date in month.days() {
+            let path = self.filename(date);
+            if Path::new(&path).exists() {
+                let rows = self.read_file(path)?;
+                for row in rows {
+                    let _ = wtr.write_record(&[
+                        row.report_date.to_string(),
+                        row.forecast_hour_beginning
+                            .strftime("%Y-%m-%dT%H:%M:%S.000%:z")
+                            .to_string(),
+                        row.forecast_generation.to_string(),
+                    ]);
                 }
             }
         }
+        wtr.flush()?;
 
+        // gzip it
+        Command::new("gzip")
+            .args(["-f", &file_out])
+            .current_dir(format!("{}/month", self.base_dir))
+            .spawn()
+            .expect("gzip failed");
+        Ok(())
+    }
+
+    /// https://crates.io/crates/reqwest_cookie_store
+    fn download_days(&self, days: Vec<Date>) -> Result<(), Box<dyn Error>> {
+        let mut out = Command::new("python")
+            .args(["/home/adrian/Documents/repos/git/thumbert/elec-server/bin/python/isone_sevenday_solar_forecast_download.py", 
+             &format!("--days={}", days.iter().map(|e| e.strftime("%Y%m%d")).join(","))])
+            .current_dir(format!("{}/Raw", self.base_dir))
+            .spawn()        
+            .expect("downloads failed");
+        let _ = out.wait();
         Ok(())
     }
 }
 
-// struct DailyForecast {
-//     day_index: u8,
-//     market_date: NaiveDate,
-//     cso_mw: f32,
-//     cold_weather_outages_mw: f32,
-//     other_outages_mw: f32,
-//     delist_mw: f32,
-//     total_available_gen_mw: f32,
-//     peak_import_mw: f32,
-//     total_available_gen_import_mw: f32,
-//     peak_load: f32,
-//     replacement_reserve_requirement_mw: f32,
-//     required_reserve_mw: f32,
-//     required_reserve_incl_repl_mw: f32,
-//     total_load_plus_required_reserve_mw: f32,
-//     drr_mw: f32,
-//     surplus_deficiency_mw: f32,
-//     is_power_watch: bool,
-//     is_power_warn: bool,
-//     is_cold_weather_watch: bool,
-//     is_cold_weather_warn: bool,
-//     is_cold_weather_event: bool,
-//     bos_high_temp: f32,
-//     bos_dew_point: f32,
-//     bdl_high_temp: f32,
-//     bdl_dew_point: f32,
-// }
-
 #[cfg(test)]
 mod tests {
-    use jiff::civil::date;
-    use reqwest::Error;
-    use serde_json::Value;
-    use std::fs;
+    use itertools::Itertools;
+    use jiff::{civil::date, ToSpan};
+    use std::error::Error;
+
+    use crate::db::prod_db::ProdDb;
 
     use super::*;
 
     #[test]
-    fn download_day() -> Result<(), Error> {
-        SevendaySolarForecastArchive::download_days(vec![date(2024, 10, 19)])
+    fn download_days() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::isone_sevenday_solar_forecast();
+        let _ = archive.download_days(vec![date(2024, 10, 21), date(2024, 10, 22)]);
+        Ok(())
     }
 
     #[test]
-    fn read_file() -> Result<(), String> {
-        let path = SevendaySolarForecastArchive::filename(date(2024, 10, 19));
-        let out = SevendaySolarForecastArchive::read_file(path);
+    fn read_file() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::isone_sevenday_solar_forecast();
+        let path = archive.filename(date(2024, 8, 1));
+        let res = archive.read_file(path)?;
+        assert_eq!(res.len(), 7 * 24);
+        let x = res
+            .iter()
+            .find_or_first(|&x| {
+                x.forecast_hour_beginning
+                    == "2024-08-01 11:00[America/New_York]"
+                        .parse::<Zoned>()
+                        .unwrap()
+            })
+            .unwrap();
+        assert_eq!(x.forecast_generation, 789);
+        Ok(())
+    }
 
+    #[test]
+    fn make_gzfile() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::isone_sevenday_solar_forecast();
+        let month = "2024-10".parse::<Month>()?;
+        let _ = archive.make_gzfile_for_month(month);
         Ok(())
     }
 }

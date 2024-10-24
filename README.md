@@ -16,3 +16,8 @@ To release a new version:
 To check which process uses the 8111 port:
 `lsof -i :8111`
 
+To release a bin file
+* cargo run --package bust --bin rebuild_duckdbs
+* RUST_LOG=debug ./target/debug/rebuild_duckdbs
+
+

@@ -108,7 +108,7 @@ impl<T: IntervalLike, K: Clone> IntoIterator for TimeSeries<T, K> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interval::{hour::Hour, month::Month, Interval};
+    use crate::interval::{hour::Hour, month_tz::MonthTz, Interval};
     use chrono::{Datelike, TimeZone};
     use chrono_tz::{America::New_York, Tz};
     use itertools::Itertools;
@@ -184,9 +184,11 @@ mod tests {
 
         let count = groups
             .into_iter()
-            .map(|((year, month), value)| (Month::new(year, month, New_York).unwrap(), value.len()))
+            .map(|((year, month), value)| {
+                (MonthTz::new(year, month, New_York).unwrap(), value.len())
+            })
             .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
-            .collect::<TimeSeries<Month, usize>>();
+            .collect::<TimeSeries<MonthTz, usize>>();
 
         // TimeSeries<Month, usize>
         // println!("{:}", count);
@@ -197,11 +199,11 @@ mod tests {
 
     #[test]
     fn test_from_iter() {
-        let ts: TimeSeries<Month, i32> = vec![
-            (Month::new(2024, 1, New_York).unwrap(), 10),
-            (Month::new(2024, 2, New_York).unwrap(), 11),
-            (Month::new(2024, 3, New_York).unwrap(), 12),
-            (Month::new(2024, 4, New_York).unwrap(), 14),
+        let ts: TimeSeries<MonthTz, i32> = vec![
+            (MonthTz::new(2024, 1, New_York).unwrap(), 10),
+            (MonthTz::new(2024, 2, New_York).unwrap(), 11),
+            (MonthTz::new(2024, 3, New_York).unwrap(), 12),
+            (MonthTz::new(2024, 4, New_York).unwrap(), 14),
         ]
         .into_iter()
         .collect();

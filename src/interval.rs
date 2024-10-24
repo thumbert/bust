@@ -1,4 +1,5 @@
 pub mod hour;
+pub mod month_tz;
 pub mod month;
 pub mod term;
 pub mod term2;
@@ -11,7 +12,7 @@ use chrono_tz::Tz;
 
 use crate::interval::hour::Hour;
 
-use self::month::Month;
+use self::month_tz::MonthTz;
 
 pub trait IntervalLike {
     fn tz(&self) -> Tz {
@@ -87,23 +88,23 @@ impl Interval {
         }
         let start_dt = tz.with_ymd_and_hms(start, 1, 1, 0, 0, 0).unwrap();
         let end_dt = tz.with_ymd_and_hms(end + 1, 1, 1, 0, 0, 0).unwrap();
-        return Some(Interval {
+        Some(Interval {
             start: start_dt,
             end: end_dt,
-        });
+        })
     }
 
     /// Make an interval that spans months, e.g. [Feb23-Mar26)
     pub fn with_ym(start: (i32, u32), end: (i32, u32), tz: Tz) -> Option<Interval> {
-        let start_m = Month::new(start.0, start.1, tz).unwrap();
-        let end_m = Month::new(end.0, end.1, tz).unwrap().next();
+        let start_m = MonthTz::new(start.0, start.1, tz).unwrap();
+        let end_m = MonthTz::new(end.0, end.1, tz).unwrap().next();
         if start_m > end_m {
-            return None;
+            None
         } else {
-            return Some(Interval {
+            Some(Interval {
                 start: start_m.start(),
                 end: end_m.start(),
-            });
+            })
         }
     }
 }
@@ -121,7 +122,7 @@ impl IntervalLike for Interval {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::interval::month::Month;
+    use crate::interval::month_tz::MonthTz;
     use crate::interval::*;
     use chrono::TimeDelta;
     use chrono_tz::America::New_York;
@@ -172,8 +173,8 @@ mod tests {
             TimeDelta::days(366),
         );
         let hours = interval.hours();
-        let mut count: HashMap<Month, usize> = HashMap::new();
-        for (key, value) in &hours.into_iter().group_by(|e| Month::containing(e.start())) {
+        let mut count: HashMap<MonthTz, usize> = HashMap::new();
+        for (key, value) in &hours.into_iter().group_by(|e| MonthTz::containing(e.start())) {
             count.insert(key, value.count());
         }
         println!("{:#?}", count);
