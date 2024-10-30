@@ -1,11 +1,10 @@
 extern crate chrono;
 extern crate chrono_tz;
 
-use std::time::Instant;
 use chrono::prelude::*;
 use chrono::Duration;
 use chrono_tz::America::New_York;
-
+use std::time::Instant;
 
 fn main() {
     let mut dt = New_York.with_ymd_and_hms(2000, 1, 1, 0, 0, 0).unwrap();

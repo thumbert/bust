@@ -1,6 +1,6 @@
 pub mod hour;
-pub mod month_tz;
 pub mod month;
+pub mod month_tz;
 pub mod term;
 pub mod term2;
 
@@ -174,7 +174,10 @@ mod tests {
         );
         let hours = interval.hours();
         let mut count: HashMap<MonthTz, usize> = HashMap::new();
-        for (key, value) in &hours.into_iter().group_by(|e| MonthTz::containing(e.start())) {
+        for (key, value) in &hours
+            .into_iter()
+            .group_by(|e| MonthTz::containing(e.start()))
+        {
             count.insert(key, value.count());
         }
         println!("{:#?}", count);

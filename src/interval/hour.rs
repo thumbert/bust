@@ -25,9 +25,7 @@ impl Hour {
     pub fn containing(dt: DateTime<Tz>) -> Hour {
         let tz = dt.timezone();
         let secs = dt.timestamp();
-        let start = tz
-            .timestamp_opt(3600*(secs/3600), 0)
-            .unwrap();
+        let start = tz.timestamp_opt(3600 * (secs / 3600), 0).unwrap();
         Hour { start }
     }
 
@@ -92,7 +90,7 @@ mod tests {
         assert_eq!(format!("{}", hour1), "2022-11-06 01 -04:00");
         let hour2 = hour1.next();
         assert_eq!(format!("{}", hour2), "2022-11-06 01 -05:00");
-        // 
+        //
         let dt = New_York.timestamp_opt(1667710800, 0).unwrap(); // "2022-11-06T01:16:40-04:00"
         let hour = Hour::containing(dt);
         assert_eq!(format!("{}", hour), "2022-11-06 01 -04:00");
@@ -100,5 +98,4 @@ mod tests {
         let hour = Hour::containing(dt);
         assert_eq!(format!("{}", hour), "2022-11-06 01 -05:00");
     }
-    
 }

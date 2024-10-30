@@ -27,7 +27,6 @@ fn parse(s: &str) -> Result<Bucket, ParseError> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError;
 
-
 pub trait BucketLike {
     fn name(self) -> String;
     fn contains(self, datetime: DateTime<Tz>) -> bool;
@@ -101,12 +100,9 @@ mod tests {
         );
         let hours = term.unwrap().hours();
 
-     
         let dt = New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap();
         assert!(Bucket::Atc.contains(dt));
         assert!(ATC.contains(dt));
         assert_eq!(parse("Flat"), Ok(ATC));
     }
-
-
 }

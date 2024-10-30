@@ -2,8 +2,10 @@ use std::error::Error;
 
 use duckdb::Connection;
 
-fn main() -> Result<(),Box<dyn Error>> {
-    let conn = Connection::open("/home/adrian/Downloads/Archive/IsoExpress/PricingReports/RtReservePrice/foo.duckdb")?;
+fn main() -> Result<(), Box<dyn Error>> {
+    let conn = Connection::open(
+        "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/RtReservePrice/foo.duckdb",
+    )?;
 
     conn.execute_batch(
         r"

@@ -18,7 +18,7 @@ impl<T: Datelike + Copy + PartialOrd> HolidayTrait<T> for NercCalendar {
             9 => is_labor_day(date),
             11 => is_thanksgiving(date),
             12 => is_christmas(date),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -29,7 +29,9 @@ pub fn is_new_year<T: Datelike>(date: &T) -> bool {
     if date.month() == 1 {
         if date.day() == 1 && date.weekday() != Weekday::Sun {
             true
-        } else { date.day() == 2 && date.weekday() == Weekday::Mon }
+        } else {
+            date.day() == 2 && date.weekday() == Weekday::Mon
+        }
     } else {
         false
     }
@@ -39,7 +41,10 @@ pub fn is_new_year<T: Datelike>(date: &T) -> bool {
 pub fn is_memorial_day<T: Datelike>(date: &T) -> bool {
     if date.month() == 5 {
         let (yy, mm, dd) = (date.year(), date.month(), date.day());
-        let weekday = NaiveDate::from_ymd_opt(yy, mm, 31).unwrap().weekday().number_from_monday();
+        let weekday = NaiveDate::from_ymd_opt(yy, mm, 31)
+            .unwrap()
+            .weekday()
+            .number_from_monday();
         let candidate = NaiveDate::from_ymd_opt(yy, 5, 32 - weekday).unwrap();
         candidate.day() == dd
     } else {
@@ -85,7 +90,9 @@ pub fn is_christmas<T: Datelike>(date: &T) -> bool {
         let candidate = NaiveDate::from_ymd_opt(date.year(), 12, 25).unwrap();
         if candidate.weekday() == Weekday::Sun {
             date.day() == 26
-        } else { date.day() == 25 }
+        } else {
+            date.day() == 25
+        }
     } else {
         false
     }
@@ -95,43 +102,81 @@ pub fn is_christmas<T: Datelike>(date: &T) -> bool {
 /// a specific day of that week.  For example, for Labor Day, it's the first (week_of_month == 1)
 /// Mon (weekday == 1) of Sep (month == 9).
 fn _dayofmonth_holiday(year: i32, month: u32, week_of_month: u32, weekday: u32) -> u32 {
-    let wday_bom = NaiveDate::from_ymd_opt(year, month, 1).unwrap().weekday().number_from_monday();
+    let wday_bom = NaiveDate::from_ymd_opt(year, month, 1)
+        .unwrap()
+        .weekday()
+        .number_from_monday();
     let inc = (weekday + 7 - wday_bom) % 7;
     7 * (week_of_month - 1) + inc + 1
 }
 
-
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
     use crate::holiday::*;
+    use chrono::NaiveDate;
 
     #[test]
     fn test_holidays() {
         assert!(is_new_year(&NaiveDate::from_ymd_opt(2022, 1, 1).unwrap()));
         assert!(!is_new_year(&NaiveDate::from_ymd_opt(2023, 1, 12).unwrap()));
         assert!(is_new_year(&NaiveDate::from_ymd_opt(2023, 1, 2).unwrap()));
-        assert!(is_memorial_day(&NaiveDate::from_ymd_opt(2012, 5, 28).unwrap()));
-        assert!(is_memorial_day(&NaiveDate::from_ymd_opt(2013, 5, 27).unwrap()));
-        assert!(is_memorial_day(&NaiveDate::from_ymd_opt(2014, 5, 26).unwrap()));
-        assert!(is_memorial_day(&NaiveDate::from_ymd_opt(2022, 5, 30).unwrap()));
-        assert!(is_memorial_day(&NaiveDate::from_ymd_opt(2023, 5, 29).unwrap()));
-        assert!(!is_memorial_day(&NaiveDate::from_ymd_opt(2013, 5, 26).unwrap()));
-        assert!(!is_memorial_day(&NaiveDate::from_ymd_opt(2023, 5, 28).unwrap()));
-        assert!(is_independence_day(&NaiveDate::from_ymd_opt(2023, 7, 4).unwrap()));
-        assert!(is_independence_day(&NaiveDate::from_ymd_opt(2020, 7, 4).unwrap()));
-        assert!(is_independence_day(&NaiveDate::from_ymd_opt(2021, 7, 5).unwrap()));
-        assert!(!is_independence_day(&NaiveDate::from_ymd_opt(2021, 7, 4).unwrap()));
+        assert!(is_memorial_day(
+            &NaiveDate::from_ymd_opt(2012, 5, 28).unwrap()
+        ));
+        assert!(is_memorial_day(
+            &NaiveDate::from_ymd_opt(2013, 5, 27).unwrap()
+        ));
+        assert!(is_memorial_day(
+            &NaiveDate::from_ymd_opt(2014, 5, 26).unwrap()
+        ));
+        assert!(is_memorial_day(
+            &NaiveDate::from_ymd_opt(2022, 5, 30).unwrap()
+        ));
+        assert!(is_memorial_day(
+            &NaiveDate::from_ymd_opt(2023, 5, 29).unwrap()
+        ));
+        assert!(!is_memorial_day(
+            &NaiveDate::from_ymd_opt(2013, 5, 26).unwrap()
+        ));
+        assert!(!is_memorial_day(
+            &NaiveDate::from_ymd_opt(2023, 5, 28).unwrap()
+        ));
+        assert!(is_independence_day(
+            &NaiveDate::from_ymd_opt(2023, 7, 4).unwrap()
+        ));
+        assert!(is_independence_day(
+            &NaiveDate::from_ymd_opt(2020, 7, 4).unwrap()
+        ));
+        assert!(is_independence_day(
+            &NaiveDate::from_ymd_opt(2021, 7, 5).unwrap()
+        ));
+        assert!(!is_independence_day(
+            &NaiveDate::from_ymd_opt(2021, 7, 4).unwrap()
+        ));
         assert!(is_labor_day(&NaiveDate::from_ymd_opt(2012, 9, 3).unwrap()));
         assert!(is_labor_day(&NaiveDate::from_ymd_opt(2013, 9, 2).unwrap()));
         assert!(is_labor_day(&NaiveDate::from_ymd_opt(2014, 9, 1).unwrap()));
-        assert!(is_thanksgiving(&NaiveDate::from_ymd_opt(2012, 11, 22).unwrap()));
-        assert!(is_thanksgiving(&NaiveDate::from_ymd_opt(2013, 11, 28).unwrap()));
-        assert!(is_thanksgiving(&NaiveDate::from_ymd_opt(2014, 11, 27).unwrap()));
-        assert!(is_thanksgiving(&NaiveDate::from_ymd_opt(2014, 11, 27).unwrap()));
-        assert!(is_christmas(&NaiveDate::from_ymd_opt(2018, 12, 25).unwrap()));
-        assert!(is_christmas(&NaiveDate::from_ymd_opt(2022, 12, 26).unwrap()));
-        assert!(!is_christmas(&NaiveDate::from_ymd_opt(2022, 12, 25).unwrap()));
+        assert!(is_thanksgiving(
+            &NaiveDate::from_ymd_opt(2012, 11, 22).unwrap()
+        ));
+        assert!(is_thanksgiving(
+            &NaiveDate::from_ymd_opt(2013, 11, 28).unwrap()
+        ));
+        assert!(is_thanksgiving(
+            &NaiveDate::from_ymd_opt(2014, 11, 27).unwrap()
+        ));
+        assert!(is_thanksgiving(
+            &NaiveDate::from_ymd_opt(2014, 11, 27).unwrap()
+        ));
+        assert!(is_christmas(
+            &NaiveDate::from_ymd_opt(2018, 12, 25).unwrap()
+        ));
+        assert!(is_christmas(
+            &NaiveDate::from_ymd_opt(2022, 12, 26).unwrap()
+        ));
+        assert!(!is_christmas(
+            &NaiveDate::from_ymd_opt(2022, 12, 25).unwrap()
+        ));
     }
 
     #[test]

@@ -203,10 +203,8 @@ fn get_path() -> String {
 #[cfg(test)]
 mod tests {
 
-    use duckdb::{
-        AccessMode, Config, Connection, Result,
-    };
     use crate::api::isone::capacity::monthly_capacity_results::*;
+    use duckdb::{AccessMode, Config, Connection, Result};
 
     #[test]
     fn test_get_results_zone() -> Result<()> {

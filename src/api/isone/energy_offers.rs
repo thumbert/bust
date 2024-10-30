@@ -55,7 +55,6 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-
 /// Get DA or RT stack for a list of timestamps (seconds from epoch)
 #[get("/isone/energy_offers/{market}/stack/timestamps/{timestamps}")]
 async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
@@ -213,7 +212,7 @@ ORDER BY "MaskedAssetId", "HourBeginning";
 /// Get the energy offers for the units that are available, for one timestamp
 /// (or more), sorted by timestamp and price
 /// Don't return the Unavailable units.
-/// 
+///
 pub fn get_stack(
     conn: &Connection,
     market: Market,
@@ -417,5 +416,4 @@ mod tests {
         }
         Ok(())
     }
-
 }

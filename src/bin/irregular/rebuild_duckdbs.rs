@@ -57,6 +57,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let _ = rebuild_isone_sevenday_solar_forecast();
+    rebuild_isone_sevenday_solar_forecast()?;
     Ok(())
 }

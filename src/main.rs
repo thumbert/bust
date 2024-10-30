@@ -1,16 +1,14 @@
-use std::time::Instant;
 use chrono::prelude::*;
 use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
-use chrono_tz::Tz;
 use chrono_tz::America::New_York;
+use chrono_tz::Tz;
+use std::time::Instant;
 
 use plotly::{Plot, Scatter};
-
 
 mod holiday;
 
 use crate::holiday::{HolidayTrait, NercCalendar};
-
 
 /// See https://github.com/felipenoris/bdays/blob/master/src/tests.rs
 
@@ -23,7 +21,10 @@ use crate::holiday::{HolidayTrait, NercCalendar};
 
 fn examples_datetimes() {
     let date = NaiveDate::from_ymd_opt(2023, 3, 12).unwrap();
-    let naive_dt = NaiveDateTime::new(date, NaiveTime::from_num_seconds_from_midnight_opt(0,0).unwrap());
+    let naive_dt = NaiveDateTime::new(
+        date,
+        NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap(),
+    );
     let mut dt = New_York.from_local_datetime(&naive_dt).unwrap();
     assert_eq!(dt.to_rfc3339(), "2023-03-12T00:00:00-05:00");
 
@@ -50,8 +51,6 @@ fn examples_datetimes() {
 //     let mut dt = New_York.
 // }
 //
-
-
 
 fn main() {
     examples_datetimes();

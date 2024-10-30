@@ -7,7 +7,6 @@ fn main() {
     let trace = Scatter::new(vec![0, 1, 2], vec![2, 1, 0]);
     plot.add_trace(trace);
     plot.show();
-    
-    // plot.write_html("out.html");    
-}
 
+    // plot.write_html("out.html");
+}

@@ -50,10 +50,9 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-
 /// Get DAM or HAM stack for a list of timestamps (seconds from epoch)
 #[get("/nyiso/energy_offers/{market}/stack/timestamps/{timestamps}")]
-async fn api_stack(path: web::Path<(String,String)>) -> impl Responder {
+async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(get_path(), config).unwrap();
 
@@ -62,7 +61,8 @@ async fn api_stack(path: web::Path<(String,String)>) -> impl Responder {
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };
 
-    let timestamps = match path.1
+    let timestamps = match path
+        .1
         .split(',')
         .map(|n| {
             n.trim()

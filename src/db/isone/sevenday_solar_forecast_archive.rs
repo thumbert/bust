@@ -3,11 +3,8 @@ use itertools::Itertools;
 use jiff::civil::*;
 use jiff::Zoned;
 use regex::Regex;
-use reqwest::blocking::Client;
-use reqwest::header::COOKIE;
-use reqwest::header::SET_COOKIE;
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::process::Command;
@@ -16,9 +13,9 @@ use crate::interval::month::Month;
 
 #[derive(Debug)]
 pub struct Row {
-    report_date: Date,
-    forecast_hour_beginning: Zoned,
-    forecast_generation: usize,
+    pub report_date: Date,
+    pub forecast_hour_beginning: Zoned,
+    pub forecast_generation: usize,
 }
 
 pub struct SevendaySolarForecastArchive {
@@ -28,18 +25,21 @@ pub struct SevendaySolarForecastArchive {
 
 impl SevendaySolarForecastArchive {
     /// Path to the CSV file with the ISO report for a given day
-    fn filename(&self, date: Date) -> String {
-        self.base_dir.to_owned() + "/Raw" + "/solar_forecast_" + &date.to_string() + ".csv"
+    pub fn filename(&self, date: Date) -> String {
+        self.base_dir.to_owned()
+            + "/Raw"
+            + "/seven_day_solar_power_forecast_"
+            + &date.strftime("%Y%m%d").to_string()
+            + ".csv"
     }
 
     /// Read a raw CSV file as provided by the ISONE
     pub fn read_file(&self, path: String) -> Result<Vec<Row>, Box<dyn Error>> {
         let timezone_name = "America/New_York";
         let filename = Path::new(&path).file_name().unwrap().to_str().unwrap();
-        let re = Regex::new(r"[0-9]{4}-[0-9]{2}-[0-9]{2}").unwrap();
-        let report_date = re.find(filename).unwrap().as_str().parse::<Date>().unwrap();
+        let re = Regex::new(r"[0-9]{8}").unwrap();
+        let report_date = Date::strptime("%Y%m%d", re.find(filename).unwrap().as_str()).unwrap();
 
-        // let report = MisReport::from_filename(filename);
         let mut file = File::open(path).unwrap();
         let mut buffer = String::new();
         file.read_to_string(&mut buffer).unwrap();
@@ -90,9 +90,12 @@ impl SevendaySolarForecastArchive {
         Ok(out)
     }
 
-    /// Aggregate all the daily files into one file per month for convenience.
-    /// File is ready to be uploaded into DuckDB.
-    fn make_gzfile_for_month(&self, month: Month) -> Result<(), Box<dyn Error>> {
+    /// Aggregate all the daily files into one monthly file for convenience.
+    /// Be strict about missing days and error out.
+    ///
+    /// File is ready to be uploaded into database.
+    ///
+    pub fn make_gzfile_for_month(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         let file_out = format!(
             "{}/month/solar_forecast_{}.csv",
             self.base_dir.to_owned(),
@@ -102,17 +105,15 @@ impl SevendaySolarForecastArchive {
 
         for date in month.days() {
             let path = self.filename(date);
-            if Path::new(&path).exists() {
-                let rows = self.read_file(path)?;
-                for row in rows {
-                    let _ = wtr.write_record(&[
-                        row.report_date.to_string(),
-                        row.forecast_hour_beginning
-                            .strftime("%Y-%m-%dT%H:%M:%S.000%:z")
-                            .to_string(),
-                        row.forecast_generation.to_string(),
-                    ]);
-                }
+            let rows = self.read_file(path)?;
+            for row in rows {
+                let _ = wtr.write_record(&[
+                    row.report_date.to_string(),
+                    row.forecast_hour_beginning
+                        .strftime("%Y-%m-%dT%H:%M:%S.000%:z")
+                        .to_string(),
+                    row.forecast_generation.to_string(),
+                ]);
             }
         }
         wtr.flush()?;
@@ -126,23 +127,40 @@ impl SevendaySolarForecastArchive {
         Ok(())
     }
 
-    /// https://crates.io/crates/reqwest_cookie_store
-    fn download_days(&self, days: Vec<Date>) -> Result<(), Box<dyn Error>> {
+    pub fn download_days(&self, days: Vec<Date>) -> Result<(), Box<dyn Error>> {
         let mut out = Command::new("python")
             .args(["/home/adrian/Documents/repos/git/thumbert/elec-server/bin/python/isone_sevenday_solar_forecast_download.py", 
              &format!("--days={}", days.iter().map(|e| e.strftime("%Y%m%d")).join(","))])
             .current_dir(format!("{}/Raw", self.base_dir))
-            .spawn()        
+            .spawn()
             .expect("downloads failed");
         let _ = out.wait();
         Ok(())
     }
+
+    /// Check if the files for some days are missing, and download them.
+    pub fn download_missing_days(&self, month: &Month) -> Result<(), Box<dyn Error>> {
+        let days = month.days();
+        let mut missing_days: Vec<Date> = Vec::new();
+        for day in days {
+            let file = self.filename(day);
+            if !Path::new(&file).exists() {
+                missing_days.push(day);
+            }
+        }
+        if !missing_days.is_empty() {
+            self.download_days(missing_days)?;
+        }
+        Ok(())
+    }
+    
+    
 }
 
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use jiff::{civil::date, ToSpan};
+    use jiff::civil::date;
     use std::error::Error;
 
     use crate::db::prod_db::ProdDb;
@@ -152,7 +170,7 @@ mod tests {
     #[test]
     fn download_days() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::isone_sevenday_solar_forecast();
-        let _ = archive.download_days(vec![date(2024, 10, 21), date(2024, 10, 22)]);
+        archive.download_days(vec![date(2024, 10, 24)])?;
         Ok(())
     }
 
@@ -179,7 +197,7 @@ mod tests {
     fn make_gzfile() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::isone_sevenday_solar_forecast();
         let month = "2024-10".parse::<Month>()?;
-        let _ = archive.make_gzfile_for_month(month);
+        let _ = archive.make_gzfile_for_month(&month);
         Ok(())
     }
 }

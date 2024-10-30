@@ -39,7 +39,10 @@ impl Month {
 
     pub fn days(&self) -> Vec<jc::Date> {
         let end = self.end_date();
-        self.start_date().series(1.day()).take_while(|e| e < &end).collect()
+        self.start_date()
+            .series(1.day())
+            .take_while(|e| e < &end)
+            .collect()
     }
 }
 

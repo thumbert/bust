@@ -10,12 +10,11 @@ struct Circle {
 
 impl Shape for Circle {
     fn area(&self) -> f64 {
-        PI * self.radius * self.radius        
+        PI * self.radius * self.radius
     }
 }
 
-
 fn main() {
-    let c = Circle {radius: 1.0};
+    let c = Circle { radius: 1.0 };
     println!("Area: {}", c.area());
 }

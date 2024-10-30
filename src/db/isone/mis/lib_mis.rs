@@ -1,6 +1,9 @@
 use std::{fs::File, path::Path};
 
-use jiff::{civil::{Date, Time}, Timestamp, Zoned};
+use jiff::{
+    civil::{Date, Time},
+    Timestamp, Zoned,
+};
 
 pub struct MisReport {
     pub report_name: String,
@@ -48,7 +51,6 @@ impl MisReport {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

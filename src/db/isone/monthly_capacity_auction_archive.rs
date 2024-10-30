@@ -117,7 +117,7 @@
 //                             },
 //                             bid_offer: record.get(8).unwrap().parse::<BidOffer>().unwrap(),
 //                             segment: i,
-//                             quantity, 
+//                             quantity,
 //                             price: record
 //                             .get(10 + usize::from(i)*2)
 //                             .unwrap()

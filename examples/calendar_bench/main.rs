@@ -1,15 +1,15 @@
 extern crate chrono;
 extern crate chrono_tz;
 
-use std::time::{Instant};
+use std::time::Instant;
 
+use bust::holiday::{HolidayTrait, NercCalendar};
 use chrono::prelude::*;
 use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use chrono_tz::America::New_York;
-use bust::holiday::{NercCalendar, HolidayTrait};
 
 fn main() {
-    let calendar = NercCalendar{};
+    let calendar = NercCalendar {};
     let mut date = NaiveDate::from_ymd_opt(2021, 1, 1).unwrap();
     // let naive_dt = NaiveDateTime::new(date, NaiveTime::from_num_seconds_from_midnight_opt(0,0).unwrap());
     // let dt = New_York.from_local_datetime(&naive_dt).unwrap();

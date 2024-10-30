@@ -30,8 +30,8 @@
 // /// SELECT * FROM mra LIMIT 1;
 // /// .mode duckdb
 // /// SELECT SUM(Quantity) FROM mra
-// /// 
-// /// 
+// ///
+// ///
 // fn try_duckdb(rs: Vec<MraRecord> ) -> Result<()> {
 //     // let conn = Connection::open_in_memory()?;
 //     // conn.execute_batch(
@@ -40,24 +40,19 @@
 
 //     // let mut stmt = conn.prepare(r"
 //     //     SELECT COUNT(*) FROM mra;
-//     // ")?;    
+//     // ")?;
 //     // // let res = stmt.query_map([], |row| {
-        
+
 //     //         row.get(0)?,
 //     //         name: row.get(1)?,
 //     //         data: row.get(2)?,
 //     //     })
 //     // })?;
 
-
-
-
 //     Ok(())
 // }
 
-
-fn main(){}
-
+fn main() {}
 
 // fn main() -> Result<(), Box<dyn Error>> {
 //     let month = Month::new(2024, 1, Tz::UTC).unwrap();
@@ -66,7 +61,6 @@ fn main(){}
 //     let rs = archive.read_file(file).unwrap();
 //     println!("{:?}", rs[0]);
 //     println!("Found {} records", rs.len());
-
 
 //     let _ = try_duckdb(rs.clone());
 

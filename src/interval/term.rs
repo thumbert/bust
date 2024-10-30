@@ -14,11 +14,9 @@ use thiserror::Error;
 #[grammar = "grammars/term.pest"]
 pub struct TermParser;
 
-
 #[derive(Error, Debug)]
 #[error("{0}")]
 pub struct ParseError(pub String);
-
 
 #[derive(Debug, PartialEq)]
 pub enum TermType {
@@ -98,12 +96,9 @@ impl FromStr for Interval {
                     let month = MonthTz::containing(dt2);
                     let end = month.end();
                     // if end < start {
-                    //     return 
+                    //     return
                     // }
-                    Interval {
-                        start,
-                        end
-                    }
+                    Interval { start, end }
                 }
                 TermType::Quarter(year, quarter) => {
                     let start = Tz::UTC
@@ -424,7 +419,6 @@ mod tests {
             end: Tz::UTC.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
         };
         assert_eq!(left, right);
-
     }
 
     #[test]
@@ -455,8 +449,7 @@ mod tests {
             ("J24-Q28", TermType::MonthRange((2024, 4), (2028, 8))),
             ("J24 - Q28", TermType::MonthRange((2024, 4), (2028, 8))),
             ("4/24 - 08/2028", TermType::MonthRange((2024, 4), (2028, 8))),
-            // 
-
+            //
         ];
         for e in vs {
             println!("{:?}", e);

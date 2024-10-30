@@ -31,7 +31,7 @@ impl SevendayForecastArchive {
             let url = "https://webservices.iso-ne.com/api/v1.1/sevendayforecast/day/".to_string()
                 + &yyyymmdd
                 + "/all";
-            // println!("url:{}", url);    
+            // println!("url:{}", url);
             let response = client
                 .get(url)
                 .basic_auth(&user_name, Some(&password))
@@ -41,7 +41,8 @@ impl SevendayForecastArchive {
             if let Ok(res) = response {
                 // println!("{:?}", res.text());
                 if let Ok(data) = res.text() {
-                    fs::write(SevendayForecastArchive::filename(day), data).expect("Writing to file failed");
+                    fs::write(SevendayForecastArchive::filename(day), data)
+                        .expect("Writing to file failed");
                 }
             }
         }
@@ -49,7 +50,6 @@ impl SevendayForecastArchive {
         Ok(())
     }
 }
-
 
 struct DailyForecast {
     day_index: u8,
@@ -59,11 +59,11 @@ struct DailyForecast {
     other_outages_mw: f32,
     delist_mw: f32,
     total_available_gen_mw: f32,
-    peak_import_mw: f32, 
+    peak_import_mw: f32,
     total_available_gen_import_mw: f32,
     peak_load: f32,
     replacement_reserve_requirement_mw: f32,
-    required_reserve_mw: f32, 
+    required_reserve_mw: f32,
     required_reserve_incl_repl_mw: f32,
     total_load_plus_required_reserve_mw: f32,
     drr_mw: f32,
@@ -72,8 +72,8 @@ struct DailyForecast {
     is_power_warn: bool,
     is_cold_weather_watch: bool,
     is_cold_weather_warn: bool,
-    is_cold_weather_event: bool, 
-    bos_high_temp: f32, 
+    is_cold_weather_event: bool,
+    bos_high_temp: f32,
     bos_dew_point: f32,
     bdl_high_temp: f32,
     bdl_dew_point: f32,
@@ -88,18 +88,14 @@ mod tests {
 
     use super::{DailyForecast, SevendayForecastArchive};
 
-
     #[test]
     fn download_day() -> Result<(), Error> {
         SevendayForecastArchive::download_days(vec![NaiveDate::from_ymd_opt(2024, 6, 17).unwrap()])
     }
 
-
-
-
     #[test]
     fn parse_file() -> Result<(), String> {
-        let path = SevendayForecastArchive::filename(NaiveDate::from_ymd_opt(2024,6,17).unwrap());
+        let path = SevendayForecastArchive::filename(NaiveDate::from_ymd_opt(2024, 6, 17).unwrap());
         let json = fs::read_to_string(path).expect("Failed to read the file");
         let v: Value = serde_json::from_str(&json).unwrap();
         let fcsts = &v["SevenDayForecasts"]["SevenDayForecast"];
@@ -108,12 +104,9 @@ mod tests {
             println!("{:?}", arr.first());
         }
 
-
         // let fcst = DailyForecast {
-        //     day_index: todo!(), 
+        //     day_index: todo!(),
         //     market_date: todo!(), cso_mw: todo!(), cold_weather_outages_mw: todo!(), other_outages_mw: todo!(), delist_mw: todo!(), total_available_gen_mw: todo!(), peak_import_mw: todo!(), total_available_gen_import_mw: todo!(), peak_load: todo!(), replacement_reserve_requirement_mw: todo!(), required_reserve_mw: todo!(), required_reserve_incl_repl_mw: todo!(), total_load_plus_required_reserve_mw: todo!(), drr_mw: todo!(), surplus_deficiency_mw: todo!(), is_power_watch: todo!(), is_power_warn: todo!(), is_cold_weather_watch: todo!(), is_cold_weather_warn: todo!(), is_cold_weather_event: todo!(), bos_high_temp: todo!(), bos_dew_point: todo!(), bdl_high_temp: todo!(), bdl_dew_point: todo!() };
-
-
 
         Ok(())
     }

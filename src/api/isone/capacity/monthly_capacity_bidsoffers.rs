@@ -104,7 +104,7 @@ ORDER BY month;
                 "demand" => ResourceType::Demand,
                 "import" => ResourceType::Import,
                 _ => panic!("Unknown resource type {}", resource_type),
-            }, 
+            },
             masked_capacity_zone_id: row.get(3)?,
             bid_offer: match bid_offer {
                 "bid" => BidOffer::Bid,
@@ -120,7 +120,6 @@ ORDER BY month;
 
     Ok(offers)
 }
-
 
 fn get_path() -> String {
     "/home/adrian/Downloads/Archive/IsoExpress/Capacity/mra.duckdb".to_string()
