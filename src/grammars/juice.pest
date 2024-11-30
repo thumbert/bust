@@ -1,0 +1,17 @@
+script = { SOI ~ (stmt)* ~ EOI }
+
+stmt = { ignore | assignment }
+// stmt       =  { function | assignment | IGNORE }
+assignment =  { variable ~ "=" ~ (function | value) ~ NEWLINE }
+variable   =  { ASCII_ALPHA ~ (ASCII_ALPHANUMERIC)* }
+value      = @{ (ASCII_DIGIT)* }
+
+// functions
+function =  { ma | mean }
+mean     =  { "mean(" ~ variable ~ ")" }
+ma       =  { "ma(" ~ variable ~ "," ~ lag ~ ")" }
+lag      = @{ (ASCII_DIGIT)+ }
+
+// other
+WHITESPACE = _{ " " }
+ignore     =  { ("//" ~ ASCII_ALPHANUMERIC*) | NEWLINE }
