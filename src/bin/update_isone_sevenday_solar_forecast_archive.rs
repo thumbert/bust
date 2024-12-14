@@ -1,11 +1,9 @@
-use std::{error::Error, path::Path};
+use std::error::Error;
 
 use bust::{db::prod_db::ProdDb, interval::month::Month};
 use duckdb::{params, Connection};
 use jiff::{civil::Date, ToSpan, Zoned};
-use log::info;
-
-
+use log::{error, info};
 
 /// Insert today's report into the DB
 fn add_day(date: Date) -> Result<(), Box<dyn Error>> {
@@ -32,11 +30,10 @@ fn add_day(date: Date) -> Result<(), Box<dyn Error>> {
         info!("Inserting data for {} in the DB", date);
     } else {
         info!("Data already in the DB for {}, not inserting", date);
-    } 
+    }
 
     Ok(())
 }
-
 
 /// Run this job every day at 10AM
 fn main() -> Result<(), Box<dyn Error>> {
@@ -44,6 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter_level(log::LevelFilter::Info)
         .init();
 
+    info!("Starting ...");
     let archive = ProdDb::isone_sevenday_solar_forecast();
 
     // the report for next day gets published at 9:45AM every day
@@ -78,7 +76,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 today.saturating_sub(1.month()).strftime("%Y-%m-%d"),
                 today.strftime("%Y-%m-%d"),
             );
-            println!("{}", stmt);
             conn.execute_batch(&stmt)?;
 
             // upload this month's data to the DB
@@ -93,9 +90,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 archive.base_dir,
                 today.strftime("%Y-%m")
             );
-            conn.execute_batch(&stmt)?;
+            match conn.execute(&stmt, params![]) {
+                Ok(n) => info!("  inserted {} rows", n),
+                Err(e) => error!("{:?}", e),
+            }
         }
     }
+
+    info!("Done");
 
     Ok(())
 }

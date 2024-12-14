@@ -15,6 +15,7 @@ csv = "1.3"
 dotenvy = "0.15.7"
 duckdb = { version = "1.0.0", features = ["bundled", "r2d2"] }
 env_logger = "0.11.3"
+flate2 = "1.0.35"
 futures = "0.3.28"
 itertools = "0.13.0"
 jiff = {version="0.1.8", features = ["serde"]}
@@ -36,6 +37,19 @@ time = "0.3.36"
 thiserror = "1.0.64"
 tokio = {version = "1.32.0", features = ["full"]}
 
+[[bin]]
+name = "hello_world"
+path = "src/bin/irregular/hello_world.rs"
+
+[[bin]]
+name = "rebuild_duckdbs"
+path = "src/bin/irregular/rebuild_duckdbs.rs"
+
+
+
+
+
+
 [[example]]
 name = "calendar_bench"
 path = "examples/calendar_bench/main.rs"
@@ -47,7 +61,6 @@ path = "examples/duckdb/main.rs"
 [[example]]
 name = "duckdb_bug"
 path = "examples/duckdb/enum_bug.rs"
-
 
 [[example]]
 name = "inheritance"

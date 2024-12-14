@@ -11,6 +11,8 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
+use super::mis::lib_mis::MisReport;
+
 #[derive(Debug)]
 pub struct Row {
     pub report_date: Date,
@@ -35,7 +37,6 @@ impl SevendaySolarForecastArchive {
 
     /// Read a raw CSV file as provided by the ISONE
     pub fn read_file(&self, path: String) -> Result<Vec<Row>, Box<dyn Error>> {
-        let timezone_name = "America/New_York";
         let filename = Path::new(&path).file_name().unwrap().to_str().unwrap();
         let re = Regex::new(r"[0-9]{8}").unwrap();
         let report_date = Date::strptime("%Y%m%d", re.find(filename).unwrap().as_str()).unwrap();
@@ -62,15 +63,12 @@ impl SevendaySolarForecastArchive {
         let mut out: Vec<Row> = Vec::new();
         for row in rows.iter().skip(2) {
             let n = row.len();
-            let hour = row.get(2).unwrap().parse::<i8>().expect("hour value") - 1;
+            let hour = row.get(2).unwrap();  // "01", "02", "02X", "03", .. "24"
             for j in 3..n {
                 if row.get(j) == Some("") {
                     continue;
                 }
-                let forecast_hour_beginning = future_dates[j - 3]
-                    .at(hour, 0, 0, 0)
-                    .intz(timezone_name)
-                    .unwrap();
+                let forecast_hour_beginning = MisReport::parse_hour_ending(future_dates[j-3], hour);                
                 let forecast_generation = row
                     .get(j)
                     .unwrap()
@@ -123,6 +121,8 @@ impl SevendaySolarForecastArchive {
             .args(["-f", &file_out])
             .current_dir(format!("{}/month", self.base_dir))
             .spawn()
+            .unwrap()
+            .wait()
             .expect("gzip failed");
         Ok(())
     }
@@ -194,9 +194,30 @@ mod tests {
     }
 
     #[test]
+    fn read_file_dst() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::isone_sevenday_solar_forecast();
+        let path = archive.filename(date(2024, 10, 29));
+        let res = archive.read_file(path)?;
+        assert_eq!(res.len(), 7 * 24 + 1);
+        // println!("{:?}", res);
+        let x = res
+            .iter()
+            .find_or_first(|&x| {
+                x.forecast_hour_beginning
+                    == "2024-11-03 11:00[America/New_York]"
+                        .parse::<Zoned>()
+                        .unwrap()
+            })
+            .unwrap();
+        assert_eq!(x.forecast_generation, 696);
+        Ok(())
+    }
+
+
+    #[test]
     fn make_gzfile() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::isone_sevenday_solar_forecast();
-        let month = "2024-10".parse::<Month>()?;
+        let month = "2024-09".parse::<Month>()?;
         let _ = archive.make_gzfile_for_month(&month);
         Ok(())
     }

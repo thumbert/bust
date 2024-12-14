@@ -86,6 +86,7 @@ mod tests {
 
     use super::*;
 
+    #[ignore]
     #[test]
     fn download_year() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::nrc_generator_status();

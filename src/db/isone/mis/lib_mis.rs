@@ -1,8 +1,8 @@
-use std::{fs::File, path::Path};
+use std::path::Path;
 
 use jiff::{
     civil::{Date, Time},
-    Timestamp, Zoned,
+    Timestamp, ToSpan, Zoned,
 };
 
 pub struct MisReport {
@@ -12,10 +12,22 @@ pub struct MisReport {
     pub timestamp: Timestamp,
 }
 
-#[derive(Debug, Clone)]
-struct MisReportError;
-
 impl MisReport {
+    /// Parse a tuple of (date, hour_ending) into an hour beginning.
+    /// ISONE represents the hour as '01', '02', '02X', '03', ... '24'.
+    ///
+    /// Returned zoned is an **hour beginning** in America/New_York
+    pub fn parse_hour_ending(date: Date, hour: &str) -> Zoned {
+        let h: i8 = hour[0..2].parse().unwrap();
+        let mut res = date.at(h-1, 0, 0, 0).intz("America/New_York").unwrap();
+
+        if hour == "02X" {
+            res = res.saturating_add(1.hour());
+        }
+
+        res
+    }
+
     /// Parse a filename to return an MisReport.
     /// SD_RTLOAD_000000003_2017060100_20190205151707.CSV
     pub fn from_filename(filename: &str) -> MisReport {
@@ -56,9 +68,49 @@ impl MisReport {
 mod tests {
     use std::error::Error;
 
-    use jiff::{civil::Date, Timestamp};
+    use jiff::{civil::Date, Timestamp, Zoned};
 
     use crate::db::isone::mis::lib_mis::MisReport;
+
+    #[test]
+    fn isone_hour_ending() -> Result<(), Box<dyn Error>> {
+        let xs = [
+            ("2015-11-01", "01"),
+            ("2015-11-01", "02"),
+            ("2015-11-01", "02X"),
+            ("2015-11-01", "03"),
+            ("2015-11-01", "04"),
+        ];
+        let he: Vec<Zoned> = xs
+            .iter()
+            .map(|e| -> Zoned {
+                let date: Date = e.0.parse().unwrap();
+                MisReport::parse_hour_ending(date, e.1)
+            })
+            .collect();
+
+        assert_eq!(
+            he[0],
+            "2015-11-01T00:00:00-04:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[1],
+            "2015-11-01T01:00:00-04:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[2],
+            "2015-11-01T01:00:00-05:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[3],
+            "2015-11-01T02:00:00-05:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[4],
+            "2015-11-01T03:00:00-05:00[America/New_York]".parse()?
+        );
+        Ok(())
+    }
 
     #[test]
     fn from_filename() -> Result<(), Box<dyn Error>> {

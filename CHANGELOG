@@ -3,8 +3,15 @@ TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
 
+
+## 2024-12-14
+- Work on HQ water level.  Set up job to download the data daily and archive to DuckDB
+- Add an API for HQ water level data.  Improve the bin/update_hq_hydro_data.rs. 
+- Add a justfile to check it out if useful.  So far, it's convenient!
+
 ## 2024-10-30
 - ISONE seven day solar forecast work. 
+- Add parsing of ISONE hour_ending format to deal with '02X' in db/isone/mis/lib_mis.rs.
 
 ## 2024-10-23
 - ISONE seven day solar forecast archive example.  Save it to DuckDB.
