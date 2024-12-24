@@ -3,6 +3,7 @@ use flate2::read::GzDecoder;
 use jiff::civil::*;
 use jiff::Timestamp;
 use jiff::Zoned;
+use log::error;
 use log::info;
 use serde::Serialize;
 use serde_json::Value;
@@ -174,7 +175,7 @@ impl HqHydroDataArchive {
             );
             match conn.execute(&query, []) {
                 Ok(updated) => info!("{} rows were updated", updated),
-                Err(e) => info!("{}", e),
+                Err(e) => error!("{}", e),
             }
         }
         let _ = conn.close();

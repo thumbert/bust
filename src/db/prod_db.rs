@@ -22,7 +22,7 @@ impl ProdDb {
     pub fn nrc_generator_status() -> GeneratorStatusArchive {
         GeneratorStatusArchive {
             base_dir: "/home/adrian/Downloads/Archive/NRC/ReactorStatus".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nrc_genearator_status.duckdb"
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nrc_generation_status.duckdb"
                 .to_string(),
         }
     }
