@@ -11,7 +11,7 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
-use super::mis::lib_mis::MisReport;
+use super::mis::lib_mis::parse_hour_ending;
 
 #[derive(Debug)]
 pub struct Row {
@@ -68,7 +68,7 @@ impl SevendaySolarForecastArchive {
                 if row.get(j) == Some("") {
                     continue;
                 }
-                let forecast_hour_beginning = MisReport::parse_hour_ending(future_dates[j-3], hour);                
+                let forecast_hour_beginning = parse_hour_ending(&future_dates[j-3], hour);                
                 let forecast_generation = row
                     .get(j)
                     .unwrap()

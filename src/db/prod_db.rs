@@ -1,8 +1,16 @@
-use super::{hq::hydrometeorological_data_archive::HqHydroDataArchive, isone::sevenday_solar_forecast_archive::SevendaySolarForecastArchive, nrc::generator_status_archive::GeneratorStatusArchive};
+use super::{hq::hydrometeorological_data_archive::HqHydroDataArchive, isone::{mis::{sd_daasdt::SdDaasdtArchive, sd_rtload::SdRtloadArchive}, sevenday_solar_forecast_archive::SevendaySolarForecastArchive}, nrc::generator_status_archive::GeneratorStatusArchive};
 
 pub struct ProdDb {}
 
 impl ProdDb {
+    // pub fn isone_single_source_contingency() -> SingleSourceContingencyArchive {
+    //     SingleSourceContingencyArchive {
+    //         base_dir: "/home/adrian/Downloads/Archive/IsoExpress/SingleSourceContingency".to_string(),
+    //         duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone_single_source_contingency.duckdb"
+    //             .to_string(),
+    //     }
+    // }
+
     pub fn isone_sevenday_solar_forecast() -> SevendaySolarForecastArchive {
         SevendaySolarForecastArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/7daySolarForecast".to_string(),
@@ -26,4 +34,22 @@ impl ProdDb {
                 .to_string(),
         }
     }
+
+    pub fn sd_daasdt() -> SdDaasdtArchive {
+        SdDaasdtArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Mis/SD_DAASDT".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sd_daasdt.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn sd_rtload() -> SdRtloadArchive {
+        SdRtloadArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Mis/SD_RTLOAD".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sd_rtload.duckdb"
+                .to_string(),
+        }
+    }
+
+
 }

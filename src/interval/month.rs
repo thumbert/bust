@@ -1,15 +1,17 @@
 use jiff::{
-    civil::{self as jc, date, datetime},
+    civil::{self as jc, date},
     ToSpan,
 };
 // use pest::error::Error;
 use pest::{iterators::Pair, Parser};
-use std::fmt::{Debug, Formatter};
+use std::fmt::Formatter;
 
 use std::{error::Error, fmt, str::FromStr};
 
-use super::term::{ParseError, Rule, TermParser, TermType};
+use super::term::{ParseError, Rule, TermParser};
 
+/// A civil Month structure (not timezone aware)
+#[derive(Clone, Copy, PartialEq)]
 pub struct Month {
     start_datetime: jc::DateTime,
 }
@@ -44,11 +46,18 @@ impl Month {
             .take_while(|e| e < &end)
             .collect()
     }
+
 }
 
 impl fmt::Display for Month {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&self.start_datetime.strftime("%Y-%m").to_string())
+    }
+}
+
+impl fmt::Debug for Month {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.start_datetime.strftime("%Y-%m"))
     }
 }
 
@@ -77,8 +86,7 @@ fn parse_month(input: &str) -> Result<Month, Box<dyn Error>> {
     }
 }
 
-/// Parse "2023-03" like strings.  It will parse Ok() even strings
-/// that are not real months, e.g. "2023-15".  
+/// Parse "2023-03" like strings.    
 fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
     let v: Vec<_> = token.as_str().split('-').collect();
     // println!("v={:?}", v);

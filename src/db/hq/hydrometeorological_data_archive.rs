@@ -200,9 +200,6 @@ impl HqHydroDataArchive {
             }
             _ => return Err(format!("Invalid file format {:?}", ext).into()),
         };
-        // let mut buffer = String::new();
-        // file.read_to_string(&mut buffer).unwrap();
-        // let v: Value = serde_json::from_str(&buffer)?;
 
         let station = match &v["Station"] {
             Value::Array(v) => v,

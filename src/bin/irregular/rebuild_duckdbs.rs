@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS forecast (
         .collect();
     paths.sort_by_key(|e| e.path());
 
+    let re = Regex::new(r"[0-9]{4}-[0-9]{2}").unwrap();
     for path in paths {
-        let re = Regex::new(r"[0-9]{4}-[0-9]{2}").unwrap();
         let filename = path.file_name();
         let month = re.find(filename.to_str().unwrap()).unwrap().as_str();
         info!("month {month} ...");
