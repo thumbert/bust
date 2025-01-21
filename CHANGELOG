@@ -6,6 +6,7 @@ TODO:
 ## 2025-01-21
 - Create a trait MisArchiveDuckDB.
 - Clean-up a bit the sd_rtload implementation.
+- Add more functionality to interval/month.rs
 
 ## 2025-01-20
 - Various improvements to db/isone/mis/lib_mis.rs.  An attempt to define the flow 

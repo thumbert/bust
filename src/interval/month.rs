@@ -1,42 +1,64 @@
 use jiff::{
-    civil::{self as jc, date},
+    civil::{self as jc, date, Date, DateTime},
     ToSpan,
 };
 // use pest::error::Error;
 use pest::{iterators::Pair, Parser};
-use std::fmt::Formatter;
+use std::{fmt::Formatter, thread::current};
 
 use std::{error::Error, fmt, str::FromStr};
 
 use super::term::{ParseError, Rule, TermParser};
 
+#[inline]
+pub const fn month(year: i16, month: i8) -> Month {
+    Month::constant(year, month)
+}
+
 /// A civil Month structure (not timezone aware)
 #[derive(Clone, Copy, PartialEq)]
 pub struct Month {
-    start_datetime: jc::DateTime,
+    // start_datetime: jc::DateTime,
+    start_date: jc::Date,
 }
 
 impl Month {
+    /// Creates a new `Month` value in a `const` context.
+    ///
+    /// # Panics
+    ///
+    /// This routine panics when the given year-month-01 does not correspond
+    /// to a valid date.  Namely, all of the following must be true:
+    ///
+    /// * The year must be in the range `-9999..=9999`.
+    /// * The month must be in the range `1..=12`.
+    ///
+    #[inline]
+    pub const fn constant(year: i16, month: i8) -> Month {
+        let start = Date::constant(year, month, 1);
+        Month { start_date: start }
+    }
+
     pub fn containing(datetime: jc::DateTime) -> Month {
         Month {
-            start_datetime: jc::datetime(datetime.year(), datetime.month(), 1, 0, 0, 0, 0),
+            start_date: jc::date(datetime.year(), datetime.month(), 1),
         }
     }
 
     pub fn start(&self) -> jc::DateTime {
-        self.start_datetime
+        self.start_date.at(0, 0, 0, 0)
     }
 
     pub fn end(&self) -> jc::DateTime {
-        self.start_datetime.saturating_add(1.month())
+        self.start_date.saturating_add(1.month()).at(0, 0, 0, 0)
     }
 
     pub fn start_date(&self) -> jc::Date {
-        date(self.start_datetime.year(), self.start_datetime.month(), 1)
+        self.start_date
     }
 
     pub fn end_date(&self) -> jc::Date {
-        date(self.start_datetime.year(), self.start_datetime.month(), 1).last_of_month()
+        self.start_date.last_of_month()
     }
 
     pub fn days(&self) -> Vec<jc::Date> {
@@ -47,17 +69,55 @@ impl Month {
             .collect()
     }
 
+    pub fn next(&self) -> Month {
+        Month {
+            start_date: self.start_date.saturating_add(1.month()),
+        }
+    }
+
+    pub fn previous(&self) -> Month {
+        Month {
+            start_date: self.start_date.saturating_sub(1.month()),
+        }
+    }
+
+    pub fn is_after(&self, start: Month) -> Result<bool, Box<dyn Error>> {
+        let span = start.start_date.until(self.start_date)?;
+        // println!("{}", span.get_days());
+        Ok(span.get_days() > 0)
+    }
+
+    pub fn up_to(&self, end: Month) -> Result<Vec<Month>, Box<dyn Error>> {
+        let mut res: Vec<Month> = Vec::new();
+        if self.is_after(end)? {
+            return Err("input month is before self".into());
+        }
+        let mut current = *self;
+        while current != end {
+            res.push(current);
+            current = current.next();
+        }
+        res.push(current);
+        Ok(res)
+    }
+
+    /// Jump forward (or backwards) a number of months.
+    pub fn add(&self, n: i32) -> Result<Month, Box<dyn Error>> {
+        Ok(Month {
+            start_date: self.start_date.checked_add(n.months())?,
+        })
+    }
 }
 
 impl fmt::Display for Month {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.start_datetime.strftime("%Y-%m").to_string())
+        f.write_str(&self.start_date.strftime("%Y-%m").to_string())
     }
 }
 
 impl fmt::Debug for Month {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.start_datetime.strftime("%Y-%m"))
+        write!(f, "{}", self.start_date.strftime("%Y-%m"))
     }
 }
 
@@ -93,9 +153,7 @@ fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
     let year = v[0].parse::<i16>().unwrap();
     let m = v[1].parse::<i8>().unwrap();
     let dt = jc::Date::new(year, m, 1)?;
-    Ok(Month {
-        start_datetime: dt.at(0, 0, 0, 0),
-    })
+    Ok(Month { start_date: dt })
 }
 
 /// Parse "Apr23" or "August2024" like strings.
@@ -200,7 +258,7 @@ mod tests {
 
     use jiff::civil::DateTime;
 
-    use super::Month;
+    use super::{month, Month};
 
     #[test]
     fn test_month() -> Result<(), Box<dyn Error>> {
@@ -211,6 +269,34 @@ mod tests {
         // let month = "2024-07".parse::<Month>()?;
         // println!("{}",month);
         // println!("{:?}", month.days());
+        Ok(())
+    }
+
+    #[test]
+    fn test_up_to() -> Result<(), Box<dyn Error>> {
+        let start = month(2024, 9);
+        let end = month(2025, 2);
+        assert!(end.is_after(start)?);
+
+        let months = start.up_to(end)?;
+        assert_eq!(months.len(), 6);
+        assert_eq!(months.first(), Some(&month(2024, 9)));
+        assert_eq!(months.last(), Some(&month(2025, 2)));
+
+        let months = start.up_to(start)?;
+        assert_eq!(months.len(), 1);
+        assert_eq!(months.first(), Some(&month(2024, 9)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add() -> Result<(), Box<dyn Error>> {
+        let start = month(2024, 9);
+        assert_eq!(start.add(12)?, month(2025, 9));
+        assert_eq!(start.add(-12)?, month(2023, 9));
+        assert_eq!(start.add(0)?, month(2024, 9));
+
         Ok(())
     }
 }
