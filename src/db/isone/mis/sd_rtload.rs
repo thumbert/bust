@@ -153,9 +153,7 @@ pub struct SdRtloadArchive {
     pub duckdb_path: String,
 }
 
-impl SdRtloadArchive {
-    
-}
+impl SdRtloadArchive {}
 
 impl MisArchiveDuckDB for SdRtloadArchive {
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
@@ -185,10 +183,11 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         Ok(res)
     }
 
-
     fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing SD_RTLOAD archive ...");
-        fs::remove_file(&self.duckdb_path)?;
+        if fs::exists(&self.duckdb_path)? {
+            fs::remove_file(&self.duckdb_path)?;
+        }
         let conn = Connection::open(self.duckdb_path.clone())?;
         conn.execute_batch(
             r"
@@ -218,7 +217,6 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         conn.close().unwrap();
         Ok(())
     }
-
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
