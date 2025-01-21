@@ -13,7 +13,7 @@ pub trait MisArchiveDuckDB {
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
 
     /// Get the existing reports already inserted in DuckDB.
-    fn get_reports_duckdb() -> Result<HashSet<MisReportInfo>, Box<dyn Error>>;
+    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>>;
 
     fn setup_duckdb(&self) -> Result<(), Box<dyn Error>>;
 

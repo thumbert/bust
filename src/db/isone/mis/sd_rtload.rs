@@ -160,9 +160,8 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
-    fn get_reports_duckdb() -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
-        let archive = ProdDb::sd_rtload();
-        let conn = Connection::open(archive.duckdb_path)?;
+    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
+        let conn = Connection::open(&self.duckdb_path)?;
         let query = r#"
         SELECT DISTINCT account_id, report_date, version
         FROM tab0;
@@ -220,7 +219,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
-        let existing = SdRtloadArchive::get_reports_duckdb().unwrap();
+        let existing = self.get_reports_duckdb().unwrap();
         fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
         fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
 
@@ -252,8 +251,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
             info!("Inserting {} files into DucDB.", paths.len());
         }
 
-        let archive = ProdDb::sd_rtload();
-        let conn = Connection::open(archive.duckdb_path)?;
+        let conn = Connection::open(&self.duckdb_path)?;
         let sql = format!(
             r"
             INSERT INTO tab0 
