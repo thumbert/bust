@@ -154,16 +154,42 @@ pub struct SdRtloadArchive {
 }
 
 impl SdRtloadArchive {
-    /// Path to the monthly CSV file with the ISO report for a given tab
-    pub fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
+    
+}
+
+impl MisArchiveDuckDB for SdRtloadArchive {
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
-    pub fn setup_duckdb() -> Result<(), Box<dyn Error>> {
-        info!("rebuilding isone_seven_day_forecast archive ...");
+    fn get_reports_duckdb() -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
         let archive = ProdDb::sd_rtload();
-        fs::remove_file(&archive.duckdb_path)?;
         let conn = Connection::open(archive.duckdb_path)?;
+        let query = r#"
+        SELECT DISTINCT account_id, report_date, version
+        FROM tab0;
+        "#;
+        let mut stmt = conn.prepare(query).unwrap();
+        let res_iter = stmt.query_map([], |row| {
+            let n = 719528 + row.get::<usize, i32>(1).unwrap();
+            let microseconds: i64 = row.get(2).unwrap();
+            Ok(MisReportInfo {
+                report_name: "SD_RTLOAD".to_string(),
+                account_id: row.get::<usize, usize>(0).unwrap(),
+                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
+                version: Timestamp::from_microsecond(microseconds).unwrap(),
+            })
+        })?;
+        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
+
+        Ok(res)
+    }
+
+
+    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
+        info!("initializing SD_RTLOAD archive ...");
+        fs::remove_file(&self.duckdb_path)?;
+        let conn = Connection::open(self.duckdb_path.clone())?;
         conn.execute_batch(
             r"
     BEGIN;
@@ -193,14 +219,12 @@ impl SdRtloadArchive {
         Ok(())
     }
 
-    /// Pass in a vector of csv files to upload into DuckDB.
-    /// To prevent unnecessary work, files will be read and uploaded only if they don't already exist in the DB.  
-    ///
-    pub fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
+
+    fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
         let existing = SdRtloadArchive::get_reports_duckdb().unwrap();
-        println!("{:?}", existing);
         fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
+        fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
 
         for filename in files.iter() {
             let info = &MisReportInfo::from(filename.clone());
@@ -226,10 +250,11 @@ impl SdRtloadArchive {
         if paths.is_empty() {
             info!("No files to upload to DuckDB.  Exiting...");
             return Ok(());
+        } else {
+            info!("Inserting {} files into DucDB.", paths.len());
         }
 
         let archive = ProdDb::sd_rtload();
-        fs::remove_file(&archive.duckdb_path)?;
         let conn = Connection::open(archive.duckdb_path)?;
         let sql = format!(
             r"
@@ -263,30 +288,6 @@ impl SdRtloadArchive {
         info!("done\n");
 
         Ok(())
-    }
-
-    /// Get the existing reports already in DuckDb
-    pub fn get_reports_duckdb() -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
-        let archive = ProdDb::sd_rtload();
-        let conn = Connection::open(archive.duckdb_path)?;
-        let query = r#"
-        SELECT DISTINCT account_id, report_date, version
-        FROM tab0;
-        "#;
-        let mut stmt = conn.prepare(query).unwrap();
-        let res_iter = stmt.query_map([], |row| {
-            let n = 719528 + row.get::<usize, i32>(1).unwrap();
-            let microseconds: i64 = row.get(2).unwrap();
-            Ok(MisReportInfo {
-                report_name: "SD_RTLOAD".to_string(),
-                account_id: row.get::<usize, usize>(0).unwrap(),
-                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
-                version: Timestamp::from_microsecond(microseconds).unwrap(),
-            })
-        })?;
-        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
-
-        Ok(res)
     }
 }
 

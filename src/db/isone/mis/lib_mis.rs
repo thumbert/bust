@@ -1,15 +1,27 @@
 use std::{
-    error::Error,
-    fmt::Display,
-    fs,
-    hash::{Hash, Hasher},
-    path::Path,
+    collections::HashSet, error::Error, fmt::Display, fs, hash::{Hash, Hasher}, path::Path
 };
 
 use jiff::{
     civil::{Date, Time},
     Timestamp, ToSpan, Zoned,
 };
+
+pub trait MisArchiveDuckDB {
+    /// Path to the temporary CSV file with the ISO report for a given tab,
+    /// that will be inserted into DuckDB as is.
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
+
+    /// Get the existing reports already inserted in DuckDB.
+    fn get_reports_duckdb() -> Result<HashSet<MisReportInfo>, Box<dyn Error>>;
+
+    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>>;
+
+    /// Pass in a vector of csv files to upload into DuckDB.
+    /// To prevent unnecessary work, files will be read and uploaded only if they don't already exist in the DB.  
+    ///
+    fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>>;
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct MisReportInfo {

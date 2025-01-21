@@ -3,6 +3,10 @@ TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
 
+## 2025-01-21
+- Create a trait MisArchiveDuckDB.
+- Clean-up a bit the sd_rtload implementation.
+
 ## 2025-01-20
 - Various improvements to db/isone/mis/lib_mis.rs.  An attempt to define the flow 
   for one report (SD_RTLOAD). 
