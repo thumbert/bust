@@ -1,6 +1,8 @@
-use std::{error::Error, fs::OpenOptions, str::FromStr};
+use std::{collections::HashSet, error::Error, fs::{self, OpenOptions}, str::FromStr};
 
-use jiff::{civil::Date, Timestamp, Zoned};
+use duckdb::{params, Connection};
+use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use super::lib_mis::*;
@@ -131,22 +133,22 @@ impl SdDaasdtReport {
         Ok(out)
     }
 
-    fn export_csv<K>(&self, archive: SdDaasdtArchive) -> Result<(), Box<dyn Error>> {
-        // tab 0
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(archive.filename(self.info.report_date, 0))
-            .unwrap();
-        let mut wtr = csv::Writer::from_writer(file);
-        let records = self.process_tab0().unwrap();
-        for record in records {
-            wtr.serialize(record)?;
-        }
-        wtr.flush()?;
+    // fn export_csv<K>(&self, archive: SdDaasdtArchive) -> Result<(), Box<dyn Error>> {
+    //     // tab 0
+    //     let file = OpenOptions::new()
+    //         .create(true)
+    //         .append(true)
+    //         .open(archive.filename(self.info.report_date, 0))
+    //         .unwrap();
+    //     let mut wtr = csv::Writer::from_writer(file);
+    //     let records = self.process_tab0().unwrap();
+    //     for record in records {
+    //         wtr.serialize(record)?;
+    //     }
+    //     wtr.flush()?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 pub struct SdDaasdtArchive {
@@ -154,15 +156,141 @@ pub struct SdDaasdtArchive {
     pub duckdb_path: String,
 }
 
-impl SdDaasdtArchive {
+impl MisArchiveDuckDB for SdDaasdtArchive {
     /// Path to the monthly CSV file with the ISO report for a given tab
-    pub fn filename(&self, date: Date, tab: u8) -> String {
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned()
             + "/Raw"
             + "/sd_daasdt_"
             + &format!("tab{}_", tab)
-            + &date.strftime("%Y-%m").to_string()
+            // + &date.strftime("%Y-%m").to_string()
             + ".csv"
+    }
+
+    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
+        let conn = Connection::open(&self.duckdb_path)?;
+        let query = r#"
+        SELECT DISTINCT account_id, report_date, version
+        FROM tab0;
+        "#;
+        let mut stmt = conn.prepare(query).unwrap();
+        let res_iter = stmt.query_map([], |row| {
+            let n = 719528 + row.get::<usize, i32>(1).unwrap();
+            let microseconds: i64 = row.get(2).unwrap();
+            Ok(MisReportInfo {
+                report_name: "SD_RTLOAD".to_string(),
+                account_id: row.get::<usize, usize>(0).unwrap(),
+                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
+                version: Timestamp::from_microsecond(microseconds).unwrap(),
+            })
+        })?;
+        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
+
+        Ok(res)
+    }
+
+    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
+        info!("initializing SD_RTLOAD archive ...");
+        if fs::exists(&self.duckdb_path)? {
+            fs::remove_file(&self.duckdb_path)?;
+        }
+        let conn = Connection::open(self.duckdb_path.clone())?;
+        conn.execute_batch(
+            r"
+    BEGIN;
+    CREATE TABLE IF NOT EXISTS tab0 (
+        account_id UINTEGER NOT NULL,
+        report_date DATE NOT NULL,
+        version TIMESTAMP NOT NULL,
+        hour_beginning TIMESTAMPTZ NOT NULL,
+        asset_name VARCHAR NOT NULL,
+        asset_id UINTEGER NOT NULL,
+        asset_subtype ENUM ('LOSSES', 'NORMAL', 'STATION SERVICE', 'ENERGY STORAGE', 'PUMP STORAGE'),
+        location_id UINTEGER NOT NULL,
+        location_name VARCHAR NOT NULL,
+        location_type ENUM ('METERING DOMAIN', 'NETWORK NODE'),
+        load_reading DOUBLE NOT NULL,
+        ownership_share FLOAT NOT NULL,
+        share_of_load_reading DOUBLE NOT NULL,
+        subaccount_id UINTEGER,
+        subaccount_name VARCHAR,
+    );
+    CREATE INDEX idx ON tab0 (report_date);
+    COMMIT;
+    ",
+        )?;
+
+        conn.close().unwrap();
+        Ok(())
+    }
+
+    fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
+        // get all reports in the db first
+        let existing = self.get_reports_duckdb().unwrap();
+        fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
+        fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
+
+        for filename in files.iter() {
+            let info = &MisReportInfo::from(filename.clone());
+            if existing.contains(info) {
+                continue;
+            }
+            let lines = read_report(filename.as_str()).unwrap();
+            let report = SdDaasdtReport {
+                info: info.clone(),
+                lines,
+            };
+            // report.export_csv(self)?;
+            info!("Wrote file {}", self.filename(0, info));
+        }
+
+        // list all the files and add them to the db, in order
+        let mut paths: Vec<_> = fs::read_dir(self.base_dir.clone() + "/tmp")
+            .unwrap()
+            .map(|e| e.unwrap())
+            .collect();
+        paths.sort_by_key(|e| e.path());
+
+        if paths.is_empty() {
+            info!("No files to upload to DuckDB.  Exiting...");
+            return Ok(());
+        } else {
+            info!("Inserting {} files into DuckDB.", paths.len());
+        }
+
+        let conn = Connection::open(&self.duckdb_path)?;
+        let sql = format!(
+            r"
+            INSERT INTO tab0 
+            SELECT account_id, report_date, version, 
+                strptime(left(hour_beginning, 25), '%Y-%m-%dT%H:%M:%S%z') AS hour_beginning,
+                asset_name,
+                asset_id,
+                asset_subtype,
+                location_id,
+                location_name,
+                location_type,
+                load_reading,
+                ownership_share,
+                share_of_load_reading,
+                subaccount_id,
+                subaccount_name
+            FROM read_csv(
+                '{}/tmp/tab0_*.CSV', 
+                header = true, 
+                timestampformat = '%Y-%m-%dT%H:%M:%SZ'
+            );
+            ",
+            self.base_dir,
+        );
+        match conn.execute(&sql, params![]) {
+            Ok(n) => info!("  inserted {} rows in SD_RTLOAD tab0 table", n),
+            Err(e) => error!("{:?}", e),
+        }
+
+        info!("done\n");
+
+        Ok(())
     }
 }
 

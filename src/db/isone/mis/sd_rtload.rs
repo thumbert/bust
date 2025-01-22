@@ -248,7 +248,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
             info!("No files to upload to DuckDB.  Exiting...");
             return Ok(());
         } else {
-            info!("Inserting {} files into DucDB.", paths.len());
+            info!("Inserting {} files into DuckDB.", paths.len());
         }
 
         let conn = Connection::open(&self.duckdb_path)?;
@@ -305,11 +305,12 @@ mod tests {
         assert_eq!(lines.len(), 127);
 
         let report = SdRtloadReport { info, lines };
-        // let rows = report.process_tab0()?;
-        // println!("{:?}", rows);
+        let rows = report.process_tab0()?;
+        println!("{:?}", rows);
 
         let archive = ProdDb::sd_rtload();
-        report.export_csv(&archive)?;
+        // report.export_csv(&archive)?;
+        println!("{:?}", archive.get_months());
 
         Ok(())
     }
