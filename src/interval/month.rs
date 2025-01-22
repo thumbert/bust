@@ -4,7 +4,7 @@ use jiff::{
 };
 // use pest::error::Error;
 use pest::{iterators::Pair, Parser};
-use std::{fmt::Formatter, thread::current};
+use std::fmt::Formatter;
 
 use std::{error::Error, fmt, str::FromStr};
 

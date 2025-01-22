@@ -7,7 +7,23 @@ use jiff::{
     Timestamp, ToSpan, Zoned,
 };
 
+use crate::interval::month::{month, Month};
+
 pub trait MisArchiveDuckDB {
+    /// Which months to archive.  Default implementation.
+    fn get_months(&self) -> Vec<Month> {
+        let today = Zoned::now().date();
+        let current = month(today.year(), today.month());
+        vec![
+            current,
+            current.add(-1).unwrap(),
+            current.add(-4).unwrap(),
+            current.add(-5).unwrap(),
+            current.add(-12).unwrap(),
+        ]
+
+    }
+
     /// Path to the temporary CSV file with the ISO report for a given tab,
     /// that will be inserted into DuckDB as is.
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
