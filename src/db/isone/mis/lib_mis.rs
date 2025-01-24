@@ -10,6 +10,8 @@ use jiff::{
 use crate::interval::month::{month, Month};
 
 pub trait MisArchiveDuckDB {
+    fn report_name(&self) -> String;
+     
     /// Which months to archive.  Default implementation.
     fn get_months(&self) -> Vec<Month> {
         let today = Zoned::now().date();

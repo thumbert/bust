@@ -2,8 +2,9 @@
 TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
+- Support an optional start/end month for an MIS report.  
 
-## 2025-01-22
+## 2025-01-24
 - Removed some chrono dependencies.  Will need to rewrite the files. 
 
 ## 2025-01-21

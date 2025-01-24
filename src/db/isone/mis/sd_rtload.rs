@@ -10,8 +10,6 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
-use crate::{db::prod_db::ProdDb, interval::month::month};
-
 use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
@@ -90,6 +88,8 @@ pub struct SdRtloadReport {
 impl MisReport for SdRtloadReport {}
 
 impl SdRtloadReport {
+
+
     fn process_tab0(&self) -> Result<Vec<RowTab0>, Box<dyn Error>> {
         let mut out: Vec<RowTab0> = Vec::new();
         let tab0 = extract_tab(0, &self.lines).unwrap();
@@ -156,6 +156,10 @@ pub struct SdRtloadArchive {
 impl SdRtloadArchive {}
 
 impl MisArchiveDuckDB for SdRtloadArchive {
+    fn report_name(&self) -> String {
+        "SD_RTLOAD".to_string()
+    }
+
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
@@ -171,7 +175,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
             let n = 719528 + row.get::<usize, i32>(1).unwrap();
             let microseconds: i64 = row.get(2).unwrap();
             Ok(MisReportInfo {
-                report_name: "SD_RTLOAD".to_string(),
+                report_name: self.report_name(),
                 account_id: row.get::<usize, usize>(0).unwrap(),
                 report_date: Date::ZERO.checked_add(n.days()).unwrap(),
                 version: Timestamp::from_microsecond(microseconds).unwrap(),
@@ -277,7 +281,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows in SD_RTLOAD tab0 table", n),
+            Ok(n) => info!("  inserted {} rows in {} tab0 table", n, self.report_name()),
             Err(e) => error!("{:?}", e),
         }
 

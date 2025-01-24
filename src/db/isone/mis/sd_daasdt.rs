@@ -1,4 +1,9 @@
-use std::{collections::HashSet, error::Error, fs::{self, OpenOptions}, str::FromStr};
+use std::{
+    collections::HashSet,
+    error::Error,
+    fs::{self, OpenOptions},
+    str::FromStr,
+};
 
 use duckdb::{params, Connection};
 use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
@@ -9,9 +14,12 @@ use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 enum AssetType {
-    generator,
-    asset_related_demand,
-    demand_reponse_resource,
+    #[serde(rename = "GENERATOR")]
+    Generator,
+    #[serde(rename = "ASSET RELATED DEMAND")]
+    AssetRelatedDemand,
+    #[serde(rename = "DEMAND RESPONSE RESOURCE")]
+    DemandResponseResource,
 }
 
 impl FromStr for AssetType {
@@ -19,9 +27,9 @@ impl FromStr for AssetType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "GENERATOR" => Ok(AssetType::generator),
-            "ASSET RELATED DEMAND" => Ok(AssetType::asset_related_demand),
-            "DEMAND RESPONSE_RESOURCE" => Ok(AssetType::demand_reponse_resource),
+            "GENERATOR" => Ok(AssetType::Generator),
+            "ASSET RELATED DEMAND" => Ok(AssetType::AssetRelatedDemand),
+            "DEMAND RESPONSE_RESOURCE" => Ok(AssetType::DemandResponseResource),
             _ => Err(format!("Failed to parse {s} as AssetType")),
         }
     }
@@ -29,10 +37,14 @@ impl FromStr for AssetType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 enum ProductType {
-    da_tmsr,
-    da_tmnsr,
-    da_tmor,
-    da_eir,
+    #[serde(rename = "DA_TMSR")]
+    Tmsr,
+    #[serde(rename = "DA_TMNSR")]
+    Tmnsr,
+    #[serde(rename = "DA_TMOR")]
+    Tmor,
+    #[serde(rename = "DA_EIR")]
+    Eir,
 }
 
 impl FromStr for ProductType {
@@ -40,15 +52,16 @@ impl FromStr for ProductType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "DA_TMSR" => Ok(ProductType::da_tmsr),
-            "DA_TMNSR" => Ok(ProductType::da_tmnsr),
-            "DA_TMOR" => Ok(ProductType::da_tmor),
-            "DA_EIR" => Ok(ProductType::da_eir),
+            "DA_TMSR" => Ok(ProductType::Tmsr),
+            "DA_TMNSR" => Ok(ProductType::Tmnsr),
+            "DA_TMOR" => Ok(ProductType::Tmor),
+            "DA_EIR" => Ok(ProductType::Eir),
             _ => Err(format!("Failed to parse {s} as ProductType")),
         }
     }
 }
 
+/// Asset FRS credits and closeout charges
 #[derive(Debug, Serialize, Deserialize)]
 struct RowTab0 {
     account_id: usize,
@@ -70,6 +83,76 @@ struct RowTab0 {
     hub_rt_lmp: Option<f64>,
     product_closeout_charge: Option<f64>,
     customer_share_of_product_closeout_charge: Option<f64>,
+}
+
+/// Asset FER credits
+#[derive(Debug, Serialize, Deserialize)]
+struct RowTab1 {
+    account_id: usize,
+    report_date: Date,
+    version: Timestamp,
+    hour_beginning: Zoned,
+    asset_id: u32,
+    asset_name: String,
+    subaccount_id: u32,
+    subaccount_name: String,
+    asset_type: AssetType,
+    ownership_share: f32,
+    da_cleared_energy: f64,
+    fer_price: f64,
+    asset_fer_credit: f64,
+    customer_share_of_asset_fer_credit: f64,
+}
+
+/// Subaccount FRS Credits & Charges Section
+#[derive(Debug, Serialize, Deserialize)]
+struct RowTab6 {
+    account_id: usize,
+    report_date: Date,
+    version: Timestamp,
+    subaccount_id: u32,
+    subaccount_name: String,
+    hour_beginning: Zoned,
+    rt_load_obligation: f64,
+    rt_external_node_load_obligation: f64,
+    rt_dard_load_obligation_reduction: f64,
+    rt_load_obligation_for_frs_charge_allocation: f64,
+    pool_rt_load_obligation_for_frs_charge_allocation: f64,
+    pool_da_tmsr_credit: f64,
+    da_tmsr_charge: f64,
+    pool_da_tmnsr_credit: f64,
+    da_tmnsr_charge: f64,
+    pool_da_tmor_credit: f64,
+    da_tmor_charge: f64,
+    pool_da_tmsr_closeout_charge: f64,
+    da_tmsr_closeout_credit: f64,
+    pool_da_tmnsr_closeout_charge: f64,
+    da_tmnsr_closeout_credit: f64,
+    pool_da_tmor_closeout_charge: f64,
+    da_tmor_closeout_credit: f64,
+}
+
+/// Subaccount DA EIR Credits & Charges Section
+#[derive(Debug, Serialize, Deserialize)]
+struct RowTab7 {
+    account_id: usize,
+    report_date: Date,
+    version: Timestamp,
+    subaccount_id: u32,
+    subaccount_name: String,
+    hour_beginning: Zoned,
+    rt_load_obligation: f64,
+    rt_external_node_load_obligation: f64,
+    rt_dard_load_obligation_reduction: f64,
+    rt_load_obligation_for_da_eir_charge_allocation: f64,
+    pool_rt_load_obligation_for_da_eir_charge_allocation: f64,
+    pool_da_eir_credit: f64,
+    pool_fer_credit: f64,
+    pool_export_fer_charge: f64,
+    pool_fer_and_da_eir_net_credits: f64,
+    fer_and_da_eir_charge: f64,
+    pool_da_eir_closeout_charge: f64,
+    da_eir_closeout_credit: f64,
 }
 
 pub struct SdDaasdtReport {
@@ -133,22 +216,196 @@ impl SdDaasdtReport {
         Ok(out)
     }
 
-    // fn export_csv<K>(&self, archive: SdDaasdtArchive) -> Result<(), Box<dyn Error>> {
-    //     // tab 0
-    //     let file = OpenOptions::new()
-    //         .create(true)
-    //         .append(true)
-    //         .open(archive.filename(self.info.report_date, 0))
-    //         .unwrap();
-    //     let mut wtr = csv::Writer::from_writer(file);
-    //     let records = self.process_tab0().unwrap();
-    //     for record in records {
-    //         wtr.serialize(record)?;
-    //     }
-    //     wtr.flush()?;
+    fn process_tab1(&self) -> Result<Vec<RowTab1>, Box<dyn Error>> {
+        let mut out: Vec<RowTab1> = Vec::new();
+        let tab1 = extract_tab(1, &self.lines).unwrap();
+        let data = tab1.lines.join("\n");
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(data.as_bytes());
+        for result in rdr.records() {
+            let record = result?;
 
-    //     Ok(())
-    // }
+            let hour_beginning = parse_hour_ending(&self.info.report_date, &record[1]);
+            let asset_id: u32 = record[2].parse()?;
+            let asset_name: String = record[3].to_owned();
+            let subaccount_id: u32 = record[4].parse()?;
+            let subaccount_name: String = record[5].to_owned();
+            let asset_type: AssetType = record[6].parse()?;
+            let ownership_share: f32 = record[7].parse()?;
+            let da_cleared_energy: f64 = record[8].parse()?;
+            let fer_price: f64 = record[9].parse()?;
+            let asset_fer_credit: f64 = record[10].parse()?;
+            let customer_share_of_asset_fer_credit: f64 = record[11].parse()?;
+
+            out.push(RowTab1 {
+                account_id: self.info.account_id,
+                report_date: self.info.report_date,
+                version: self.info.version,
+                hour_beginning,
+                asset_id,
+                asset_name,
+                subaccount_id,
+                subaccount_name,
+                asset_type,
+                ownership_share,
+                da_cleared_energy,
+                fer_price,
+                asset_fer_credit,
+                customer_share_of_asset_fer_credit,
+            });
+        }
+
+        Ok(out)
+    }
+
+    fn process_tab6(&self) -> Result<Vec<RowTab6>, Box<dyn Error>> {
+        let mut out: Vec<RowTab6> = Vec::new();
+        let tab6 = extract_tab(6, &self.lines).unwrap();
+        let data = tab6.lines.join("\n");
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(data.as_bytes());
+        for result in rdr.records() {
+            let record = result?;
+
+            let subaccount_id: u32 = record[1].parse()?;
+            let subaccount_name: String = record[2].to_owned();
+            let hour_beginning = parse_hour_ending(&self.info.report_date, &record[3]);
+            let rt_load_obligation: f64 = record[4].parse()?;
+            let rt_external_node_load_obligation: f64 = record[5].parse()?;
+            let rt_dard_load_obligation_reduction: f64 = record[6].parse()?;
+            let rt_load_obligation_for_frs_charge_allocation: f64 = record[7].parse()?;
+            let pool_rt_load_obligation_for_frs_charge_allocation: f64 = record[8].parse()?;
+            let pool_da_tmsr_credit: f64 = record[9].parse()?;
+            let da_tmsr_charge: f64 = record[10].parse()?;
+            let pool_da_tmnsr_credit: f64 = record[11].parse()?;
+            let da_tmnsr_charge: f64 = record[12].parse()?;
+            let pool_da_tmor_credit: f64 = record[13].parse()?;
+            let da_tmor_charge: f64 = record[14].parse()?;
+            let pool_da_tmsr_closeout_charge: f64 = record[15].parse()?;
+            let da_tmsr_closeout_credit: f64 = record[16].parse()?;
+            let pool_da_tmnsr_closeout_charge: f64 = record[17].parse()?;
+            let da_tmnsr_closeout_credit: f64 = record[18].parse()?;
+            let pool_da_tmor_closeout_charge: f64 = record[19].parse()?;
+            let da_tmor_closeout_credit: f64 = record[20].parse()?;
+
+            out.push(RowTab6 {
+                account_id: self.info.account_id,
+                report_date: self.info.report_date,
+                version: self.info.version,
+                subaccount_id,
+                subaccount_name,
+                hour_beginning,
+                rt_load_obligation,
+                rt_external_node_load_obligation,
+                rt_dard_load_obligation_reduction,
+                rt_load_obligation_for_frs_charge_allocation,
+                pool_rt_load_obligation_for_frs_charge_allocation,
+                pool_da_tmsr_credit,
+                da_tmsr_charge,
+                pool_da_tmnsr_credit,
+                da_tmnsr_charge,
+                pool_da_tmor_credit,
+                da_tmor_charge,
+                pool_da_tmsr_closeout_charge,
+                da_tmsr_closeout_credit,
+                pool_da_tmnsr_closeout_charge,
+                da_tmnsr_closeout_credit,
+                pool_da_tmor_closeout_charge,
+                da_tmor_closeout_credit,
+            });
+        }
+
+        Ok(out)
+    }
+
+    fn process_tab7(&self) -> Result<Vec<RowTab7>, Box<dyn Error>> {
+        let mut out: Vec<RowTab7> = Vec::new();
+        let tab6 = extract_tab(7, &self.lines).unwrap();
+        let data = tab6.lines.join("\n");
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(data.as_bytes());
+        for result in rdr.records() {
+            let record = result?;
+
+            let subaccount_id: u32 = record[1].parse()?;
+            let subaccount_name: String = record[2].to_owned();
+            let hour_beginning = parse_hour_ending(&self.info.report_date, &record[3]);
+            let rt_load_obligation: f64 = record[4].parse()?;
+            let rt_external_node_load_obligation: f64 = record[5].parse()?;
+            let rt_dard_load_obligation_reduction: f64 = record[6].parse()?;
+            let rt_load_obligation_for_da_eir_charge_allocation: f64 = record[7].parse()?;
+            let pool_rt_load_obligation_for_da_eir_charge_allocation: f64 = record[8].parse()?;
+            let pool_da_eir_credit: f64 = record[9].parse()?;
+            let pool_fer_credit: f64 = record[10].parse()?;
+            let pool_export_fer_charge: f64 = record[11].parse()?;
+            let pool_fer_and_da_eir_net_credits: f64 = record[12].parse()?;
+            let fer_and_da_eir_charge: f64 = record[13].parse()?;
+            let pool_da_eir_closeout_charge: f64 = record[14].parse()?;
+            let da_eir_closeout_credit: f64 = record[15].parse()?;
+
+            out.push(RowTab7 {
+                account_id: self.info.account_id,
+                report_date: self.info.report_date,
+                version: self.info.version,
+                subaccount_id,
+                subaccount_name,
+                hour_beginning,
+                rt_load_obligation,
+                rt_external_node_load_obligation,
+                rt_dard_load_obligation_reduction,
+                rt_load_obligation_for_da_eir_charge_allocation,
+                pool_rt_load_obligation_for_da_eir_charge_allocation,
+                pool_da_eir_credit,
+                pool_fer_credit,
+                pool_export_fer_charge,
+                pool_fer_and_da_eir_net_credits,
+                fer_and_da_eir_charge,
+                pool_da_eir_closeout_charge,
+                da_eir_closeout_credit,
+            });
+        }
+
+        Ok(out)
+    }
+
+    fn export_csv(&self, archive: &SdDaasdtArchive) -> Result<(), Box<dyn Error>> {
+        // tab 0
+        let mut wtr = csv::Writer::from_path(archive.filename(0, &self.info))?;
+        let records = self.process_tab0().unwrap();
+        for record in records {
+            wtr.serialize(record)?;
+        }
+        wtr.flush()?;
+
+        // tab 1
+        let mut wtr = csv::Writer::from_path(archive.filename(1, &self.info))?;
+        let records = self.process_tab1().unwrap();
+        for record in records {
+            wtr.serialize(record)?;
+        }
+        wtr.flush()?;
+
+        // tab 6
+        let mut wtr = csv::Writer::from_path(archive.filename(6, &self.info))?;
+        let records = self.process_tab6().unwrap();
+        for record in records {
+            wtr.serialize(record)?;
+        }
+        wtr.flush()?;
+
+        // tab 7
+        let mut wtr = csv::Writer::from_path(archive.filename(7, &self.info))?;
+        let records = self.process_tab7().unwrap();
+        for record in records {
+            wtr.serialize(record)?;
+        }
+        wtr.flush()?;
+
+        Ok(())
+    }
 }
 
 pub struct SdDaasdtArchive {
@@ -156,15 +413,16 @@ pub struct SdDaasdtArchive {
     pub duckdb_path: String,
 }
 
+impl SdDaasdtArchive {}
+
 impl MisArchiveDuckDB for SdDaasdtArchive {
+    fn report_name(&self) -> String {
+        "SD_DAASDT".to_string()
+    }
+
     /// Path to the monthly CSV file with the ISO report for a given tab
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
-        self.base_dir.to_owned()
-            + "/Raw"
-            + "/sd_daasdt_"
-            + &format!("tab{}_", tab)
-            // + &date.strftime("%Y-%m").to_string()
-            + ".csv"
+        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
     fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
@@ -178,7 +436,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             let n = 719528 + row.get::<usize, i32>(1).unwrap();
             let microseconds: i64 = row.get(2).unwrap();
             Ok(MisReportInfo {
-                report_name: "SD_RTLOAD".to_string(),
+                report_name: self.report_name(),
                 account_id: row.get::<usize, usize>(0).unwrap(),
                 report_date: Date::ZERO.checked_add(n.days()).unwrap(),
                 version: Timestamp::from_microsecond(microseconds).unwrap(),
@@ -190,7 +448,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
     }
 
     fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
-        info!("initializing SD_RTLOAD archive ...");
+        info!("initializing {} archive ...", self.report_name());
         if fs::exists(&self.duckdb_path)? {
             fs::remove_file(&self.duckdb_path)?;
         }
@@ -240,7 +498,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
                 info: info.clone(),
                 lines,
             };
-            // report.export_csv(self)?;
+            report.export_csv(self)?;
             info!("Wrote file {}", self.filename(0, info));
         }
 
@@ -284,7 +542,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows in SD_RTLOAD tab0 table", n),
+            Ok(n) => info!("  inserted {} rows in {} tab0 table", n, self.report_name()),
             Err(e) => error!("{:?}", e),
         }
 
@@ -298,8 +556,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
 mod tests {
     use std::{error::Error, str::FromStr};
 
-    use jiff::{civil::Date, Timestamp, Zoned};
-
+ 
     use crate::db::isone::mis::{
         lib_mis::*,
         sd_daasdt::{AssetType, SdDaasdtReport},
@@ -323,7 +580,7 @@ mod tests {
     fn parse_enums_test() -> Result<(), Box<dyn Error>> {
         assert_eq!(
             AssetType::from_str("GENERATOR").unwrap(),
-            AssetType::generator
+            AssetType::Generator
         );
         Ok(())
     }
