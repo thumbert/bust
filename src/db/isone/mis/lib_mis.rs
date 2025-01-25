@@ -23,7 +23,12 @@ pub trait MisArchiveDuckDB {
             current.add(-5).unwrap(),
             current.add(-12).unwrap(),
         ]
+    }
 
+    fn first_month(&self) -> Month;
+
+    fn last_month(&self) -> Month {
+        month(2199, 12)
     }
 
     /// Path to the temporary CSV file with the ISO report for a given tab,
@@ -319,4 +324,6 @@ mod tests {
         assert_eq!(filename, report.filename_iso());
         Ok(())
     }
+
+
 }

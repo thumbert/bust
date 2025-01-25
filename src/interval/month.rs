@@ -1,5 +1,5 @@
 use jiff::{
-    civil::{self as jc, date, Date, DateTime},
+    civil::{self as jc, Date},
     ToSpan,
 };
 // use pest::error::Error;
@@ -83,7 +83,6 @@ impl Month {
 
     pub fn is_after(&self, start: Month) -> Result<bool, Box<dyn Error>> {
         let span = start.start_date.until(self.start_date)?;
-        // println!("{}", span.get_days());
         Ok(span.get_days() > 0)
     }
 

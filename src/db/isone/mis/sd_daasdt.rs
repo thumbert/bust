@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     error::Error,
-    fs::{self, OpenOptions},
+    fs::{self},
     str::FromStr,
 };
 
@@ -9,6 +9,8 @@ use duckdb::{params, Connection};
 use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+
+use crate::interval::month::*;
 
 use super::lib_mis::*;
 
@@ -420,6 +422,21 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         "SD_DAASDT".to_string()
     }
 
+    fn first_month(&self) -> crate::interval::month::Month {
+        month(2025, 3)
+    }
+
+
+    /// Which months to archive.  Default implementation.
+    fn get_months(&self) -> Vec<Month> {
+        // let months = MisArchiveDuckDB::get_months(self);
+        MisArchiveDuckDB::get_months(self)
+            .into_iter()
+            .filter(|e| e.is_after(self.first_month()).unwrap() || *e == self.first_month())
+            .collect()
+        // months
+    }
+
     /// Path to the monthly CSV file with the ISO report for a given tab
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
@@ -550,17 +567,27 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
 
         Ok(())
     }
+    
 }
 
 #[cfg(test)]
 mod tests {
     use std::{error::Error, str::FromStr};
 
- 
-    use crate::db::isone::mis::{
+    use crate::db::{isone::mis::{
         lib_mis::*,
         sd_daasdt::{AssetType, SdDaasdtReport},
-    };
+    }, prod_db::ProdDb};
+
+    #[test]
+    fn months_test() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::sd_daasdt();
+        println!("{:?}", archive.get_months());
+
+
+        Ok(())
+    }
+
 
     #[test]
     fn read_tab0_test() -> Result<(), Box<dyn Error>> {

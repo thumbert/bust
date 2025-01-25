@@ -10,6 +10,8 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
+use crate::interval::month::*;
+
 use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
@@ -160,6 +162,10 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         "SD_RTLOAD".to_string()
     }
 
+    fn first_month(&self) -> crate::interval::month::Month {
+        month(2001, 1)
+    }
+        
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
@@ -288,7 +294,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         info!("done\n");
 
         Ok(())
-    }
+    }    
 }
 
 #[cfg(test)]
