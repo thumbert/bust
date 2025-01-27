@@ -15,7 +15,7 @@ use crate::interval::month::*;
 use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum AssetType {
+pub enum AssetType {
     #[serde(rename = "GENERATOR")]
     Generator,
     #[serde(rename = "ASSET RELATED DEMAND")]
@@ -38,7 +38,7 @@ impl FromStr for AssetType {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum ProductType {
+pub enum ProductType {
     #[serde(rename = "DA_TMSR")]
     Tmsr,
     #[serde(rename = "DA_TMNSR")]
@@ -65,96 +65,96 @@ impl FromStr for ProductType {
 
 /// Asset FRS credits and closeout charges
 #[derive(Debug, Serialize, Deserialize)]
-struct RowTab0 {
-    account_id: usize,
-    report_date: Date,
-    version: Timestamp,
-    hour_beginning: Zoned,
-    asset_id: u32,
-    asset_name: String,
-    subaccount_id: u32,
-    subaccount_name: String,
-    asset_type: AssetType,
-    ownership_share: f32,
-    product_type: Option<ProductType>,
-    product_obligation: Option<f64>,
-    product_clearing_price: Option<f64>,
-    product_credit: Option<f64>,
-    customer_share_of_product_credit: Option<f64>,
-    strike_price: Option<f64>,
-    hub_rt_lmp: Option<f64>,
-    product_closeout_charge: Option<f64>,
-    customer_share_of_product_closeout_charge: Option<f64>,
+pub struct RowTab0 {
+    pub account_id: usize,
+    pub report_date: Date,
+    pub version: Timestamp,
+    pub hour_beginning: Zoned,
+    pub asset_id: u32,
+    pub asset_name: String,
+    pub subaccount_id: u32,
+    pub subaccount_name: String,
+    pub asset_type: AssetType,
+    pub ownership_share: f32,
+    pub product_type: Option<ProductType>,
+    pub product_obligation: Option<f64>,
+    pub product_clearing_price: Option<f64>,
+    pub product_credit: Option<f64>,
+    pub customer_share_of_product_credit: Option<f64>,
+    pub strike_price: Option<f64>,
+    pub hub_rt_lmp: Option<f64>,
+    pub product_closeout_charge: Option<f64>,
+    pub customer_share_of_product_closeout_charge: Option<f64>,
 }
 
 /// Asset FER credits
 #[derive(Debug, Serialize, Deserialize)]
-struct RowTab1 {
-    account_id: usize,
-    report_date: Date,
-    version: Timestamp,
-    hour_beginning: Zoned,
-    asset_id: u32,
-    asset_name: String,
-    subaccount_id: u32,
-    subaccount_name: String,
-    asset_type: AssetType,
-    ownership_share: f32,
-    da_cleared_energy: f64,
-    fer_price: f64,
-    asset_fer_credit: f64,
-    customer_share_of_asset_fer_credit: f64,
+pub struct RowTab1 {
+    pub account_id: usize,
+    pub report_date: Date,
+    pub version: Timestamp,
+    pub hour_beginning: Zoned,
+    pub asset_id: u32,
+    pub asset_name: String,
+    pub subaccount_id: u32,
+    pub subaccount_name: String,
+    pub asset_type: AssetType,
+    pub ownership_share: f32,
+    pub da_cleared_energy: f64,
+    pub fer_price: f64,
+    pub asset_fer_credit: f64,
+    pub customer_share_of_asset_fer_credit: f64,
 }
 
 /// Subaccount FRS Credits & Charges Section
 #[derive(Debug, Serialize, Deserialize)]
-struct RowTab6 {
-    account_id: usize,
-    report_date: Date,
-    version: Timestamp,
-    subaccount_id: u32,
-    subaccount_name: String,
-    hour_beginning: Zoned,
-    rt_load_obligation: f64,
-    rt_external_node_load_obligation: f64,
-    rt_dard_load_obligation_reduction: f64,
-    rt_load_obligation_for_frs_charge_allocation: f64,
-    pool_rt_load_obligation_for_frs_charge_allocation: f64,
-    pool_da_tmsr_credit: f64,
-    da_tmsr_charge: f64,
-    pool_da_tmnsr_credit: f64,
-    da_tmnsr_charge: f64,
-    pool_da_tmor_credit: f64,
-    da_tmor_charge: f64,
-    pool_da_tmsr_closeout_charge: f64,
-    da_tmsr_closeout_credit: f64,
-    pool_da_tmnsr_closeout_charge: f64,
-    da_tmnsr_closeout_credit: f64,
-    pool_da_tmor_closeout_charge: f64,
-    da_tmor_closeout_credit: f64,
+pub struct RowTab6 {
+    pub account_id: usize,
+    pub report_date: Date,
+    pub version: Timestamp,
+    pub subaccount_id: u32,
+    pub subaccount_name: String,
+    pub hour_beginning: Zoned,
+    pub rt_load_obligation: f64,
+    pub rt_external_node_load_obligation: f64,
+    pub rt_dard_load_obligation_reduction: f64,
+    pub rt_load_obligation_for_frs_charge_allocation: f64,
+    pub pool_rt_load_obligation_for_frs_charge_allocation: f64,
+    pub pool_da_tmsr_credit: f64,
+    pub da_tmsr_charge: f64,
+    pub pool_da_tmnsr_credit: f64,
+    pub da_tmnsr_charge: f64,
+    pub pool_da_tmor_credit: f64,
+    pub da_tmor_charge: f64,
+    pub pool_da_tmsr_closeout_charge: f64,
+    pub da_tmsr_closeout_credit: f64,
+    pub pool_da_tmnsr_closeout_charge: f64,
+    pub da_tmnsr_closeout_credit: f64,
+    pub pool_da_tmor_closeout_charge: f64,
+    pub da_tmor_closeout_credit: f64,
 }
 
 /// Subaccount DA EIR Credits & Charges Section
 #[derive(Debug, Serialize, Deserialize)]
-struct RowTab7 {
-    account_id: usize,
-    report_date: Date,
-    version: Timestamp,
-    subaccount_id: u32,
-    subaccount_name: String,
-    hour_beginning: Zoned,
-    rt_load_obligation: f64,
-    rt_external_node_load_obligation: f64,
-    rt_dard_load_obligation_reduction: f64,
-    rt_load_obligation_for_da_eir_charge_allocation: f64,
-    pool_rt_load_obligation_for_da_eir_charge_allocation: f64,
-    pool_da_eir_credit: f64,
-    pool_fer_credit: f64,
-    pool_export_fer_charge: f64,
-    pool_fer_and_da_eir_net_credits: f64,
-    fer_and_da_eir_charge: f64,
-    pool_da_eir_closeout_charge: f64,
-    da_eir_closeout_credit: f64,
+pub struct RowTab7 {
+    pub account_id: usize,
+    pub report_date: Date,
+    pub version: Timestamp,
+    pub subaccount_id: u32,
+    pub subaccount_name: String,
+    pub hour_beginning: Zoned,
+    pub rt_load_obligation: f64,
+    pub rt_external_node_load_obligation: f64,
+    pub rt_dard_load_obligation_reduction: f64,
+    pub rt_load_obligation_for_da_eir_charge_allocation: f64,
+    pub pool_rt_load_obligation_for_da_eir_charge_allocation: f64,
+    pub pool_da_eir_credit: f64,
+    pub pool_fer_credit: f64,
+    pub pool_export_fer_charge: f64,
+    pub pool_fer_and_da_eir_net_credits: f64,
+    pub fer_and_da_eir_charge: f64,
+    pub pool_da_eir_closeout_charge: f64,
+    pub da_eir_closeout_credit: f64,
 }
 
 pub struct SdDaasdtReport {
@@ -415,7 +415,15 @@ pub struct SdDaasdtArchive {
     pub duckdb_path: String,
 }
 
-impl SdDaasdtArchive {}
+impl SdDaasdtArchive {
+    /// Which months to archive.  Default implementation.
+    fn get_months(&self) -> Vec<Month> {
+        MisArchiveDuckDB::get_months(self)
+            .into_iter()
+            .filter(|e| e >= &self.first_month())
+            .collect()
+    }
+}
 
 impl MisArchiveDuckDB for SdDaasdtArchive {
     fn report_name(&self) -> String {
@@ -424,17 +432,6 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
 
     fn first_month(&self) -> crate::interval::month::Month {
         month(2025, 3)
-    }
-
-
-    /// Which months to archive.  Default implementation.
-    fn get_months(&self) -> Vec<Month> {
-        // let months = MisArchiveDuckDB::get_months(self);
-        MisArchiveDuckDB::get_months(self)
-            .into_iter()
-            .filter(|e| e.is_after(self.first_month()).unwrap() || *e == self.first_month())
-            .collect()
-        // months
     }
 
     /// Path to the monthly CSV file with the ISO report for a given tab
@@ -478,19 +475,90 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         report_date DATE NOT NULL,
         version TIMESTAMP NOT NULL,
         hour_beginning TIMESTAMPTZ NOT NULL,
-        asset_name VARCHAR NOT NULL,
         asset_id UINTEGER NOT NULL,
-        asset_subtype ENUM ('LOSSES', 'NORMAL', 'STATION SERVICE', 'ENERGY STORAGE', 'PUMP STORAGE'),
-        location_id UINTEGER NOT NULL,
-        location_name VARCHAR NOT NULL,
-        location_type ENUM ('METERING DOMAIN', 'NETWORK NODE'),
-        load_reading DOUBLE NOT NULL,
-        ownership_share FLOAT NOT NULL,
-        share_of_load_reading DOUBLE NOT NULL,
+        asset_name VARCHAR NOT NULL,
         subaccount_id UINTEGER,
         subaccount_name VARCHAR,
+        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE'),
+        ownership_share FLOAT NOT NULL,
+        product_type ENUM ('DA_TMSR', 'DA_TMNSR', 'DA_TMOR', 'DA_EIR'),
+        product_obligation DOUBLE,
+        product_clearing_price DOUBLE,
+        product_credit DOUBLE,
+        customer_share_of_product_credit DOUBLE,
+        strike_price DOUBLE,
+        hub_rt_lmp DOUBLE,
+        product_closeout_charge DOUBLE,
+        customer_share_of_product_closeout_charge DOUBLE,
     );
     CREATE INDEX idx ON tab0 (report_date);
+
+    CREATE TABLE IF NOT EXISTS tab1 (
+        account_id UINTEGER NOT NULL,
+        report_date DATE NOT NULL,
+        version TIMESTAMP NOT NULL,
+        hour_beginning TIMESTAMPTZ NOT NULL,
+        asset_id UINTEGER NOT NULL,
+        asset_name VARCHAR NOT NULL,
+        subaccount_id UINTEGER,
+        subaccount_name VARCHAR,
+        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE'),
+        ownership_share FLOAT NOT NULL,
+        da_cleared_energy DOUBLE,
+        fer_price DOUBLE,
+        asset_fer_credit DOUBLE,    
+        customer_share_of_asset_fer_credit DOUBLE,
+    );
+    CREATE INDEX idx ON tab1 (report_date);
+
+    CREATE TABLE IF NOT EXISTS tab6 (
+        account_id UINTEGER NOT NULL,
+        report_date DATE NOT NULL,
+        version TIMESTAMP NOT NULL,
+        subaccount_id UINTEGER,
+        subaccount_name VARCHAR,
+        hour_beginning TIMESTAMPTZ NOT NULL,
+        rt_load_obligation DOUBLE,
+        rt_external_node_load_obligation DOUBLE,
+        rt_dard_load_obligation_reduction DOUBLE,
+        rt_load_obligation_for_frs_charge_allocation DOUBLE,
+        pool_rt_load_obligation_for_frs_charge_allocation DOUBLE,
+        pool_da_tmsr_credit DOUBLE,
+        da_tmsr_charge DOUBLE,
+        pool_da_tmnsr_credit DOUBLE,
+        da_tmnsr_charge DOUBLE,
+        pool_da_tmor_credit DOUBLE,
+        da_tmor_charge DOUBLE,
+        pool_da_tmsr_closeout_charge DOUBLE,
+        da_tmsr_closeout_credit DOUBLE,
+        pool_da_tmnsr_closeout_charge DOUBLE,
+        da_tmnsr_closeout_credit DOUBLE,
+        pool_da_tmor_closeout_charge DOUBLE,
+        da_tmor_closeout_credit DOUBLE,
+    );
+    CREATE INDEX idx ON tab6 (report_date);
+
+    CREATE TABLE IF NOT EXISTS tab7 (
+        account_id UINTEGER NOT NULL,
+        report_date DATE NOT NULL,
+        version TIMESTAMP NOT NULL,
+        subaccount_id UINTEGER,
+        subaccount_name VARCHAR,
+        hour_beginning TIMESTAMPTZ NOT NULL,
+        rt_load_obligation DOUBLE,
+        rt_external_node_load_obligation DOUBLE,
+        rt_dard_load_obligation_reduction DOUBLE,
+        rt_load_obligation_for_da_eir_charge_allocation DOUBLE,
+        pool_rt_load_obligation_for_da_eir_charge_allocation DOUBLE,
+        pool_da_eir_credit DOUBLE,
+        pool_fer_credit DOUBLE,
+        pool_export_fer_charge DOUBLE,
+        pool_fer_and_da_eir_net_credits DOUBLE,
+        fer_and_da_eir_charge DOUBLE,
+        pool_da_eir_closeout_charge DOUBLE,
+        da_eir_closeout_credit DOUBLE,
+    );
+    CREATE INDEX idx ON tab7 (report_date);
     COMMIT;
     ",
         )?;
@@ -530,26 +598,32 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             info!("No files to upload to DuckDB.  Exiting...");
             return Ok(());
         } else {
-            info!("Inserting {} files into DuckDB.", paths.len());
+            info!("Inserting {} files into DuckDB...", paths.len());
         }
 
         let conn = Connection::open(&self.duckdb_path)?;
         let sql = format!(
             r"
-            INSERT INTO tab0 
-            SELECT account_id, report_date, version, 
+            INSERT INTO tab0
+            SELECT account_id, 
+                report_date, 
+                version, 
                 strptime(left(hour_beginning, 25), '%Y-%m-%dT%H:%M:%S%z') AS hour_beginning,
-                asset_name,
                 asset_id,
-                asset_subtype,
-                location_id,
-                location_name,
-                location_type,
-                load_reading,
-                ownership_share,
-                share_of_load_reading,
+                asset_name,
                 subaccount_id,
-                subaccount_name
+                subaccount_name,
+                asset_type,
+                ownership_share,
+                product_type,
+                product_obligation,
+                product_clearing_price,
+                product_credit,
+                customer_share_of_product_credit,
+                strike_price,
+                hub_rt_lmp,
+                product_closeout_charge,
+                customer_share_of_product_closeout_charge,
             FROM read_csv(
                 '{}/tmp/tab0_*.CSV', 
                 header = true, 
@@ -559,46 +633,157 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows in {} tab0 table", n, self.report_name()),
+            Ok(n) => info!("  inserted {} rows into {} tab0 table", n, self.report_name()),
             Err(e) => error!("{:?}", e),
         }
 
-        info!("done\n");
+        let sql = format!(
+            r"
+            INSERT INTO tab1
+            SELECT account_id, 
+                report_date, 
+                version, 
+                strptime(left(hour_beginning, 25), '%Y-%m-%dT%H:%M:%S%z') AS hour_beginning,
+                asset_id,
+                asset_name,
+                subaccount_id,
+                subaccount_name,
+                asset_type,
+                ownership_share,
+                da_cleared_energy,
+                fer_price,
+                asset_fer_credit,
+                customer_share_of_asset_fer_credit,
+            FROM read_csv(
+                '{}/tmp/tab1_*.CSV', 
+                header = true, 
+                timestampformat = '%Y-%m-%dT%H:%M:%SZ'
+            );
+            ",
+            self.base_dir,
+        );
+        match conn.execute(&sql, params![]) {
+            Ok(n) => info!("  inserted {} rows into {} tab1 table", n, self.report_name()),
+            Err(e) => error!("{:?}", e),
+        }
 
+        let sql = format!(
+            r"
+            INSERT INTO tab6
+            SELECT account_id, 
+                report_date, 
+                version, 
+                subaccount_id,
+                subaccount_name,
+                strptime(left(hour_beginning, 25), '%Y-%m-%dT%H:%M:%S%z') AS hour_beginning,
+                rt_load_obligation,
+                rt_external_node_load_obligation,
+                rt_dard_load_obligation_reduction,
+                rt_load_obligation_for_frs_charge_allocation,
+                pool_rt_load_obligation_for_frs_charge_allocation,
+                pool_da_tmsr_credit,
+                da_tmsr_charge,
+                pool_da_tmnsr_credit,
+                da_tmnsr_charge,
+                pool_da_tmor_credit,
+                da_tmor_charge,
+                pool_da_tmsr_closeout_charge,
+                da_tmsr_closeout_credit,
+                pool_da_tmnsr_closeout_charge,
+                da_tmnsr_closeout_credit,
+                pool_da_tmor_closeout_charge,
+                da_tmor_closeout_credit,
+            FROM read_csv(
+                '{}/tmp/tab6_*.CSV', 
+                header = true, 
+                timestampformat = '%Y-%m-%dT%H:%M:%SZ'
+            );
+            ",
+            self.base_dir,
+        );
+        match conn.execute(&sql, params![]) {
+            Ok(n) => info!("  inserted {} rows into {} tab6 table", n, self.report_name()),
+            Err(e) => error!("{:?}", e),
+        }
+
+        let sql = format!(
+            r"
+            INSERT INTO tab7
+            SELECT account_id, 
+                report_date, 
+                version, 
+                subaccount_id,
+                subaccount_name,
+                strptime(left(hour_beginning, 25), '%Y-%m-%dT%H:%M:%S%z') AS hour_beginning,
+                rt_load_obligation,
+                rt_external_node_load_obligation,
+                rt_dard_load_obligation_reduction,
+                rt_load_obligation_for_da_eir_charge_allocation,
+                pool_rt_load_obligation_for_da_eir_charge_allocation,
+                pool_da_eir_credit,
+                pool_fer_credit,
+                pool_export_fer_charge,
+                pool_fer_and_da_eir_net_credits,
+                fer_and_da_eir_charge,
+                pool_da_eir_closeout_charge,
+                da_eir_closeout_credit,
+            FROM read_csv(
+                '{}/tmp/tab7_*.CSV', 
+                header = true, 
+                timestampformat = '%Y-%m-%dT%H:%M:%SZ'
+            );
+            ",
+            self.base_dir,
+        );
+        match conn.execute(&sql, params![]) {
+            Ok(n) => info!("  inserted {} rows into {} tab7 table", n, self.report_name()),
+            Err(e) => error!("{:?}", e),
+        }
+
+        info!("Done\n");
         Ok(())
     }
-    
 }
 
 #[cfg(test)]
 mod tests {
     use std::{error::Error, str::FromStr};
 
-    use crate::db::{isone::mis::{
-        lib_mis::*,
-        sd_daasdt::{AssetType, SdDaasdtReport},
-    }, prod_db::ProdDb};
+    use jiff::{civil::date, Zoned};
+
+    use crate::db::{
+        isone::mis::{lib_mis::*, sd_daasdt::*},
+        prod_db::ProdDb,
+    };
 
     #[test]
     fn months_test() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::sd_daasdt();
-        println!("{:?}", archive.get_months());
-
-
+        let months = archive.get_months();
+        if Zoned::now().date() > date(2025, 3, 1) {
+            assert!(months.is_empty())
+        }
         Ok(())
     }
 
-
+    #[ignore]
     #[test]
-    fn read_tab0_test() -> Result<(), Box<dyn Error>> {
-        let path = "../elec-server/test/_assets/sd_daasdt_000000002_2024111500_20241203135151.csv";
-        let info = MisReportInfo::from(path.to_string());
-        let lines = read_report(path).unwrap();
-        assert_eq!(lines.len(), 198);
+    fn update_test() -> Result<(), Box<dyn Error>> {
+        env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .init();
 
-        let report = SdDaasdtReport { info, lines };
-        let rows = report.process_tab0()?;
-        println!("{:?}", rows);
+        let path = "../elec-server/test/_assets/sd_daasdt_000000002_2024111500_20241203135151.csv"
+            .to_string();
+        let archive = ProdDb::sd_daasdt();
+        archive.setup_duckdb()?;
+        archive.update_duckdb(vec![path])?;
+
+        // let info = MisReportInfo::from(path.clone());
+        // let lines = read_report(&path).unwrap();
+        // assert_eq!(lines.len(), 198);
+        // let report = SdDaasdtReport { info, lines };
+        // report.export_csv(&archive)?;
 
         Ok(())
     }

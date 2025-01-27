@@ -61,6 +61,10 @@ name = "duckdb"
 path = "examples/duckdb/main.rs"
 
 [[example]]
+name = "datetime_example"
+path = "examples/duckdb/datetime_example.rs"
+
+[[example]]
 name = "decimal_example"
 path = "examples/duckdb/decimal_example.rs"
 
