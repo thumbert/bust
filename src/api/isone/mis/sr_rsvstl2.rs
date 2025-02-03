@@ -76,13 +76,13 @@ async fn api_daily_credits(
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DailyCredits {
-    report_date: Date,
-    asset_id: usize,
-    version: Timestamp,
-    rt_tmsr_credit: f64,
-    rt_tmnsr_credit: f64,
-    rt_tmor_credit: f64,
-    rt_reserve_credit: f64,
+    pub report_date: Date,
+    pub asset_id: usize,
+    pub version: Timestamp,
+    pub rt_tmsr_credit: f64,
+    pub rt_tmnsr_credit: f64,
+    pub rt_tmor_credit: f64,
+    pub rt_reserve_credit: f64,
 }
 
 fn get_daily_credits(

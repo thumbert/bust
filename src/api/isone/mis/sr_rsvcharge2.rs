@@ -76,10 +76,10 @@ async fn api_daily_charges(
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DailyCharges {
-    report_date: Date,
-    load_zone_id: usize,
-    version: Timestamp,
-    total_rt_reserve_charge: f64,
+    pub report_date: Date,
+    pub load_zone_id: usize,
+    pub version: Timestamp,
+    pub total_rt_reserve_charge: f64,
 }
 
 pub fn get_daily_charges(
