@@ -73,6 +73,10 @@ name = "duckdb_bug"
 path = "examples/duckdb/enum_bug.rs"
 
 [[example]]
+name = "list_example"
+path = "examples/duckdb/list_example.rs"
+
+[[example]]
 name = "inheritance"
 path = "examples/learn/inheritance.rs"
 

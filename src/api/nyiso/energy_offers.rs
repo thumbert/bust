@@ -208,10 +208,10 @@ FROM unpivot_alias
 ORDER BY "Masked Gen ID", "Date Time", "Price";    
     "#,
         start
-            .intz("America/New_York")
+            .in_tz("America/New_York")
             .unwrap()
             .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
-        end.intz("America/New_York")
+        end.in_tz("America/New_York")
             .unwrap()
             .checked_add(1.day())
             .ok()
@@ -310,7 +310,7 @@ pub fn get_stack(
                 timestamps
                     .first()
                     .unwrap()
-                    .intz("America/New_York")
+                    .in_tz("America/New_York")
                     .unwrap()
                     .strftime("%Y-%m-%d %H:%M:%S.000%:z")
             ),
@@ -319,7 +319,7 @@ pub fn get_stack(
                 timestamps
                     .iter()
                     .map(|e| e
-                        .intz("America/New_York")
+                        .in_tz("America/New_York")
                         .unwrap()
                         .strftime("%Y-%m-%d %H:%M:%S.000%:z"))
                     .join("', '")

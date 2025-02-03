@@ -1,4 +1,4 @@
-use super::{hq::hydrometeorological_data_archive::HqHydroDataArchive, isone::{mis::{sd_daasdt::SdDaasdtArchive, sd_rtload::SdRtloadArchive}, sevenday_solar_forecast_archive::SevendaySolarForecastArchive}, nrc::generator_status_archive::GeneratorStatusArchive};
+use super::{hq::hydrometeorological_data_archive::HqHydroDataArchive, isone::{mis::{sd_daasdt::SdDaasdtArchive, sd_rtload::SdRtloadArchive, sr_rsvcharge2::SrRsvcharge2Archive}, sevenday_solar_forecast_archive::SevendaySolarForecastArchive}, nrc::generator_status_archive::GeneratorStatusArchive};
 
 pub struct ProdDb {}
 
@@ -47,6 +47,14 @@ impl ProdDb {
         SdRtloadArchive {
             base_dir: "/home/adrian/Downloads/Archive/Mis/SD_RTLOAD".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sd_rtload.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn sr_rsvcharge2() -> SrRsvcharge2Archive {
+        SrRsvcharge2Archive {
+            base_dir: "/home/adrian/Downloads/Archive/Mis/SR_RSVCHARGE2".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sr_rsvcharge2.duckdb"
                 .to_string(),
         }
     }

@@ -1,12 +1,11 @@
 use std::{
-    collections::HashSet,
     error::Error,
     fs::{self},
     str::FromStr,
 };
 
 use duckdb::{params, Connection};
-use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
+use jiff::{civil::Date, Timestamp, Zoned};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
@@ -158,8 +157,8 @@ pub struct RowTab7 {
 }
 
 pub struct SdDaasdtReport {
-    info: MisReportInfo,
-    lines: Vec<String>,
+    pub info: MisReportInfo,
+    pub lines: Vec<String>,
 }
 
 impl MisReport for SdDaasdtReport {}
@@ -439,29 +438,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
-    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
-        let conn = Connection::open(&self.duckdb_path)?;
-        let query = r#"
-        SELECT DISTINCT account_id, report_date, version
-        FROM tab0;
-        "#;
-        let mut stmt = conn.prepare(query).unwrap();
-        let res_iter = stmt.query_map([], |row| {
-            let n = 719528 + row.get::<usize, i32>(1).unwrap();
-            let microseconds: i64 = row.get(2).unwrap();
-            Ok(MisReportInfo {
-                report_name: self.report_name(),
-                account_id: row.get::<usize, usize>(0).unwrap(),
-                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
-                version: Timestamp::from_microsecond(microseconds).unwrap(),
-            })
-        })?;
-        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
-
-        Ok(res)
-    }
-
-    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
+    fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing {} archive ...", self.report_name());
         if fs::exists(&self.duckdb_path)? {
             fs::remove_file(&self.duckdb_path)?;
@@ -569,7 +546,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
-        let existing = self.get_reports_duckdb().unwrap();
+        let existing = self.get_reports_duckdb(0, &self.duckdb_path).unwrap();
         fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
         fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
 
@@ -595,7 +572,10 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         paths.sort_by_key(|e| e.path());
 
         if paths.is_empty() {
-            info!("No files to upload to DuckDB.  Exiting...");
+            info!(
+                "No new {} files to upload to DuckDB.  Continue.",
+                self.report_name()
+            );
             return Ok(());
         } else {
             info!("Inserting {} files into DuckDB...", paths.len());
@@ -633,7 +613,11 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab0 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab0 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
@@ -663,7 +647,11 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab1 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab1 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
@@ -702,7 +690,11 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab6 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab6 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
@@ -736,7 +728,11 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab7 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab7 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
@@ -776,7 +772,7 @@ mod tests {
         let path = "../elec-server/test/_assets/sd_daasdt_000000002_2024111500_20241203135151.csv"
             .to_string();
         let archive = ProdDb::sd_daasdt();
-        archive.setup_duckdb()?;
+        archive.setup()?;
         archive.update_duckdb(vec![path])?;
 
         // let info = MisReportInfo::from(path.clone());

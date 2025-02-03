@@ -4,7 +4,8 @@ TODO:
   make sure you panic if the wrong rule is passed in. 
 - Support an optional start/end month for an MIS report.  
 
-## 2025-01-xx
+## 2025-02-03
+- Some work on sr_rsvcharge2 report
 - Finished preliminary work on the sd_daasdt report. 
 
 ## 2025-01-24
