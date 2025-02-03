@@ -77,7 +77,7 @@ pub struct RowTab0 {
     pub load_reading: f64,
     pub ownership_share: f32,
     pub share_of_load_reading: f64,
-    pub subaccount_id: Option<u32>,
+    pub subaccount_id: Option<String>,
     pub subaccount_name: Option<String>,
 }
 
@@ -109,7 +109,7 @@ impl SdRtloadReport {
             let load_reading: f64 = record[8].parse()?;
             let ownership_share: f32 = record[9].parse()?;
             let share_of_load_reading: f64 = record[10].parse()?;
-            let subaccount_id: Option<u32> = record[11].parse().ok();
+            let subaccount_id: Option<String> = record[11].parse().ok();
             let subaccount_name: Option<String> = record[12].parse().ok();
 
             out.push(RowTab0 {
@@ -167,27 +167,6 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
-    // fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
-    //     let conn = Connection::open(&self.duckdb_path)?;
-    //     let query = r#"
-    //     SELECT DISTINCT account_id, report_date, version
-    //     FROM tab0;
-    //     "#;
-    //     let mut stmt = conn.prepare(query).unwrap();
-    //     let res_iter = stmt.query_map([], |row| {
-    //         let n = 719528 + row.get::<usize, i32>(1).unwrap();
-    //         let microseconds: i64 = row.get(2).unwrap();
-    //         Ok(MisReportInfo {
-    //             report_name: self.report_name(),
-    //             account_id: row.get::<usize, usize>(0).unwrap(),
-    //             report_date: Date::ZERO.checked_add(n.days()).unwrap(),
-    //             version: Timestamp::from_microsecond(microseconds).unwrap(),
-    //         })
-    //     })?;
-    //     let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
-
-    //     Ok(res)
-    // }
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing SD_RTLOAD archive ...");
@@ -212,7 +191,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         load_reading DOUBLE NOT NULL,
         ownership_share FLOAT NOT NULL,
         share_of_load_reading DOUBLE NOT NULL,
-        subaccount_id UINTEGER,
+        subaccount_id VARCHAR,
         subaccount_name VARCHAR,
     );
     CREATE INDEX idx ON tab0 (report_date);

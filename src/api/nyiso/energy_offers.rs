@@ -326,7 +326,7 @@ pub fn get_stack(
             ),
         }
     );
-    println!("{}", query);
+    // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
     let offers_iter = stmt.query_map([], |row| {
         let micro: i64 = row.get(1).unwrap();
