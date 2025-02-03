@@ -14,7 +14,7 @@ use crate::interval::month::*;
 use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum AssetSubType {
+pub enum AssetSubType {
     #[serde(rename = "LOSSES")]
     Losses,
     #[serde(rename = "NORMAL")]
@@ -43,7 +43,7 @@ impl FromStr for AssetSubType {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum LocationType {
+pub enum LocationType {
     #[serde(rename = "METERING DOMAIN")]
     MeteringDomain,
     #[serde(rename = "NETWORK NODE")]
@@ -89,9 +89,7 @@ pub struct SdRtloadReport {
 impl MisReport for SdRtloadReport {}
 
 impl SdRtloadReport {
-
-
-    fn process_tab0(&self) -> Result<Vec<RowTab0>, Box<dyn Error>> {
+    pub fn process_tab0(&self) -> Result<Vec<RowTab0>, Box<dyn Error>> {
         let mut out: Vec<RowTab0> = Vec::new();
         let tab0 = extract_tab(0, &self.lines).unwrap();
         let data = tab0.lines.join("\n");
@@ -136,7 +134,7 @@ impl SdRtloadReport {
         Ok(out)
     }
 
-    fn export_csv(&self, archive: &SdRtloadArchive) -> Result<(), Box<dyn Error>> {
+    pub fn export_csv(&self, archive: &SdRtloadArchive) -> Result<(), Box<dyn Error>> {
         // tab 0
         let mut wtr = csv::Writer::from_path(archive.filename(0, &self.info))?;
         let records = self.process_tab0().unwrap();

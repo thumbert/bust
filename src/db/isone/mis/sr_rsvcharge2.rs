@@ -63,7 +63,7 @@ pub struct SrRsvcharge2Report {
 impl MisReport for SrRsvcharge2Report {}
 
 impl SrRsvcharge2Report {
-    fn process_tab5(&self) -> Result<Vec<RowTab5>, Box<dyn Error>> {
+    pub fn process_tab5(&self) -> Result<Vec<RowTab5>, Box<dyn Error>> {
         let mut out: Vec<RowTab5> = Vec::new();
         let tab5 = extract_tab(5, &self.lines).unwrap();
         let data = tab5.lines.join("\n");
@@ -104,7 +104,7 @@ impl SrRsvcharge2Report {
         Ok(out)
     }
 
-    fn export_csv(&self, archive: &SrRsvcharge2Archive) -> Result<(), Box<dyn Error>> {
+    pub fn export_csv(&self, archive: &SrRsvcharge2Archive) -> Result<(), Box<dyn Error>> {
         // tab 5
         let mut wtr = csv::Writer::from_path(archive.filename(5, &self.info))?;
         let records = self.process_tab5().unwrap();
