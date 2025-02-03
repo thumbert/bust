@@ -75,14 +75,14 @@ async fn api_daily_charges(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct DailyCharges {
+pub struct DailyCharges {
     report_date: Date,
     load_zone_id: usize,
     version: Timestamp,
     total_rt_reserve_charge: f64,
 }
 
-fn get_daily_charges(
+pub fn get_daily_charges(
     conn: &Connection,
     account_id: usize,
     start_date: Date,
@@ -140,7 +140,7 @@ ORDER BY report_date, load_zone_id;
 
 /// Get hourly data for a tab between a start and end date.
 /// If `account_ids` is `None`, return all stations.
-fn get_tab5_data(
+pub fn get_tab5_data(
     conn: &Connection,
     start_date: Date,
     end_date: Date,

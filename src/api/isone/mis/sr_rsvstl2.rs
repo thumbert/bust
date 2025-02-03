@@ -75,7 +75,7 @@ async fn api_daily_credits(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct DailyCredits {
+pub struct DailyCredits {
     report_date: Date,
     asset_id: usize,
     version: Timestamp,
@@ -155,7 +155,7 @@ ORDER BY report_date, asset_id;
 
 /// Get hourly data for a tab between a start and end date.
 /// If `account_ids` is `None`, return all stations.
-fn get_tab3_data(
+pub fn get_tab3_data(
     conn: &Connection,
     start_date: Date,
     end_date: Date,
