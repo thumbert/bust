@@ -38,13 +38,13 @@ impl FromStr for AssetType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum ProductType {
-    #[serde(rename = "DA_TMSR")]
+    #[serde(rename = "DA TMSR")]
     Tmsr,
-    #[serde(rename = "DA_TMNSR")]
-    Tmnsr,
-    #[serde(rename = "DA_TMOR")]
+    #[serde(rename = "DA TMNSR")]
+    Tmnsr, 
+    #[serde(rename = "DA TMOR")]
     Tmor,
-    #[serde(rename = "DA_EIR")]
+    #[serde(rename = "DA EIR")]
     Eir,
 }
 
@@ -53,10 +53,10 @@ impl FromStr for ProductType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "DA_TMSR" => Ok(ProductType::Tmsr),
-            "DA_TMNSR" => Ok(ProductType::Tmnsr),
-            "DA_TMOR" => Ok(ProductType::Tmor),
-            "DA_EIR" => Ok(ProductType::Eir),
+            "DA TMSR" => Ok(ProductType::Tmsr),
+            "DA TMNSR" => Ok(ProductType::Tmnsr),
+            "DA TMOR" => Ok(ProductType::Tmor),
+            "DA EIR" => Ok(ProductType::Eir),
             _ => Err(format!("Failed to parse {s} as ProductType")),
         }
     }
@@ -75,15 +75,15 @@ pub struct RowTab0 {
     pub subaccount_name: String,
     pub asset_type: AssetType,
     pub ownership_share: f32,
-    pub product_type: Option<ProductType>,
-    pub product_obligation: Option<f64>,
-    pub product_clearing_price: Option<f64>,
-    pub product_credit: Option<f64>,
-    pub customer_share_of_product_credit: Option<f64>,
-    pub strike_price: Option<f64>,
-    pub hub_rt_lmp: Option<f64>,
-    pub product_closeout_charge: Option<f64>,
-    pub customer_share_of_product_closeout_charge: Option<f64>,
+    pub product_type: ProductType,
+    pub product_obligation: f64,
+    pub product_clearing_price: f64,
+    pub product_credit: f64,
+    pub customer_share_of_product_credit: f64,
+    pub strike_price: f64,
+    pub hub_rt_lmp: f64,
+    pub product_closeout_charge: f64,
+    pub customer_share_of_product_closeout_charge: f64,
 }
 
 /// Asset FER credits
@@ -174,6 +174,11 @@ impl SdDaasdtReport {
         for result in rdr.records() {
             let record = result?;
 
+            // only insert into table the non empty rows
+            let product_type: Option<ProductType> = record[8].parse().ok();
+            if product_type.is_none() {
+                continue;
+            }
             let hour_beginning = parse_hour_ending(&self.info.report_date, &record[1]);
             let asset_id: u32 = record[2].parse()?;
             let asset_name: String = record[3].to_owned();
@@ -181,15 +186,15 @@ impl SdDaasdtReport {
             let subaccount_name: String = record[5].to_owned();
             let asset_type: AssetType = record[6].parse()?;
             let ownership_share: f32 = record[7].parse()?;
-            let product_type: Option<ProductType> = record[8].parse().ok();
-            let product_obligation: Option<f64> = record[9].parse().ok();
-            let product_clearing_price: Option<f64> = record[10].parse().ok();
-            let product_credit: Option<f64> = record[11].parse().ok();
-            let customer_share_of_product_credit: Option<f64> = record[12].parse().ok();
-            let strike_price: Option<f64> = record[13].parse().ok();
-            let hub_rt_lmp: Option<f64> = record[14].parse().ok();
-            let product_closeout_charge: Option<f64> = record[15].parse().ok();
-            let customer_share_of_product_closeout_charge: Option<f64> = record[16].parse().ok();
+
+            let product_obligation: f64 = record[9].parse()?;
+            let product_clearing_price: f64 = record[10].parse()?;
+            let product_credit: f64 = record[11].parse()?;
+            let customer_share_of_product_credit: f64 = record[12].parse()?;
+            let strike_price: f64 = record[13].parse()?;
+            let hub_rt_lmp: f64 = record[14].parse()?;
+            let product_closeout_charge: f64 = record[15].parse()?;
+            let customer_share_of_product_closeout_charge: f64 = record[16].parse()?;
 
             out.push(RowTab0 {
                 account_id: self.info.account_id,
@@ -202,7 +207,7 @@ impl SdDaasdtReport {
                 subaccount_name,
                 asset_type,
                 ownership_share,
-                product_type,
+                product_type: product_type.ok_or("invalid product type")?,
                 product_obligation,
                 product_clearing_price,
                 product_credit,
@@ -415,13 +420,13 @@ pub struct SdDaasdtArchive {
 }
 
 impl SdDaasdtArchive {
-    /// Which months to archive.  Default implementation.
-    fn get_months(&self) -> Vec<Month> {
-        MisArchiveDuckDB::get_months(self)
-            .into_iter()
-            .filter(|e| e >= &self.first_month())
-            .collect()
-    }
+    // /// Which months to archive.  Default implementation.
+    // fn get_months(&self) -> Vec<Month> {
+    //     MisArchiveDuckDB::get_months(self)
+    //         .into_iter()
+    //         .filter(|e| e >= &self.first_month())
+    //         .collect()
+    // }
 }
 
 impl MisArchiveDuckDB for SdDaasdtArchive {
@@ -456,17 +461,17 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         asset_name VARCHAR NOT NULL,
         subaccount_id UINTEGER,
         subaccount_name VARCHAR,
-        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE'),
+        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE') NOT NULL,
         ownership_share FLOAT NOT NULL,
-        product_type ENUM ('DA_TMSR', 'DA_TMNSR', 'DA_TMOR', 'DA_EIR'),
-        product_obligation DOUBLE,
-        product_clearing_price DOUBLE,
-        product_credit DOUBLE,
-        customer_share_of_product_credit DOUBLE,
-        strike_price DOUBLE,
-        hub_rt_lmp DOUBLE,
-        product_closeout_charge DOUBLE,
-        customer_share_of_product_closeout_charge DOUBLE,
+        product_type ENUM ('DA TMSR', 'DA TMNSR', 'DA TMOR', 'DA EIR') NOT NULL,
+        product_obligation DOUBLE NOT NULL,
+        product_clearing_price DOUBLE NOT NULL,
+        product_credit DOUBLE NOT NULL,
+        customer_share_of_product_credit DOUBLE NOT NULL,
+        strike_price DOUBLE NOT NULL,
+        hub_rt_lmp DOUBLE NOT NULL,
+        product_closeout_charge DOUBLE NOT NULL,
+        customer_share_of_product_closeout_charge DOUBLE NOT NULL,
     );
     CREATE INDEX idx ON tab0 (report_date);
 
@@ -479,7 +484,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
         asset_name VARCHAR NOT NULL,
         subaccount_id UINTEGER,
         subaccount_name VARCHAR,
-        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE'),
+        asset_type ENUM ('GENERATOR', 'ASSET RELATED DEMAND', 'DEMAND RESPONSE RESOURCE') NOT NULL,
         ownership_share FLOAT NOT NULL,
         da_cleared_energy DOUBLE,
         fer_price DOUBLE,
@@ -745,6 +750,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
 mod tests {
     use std::{error::Error, str::FromStr};
 
+    use csv::StringRecord;
     use jiff::{civil::date, Zoned};
 
     use crate::db::{
@@ -781,6 +787,14 @@ mod tests {
         // let report = SdDaasdtReport { info, lines };
         // report.export_csv(&archive)?;
 
+        Ok(())
+    }
+
+    #[test]
+    fn parse_product_test() -> Result<(), Box<dyn Error>> {
+        let rec = StringRecord::from(vec!["DA TMNSR"]);
+        let product: Option<ProductType> = rec[0].parse().ok();
+        assert_eq!(product, Some(ProductType::Tmnsr));
         Ok(())
     }
 

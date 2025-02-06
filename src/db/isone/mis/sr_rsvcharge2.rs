@@ -1,6 +1,6 @@
 use std::{error::Error, fs};
 
-use crate::interval::month::{month, Month};
+use crate::interval::month::month;
 
 use duckdb::{params, Connection};
 use jiff::{civil::Date, Timestamp, Zoned};
@@ -123,13 +123,13 @@ pub struct SrRsvcharge2Archive {
 }
 
 impl SrRsvcharge2Archive {
-    /// Which months to archive.  Default implementation.
-    fn get_months(&self) -> Vec<Month> {
-        MisArchiveDuckDB::get_months(self)
-            .into_iter()
-            .filter(|e| e >= &self.first_month())
-            .collect()
-    }
+    // /// Which months to archive.  Default implementation.
+    // fn get_months(&self) -> Vec<Month> {
+    //     MisArchiveDuckDB::get_months(self)
+    //         .into_iter()
+    //         .filter(|e| e >= &self.first_month())
+    //         .collect()
+    // }
 }
 
 impl MisArchiveDuckDB for SrRsvcharge2Archive {
