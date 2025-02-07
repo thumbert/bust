@@ -1,13 +1,13 @@
 use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
-use jiff::{civil::Date, ToSpan};
+use jiff::civil::Date;
 
 use crate::db::{
     isone::mis::sd_rtload::RowTab0,
     prod_db::ProdDb,
 };
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 
 /// Get the report for one tab between a start/end date (hourly data)

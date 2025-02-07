@@ -101,7 +101,7 @@ async fn api_daily_charges(
 }
 
 /// Daily credit to the assets
-#[get("/isone/mis/sd_daasdt/daily/credits/account_id/{account_id}/start/{start}/end/{end}/settlement/{settlement}")]
+#[get("/isone/mis/sd_daasdt/daily/asset_credits/account_id/{account_id}/start/{start}/end/{end}/settlement/{settlement}")]
 async fn api_daily_credits(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
@@ -193,7 +193,7 @@ ORDER BY report_date;
             None => "".to_string(),
         }
     );
-    println!("{}", query);
+    // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
     let res_iter = stmt.query_map([], |row| {
         let n = 719528 + row.get::<usize, i32>(0).unwrap();
@@ -221,7 +221,7 @@ ORDER BY report_date;
     })?;
     let mut res: Vec<DailyCredit> = res_iter.map(|e| e.unwrap()).collect();
 
-    // Get tab1 data (EIR)
+    // Get tab1 data (FER)
     let query = format!(
         r#"
 SELECT report_date, 
@@ -267,7 +267,7 @@ ORDER BY report_date;
             version: Timestamp::from_microsecond(row.get::<usize, i64>(1).unwrap()).unwrap(),
             asset_id: row.get::<usize, u32>(2).unwrap(),
             product: "FER".to_string(),
-            customer_share_of_product_credit: row.get::<usize, f64>(4).unwrap(),
+            customer_share_of_product_credit: row.get::<usize, f64>(3).unwrap(),
             customer_share_of_product_closeout_charge: 0.0,
         })
     })?;
@@ -770,12 +770,12 @@ mod tests {
     fn api_daily_credits() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/mis/sd_daasdt/daily/credits/account_id/2/start/2024-11-15/end/2024-11-15/settlement/0",
+            "{}/isone/mis/sd_daasdt/daily/asset_credits/account_id/2/start/2024-11-15/end/2024-11-15/settlement/0",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Vec<DailyCredit> = serde_json::from_str(&response).unwrap();
-        assert_eq!(v.len(), 4);
+        assert_eq!(v.len(), 5);
         assert_eq!(v.first().unwrap().report_date, date(2024, 11, 15));
         Ok(())
     }

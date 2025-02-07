@@ -2,8 +2,9 @@
 TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
-- Support an optional start/end month for an MIS report.  
 
+## 2025-02-07
+- Expose sd_daasdt API
 
 ## 2025-02-03
 - Expose API for sr_rsvcharge2 and sr_rsvstl2 reports.
