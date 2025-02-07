@@ -3,7 +3,7 @@ use std::error::Error;
 use duckdb::{params, AccessMode, Config, Connection, Result};
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 
-use crate::db::{isone::mis::sr_rsvstl2::RowTab3, prod_db::ProdDb};
+use crate::db::isone::mis::sr_rsvstl2::{RowTab3, SrRsvstl2Archive};
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +21,10 @@ struct DataQuery {
 async fn api_tab_data(
     path: web::Path<(u8, Date, Date)>,
     query: web::Query<DataQuery>,
+    db: web::Data<SrRsvstl2Archive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let tab = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -52,9 +53,10 @@ struct DataQuery2 {
 async fn api_daily_credits(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
+    db: web::Data<SrRsvstl2Archive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let account_id = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -202,10 +204,6 @@ ORDER BY subaccount_id, report_date, hour_beginning;
     Ok(res)
 }
 
-fn get_path() -> String {
-    ProdDb::sr_rsvstl2().duckdb_path.to_string()
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -214,10 +212,13 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::api::isone::mis::sr_rsvstl2::*;
+    use crate::{api::isone::mis::sr_rsvstl2::*, db::prod_db::ProdDb};
 
-    use super::get_path;
-
+    fn get_path() -> String {
+        ProdDb::sr_rsvstl2().duckdb_path.to_string()
+    }
+    
+    
     #[test]
     fn test_tab3() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;

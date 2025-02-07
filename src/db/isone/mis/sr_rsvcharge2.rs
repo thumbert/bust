@@ -117,6 +117,7 @@ impl SrRsvcharge2Report {
     }
 }
 
+#[derive(Clone)]
 pub struct SrRsvcharge2Archive {
     pub base_dir: String,
     pub duckdb_path: String,

@@ -7,11 +7,12 @@ use duckdb::{
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 
-use crate::db::{
-    isone::mis::sd_daasdt::{AssetType, ProductType, RowTab0, RowTab1, RowTab6, RowTab7},
-    prod_db::ProdDb,
+use crate::db::isone::mis::sd_daasdt::{AssetType, ProductType, RowTab0, RowTab1, RowTab6, RowTab7, SdDaasdtArchive};
+use actix_web::{
+    get,
+    web::{self},
+    HttpResponse, Responder,
 };
-use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -28,9 +29,10 @@ struct DataQuery {
 async fn api_tab_data(
     path: web::Path<(u8, Date, Date)>,
     query: web::Query<DataQuery>,
+    db: web::Data<SdDaasdtArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let tab = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -78,9 +80,10 @@ struct DataQuery2 {
 async fn api_daily_charges(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
+    db: web::Data<SdDaasdtArchive>
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let account_id = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -105,9 +108,10 @@ async fn api_daily_charges(
 async fn api_daily_credits(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
+    db: web::Data<SdDaasdtArchive>
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let account_id = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -189,7 +193,10 @@ ORDER BY report_date;
             None => "".to_string(),
         },
         match &asset_ids {
-            Some(ids) => format!("\nAND asset_id in ('{}')", ids.iter().map(|e| e.to_string()).join("','")),
+            Some(ids) => format!(
+                "\nAND asset_id in ('{}')",
+                ids.iter().map(|e| e.to_string()).join("','")
+            ),
             None => "".to_string(),
         }
     );
@@ -254,7 +261,10 @@ ORDER BY report_date;
             None => "".to_string(),
         },
         match &asset_ids {
-            Some(ids) => format!("\nAND asset_id in ('{}')", ids.iter().map(|e| e.to_string()).join("','")),
+            Some(ids) => format!(
+                "\nAND asset_id in ('{}')",
+                ids.iter().map(|e| e.to_string()).join("','")
+            ),
             None => "".to_string(),
         }
     );
@@ -716,9 +726,6 @@ ORDER BY subaccount_id, report_date, hour_beginning;
     Ok(res)
 }
 
-fn get_path() -> String {
-    ProdDb::sd_daasdt().duckdb_path.to_string()
-}
 
 #[cfg(test)]
 mod tests {
@@ -728,7 +735,13 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
+    use crate::db::prod_db::ProdDb;
+
     use super::*;
+
+    fn get_path() -> String {
+        ProdDb::sd_daasdt().duckdb_path.to_string()
+    }    
 
     #[test]
     fn test_tab0() -> Result<()> {

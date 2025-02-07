@@ -5,6 +5,7 @@ TODO:
 
 ## 2025-02-07
 - Expose sd_daasdt API
+- Use actix web::Data to pass in the MIS archives to the API
 
 ## 2025-02-03
 - Expose API for sr_rsvcharge2 and sr_rsvstl2 reports.

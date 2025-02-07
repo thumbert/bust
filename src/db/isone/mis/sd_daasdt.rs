@@ -414,6 +414,7 @@ impl SdDaasdtReport {
     }
 }
 
+#[derive(Clone)]
 pub struct SdDaasdtArchive {
     pub base_dir: String,
     pub duckdb_path: String,

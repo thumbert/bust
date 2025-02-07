@@ -3,7 +3,7 @@ use itertools::Itertools;
 use jiff::civil::Date;
 
 use crate::db::{
-    isone::mis::sd_rtload::RowTab0,
+    isone::mis::sd_rtload::{RowTab0, SdRtloadArchive},
     prod_db::ProdDb,
 };
 use actix_web::{get, web, HttpResponse, Responder};
@@ -16,9 +16,10 @@ use serde::Deserialize;
 async fn api_tab_data(
     path: web::Path<(u8, Date, Date)>,
     query: web::Query<DataQuery>,
+    db: web::Data<SdRtloadArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let tab = path.0;
     let start_date = path.1;
     let end_date = path.2;
@@ -107,10 +108,6 @@ ORDER BY date;
     Ok(res)
 }
 
-fn get_path() -> String {
-    ProdDb::sd_daasdt().duckdb_path.to_string()
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -120,8 +117,13 @@ mod tests {
     use jiff::civil::date;
     use serde_json::Value;
 
-    use super::get_path;
+    use crate::db::prod_db::ProdDb;
 
+    fn get_path() -> String {
+        ProdDb::sd_rtload().duckdb_path.to_string()
+    }
+    
+    
 
     #[test]
     fn test_avg_level() -> Result<()> {

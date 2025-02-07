@@ -147,6 +147,7 @@ impl SdRtloadReport {
     }
 }
 
+#[derive(Clone)]
 pub struct SdRtloadArchive {
     pub base_dir: String,
     pub duckdb_path: String,
