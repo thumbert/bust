@@ -1,7 +1,7 @@
-use duckdb::Connection;
+use duckdb::{params, Connection};
 use flate2::read::GzDecoder;
 use itertools::Itertools;
-use jiff::civil::*;
+use jiff::{civil::*, ToSpan};
 use log::{error, info};
 use std::error::Error;
 use std::fs::File;
@@ -20,7 +20,56 @@ pub struct GeneratorStatusArchive {
     pub duckdb_path: String,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct DailyChangeResult {
+    report_date: Date,
+    unit_name: String,
+    rating: u8,
+    previous_rating: u8,
+    change: i8,
+}
+
 impl GeneratorStatusArchive {
+    pub fn get_dod_changes(
+        conn: &Connection,
+        asof_date: Date,
+    ) -> Result<Vec<DailyChangeResult>, Box<dyn Error>> {
+        conn.execute(
+            "SET VARIABLE asof_date = DATE ?;",
+            params![asof_date.to_string()],
+        )?;
+        let query = r#"
+SELECT ReportDt, Unit, Power, Prev_Power, Change
+FROM( 
+    SELECT ReportDt, 
+      Unit, 
+      Power,
+      LAG(Power) OVER (PARTITION BY Unit ORDER BY ReportDt) as Prev_Power,
+      Power - Prev_Power as Change, 
+    FROM Status 
+    WHERE ReportDt > getvariable('asof_date') - 10
+    ) AS a
+WHERE Change != 0
+AND ReportDt = getvariable('asof_date')
+ORDER BY Unit;
+        "#;
+        // println!("{}", query);
+        let mut stmt = conn.prepare(query).unwrap();
+        let res_iter = stmt.query_map([], |row| {
+            let n = 719528 + row.get::<usize, i32>(0).unwrap();
+            Ok(DailyChangeResult {
+                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
+                unit_name: row.get(1).unwrap(),
+                rating: row.get::<usize, u8>(2).unwrap(),
+                previous_rating: row.get::<usize, u8>(3).unwrap(),
+                change: row.get::<usize, i8>(3).unwrap(),
+            })
+        })?;
+        let res: Vec<DailyChangeResult> = res_iter.map(|e| e.unwrap()).collect();
+
+        Ok(res)
+    }
+
     /// Path to the txt.gz file for a given year.  
     pub fn filename(&self, year: u32) -> String {
         self.base_dir.to_owned() + "/Raw" + "/" + &year.to_string() + "powerstatus.txt.gz"

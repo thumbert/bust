@@ -3,7 +3,7 @@ Beginning Rust
 
  To run a development server:
  * Run `cargo test`
- * Run `cargo build`
+ * Run `cargo build --bin server_bust`
  * Launch as `./target/debug/server_bust --port=8112`
 
 To release a new version:

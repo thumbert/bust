@@ -4,9 +4,7 @@ extern crate chrono_tz;
 use std::time::Instant;
 
 use bust::holiday::{HolidayTrait, NercCalendar};
-use chrono::prelude::*;
-use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
-use chrono_tz::America::New_York;
+use chrono::{Duration, NaiveDate};
 
 fn main() {
     let calendar = NercCalendar {};
@@ -17,7 +15,7 @@ fn main() {
     let mut dates: Vec<NaiveDate> = Vec::new();
     while date.le(&NaiveDate::from_ymd_opt(2030, 12, 31).unwrap()) {
         dates.push(date);
-        date = date + Duration::days(1);
+        date += Duration::days(1);
     }
     // println!("{}", dates.len());
 
@@ -28,7 +26,7 @@ fn main() {
             // println!("{}", date);
             if calendar.is_holiday(date) {
                 // println!("{date}");
-                count = count + 1;
+                count += 1;
             }
         }
     }

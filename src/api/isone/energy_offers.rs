@@ -165,10 +165,10 @@ ORDER BY "MaskedAssetId", "HourBeginning";
     "#,
         market,
         start
-            .intz("America/New_York")
+            .in_tz("America/New_York")
             .unwrap()
             .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
-        end.intz("America/New_York")
+        end.in_tz("America/New_York")
             .unwrap()
             .checked_add(1.day())
             .ok()
@@ -239,7 +239,7 @@ ORDER BY HourBeginning, Price;
                 timestamps
                     .first()
                     .unwrap()
-                    .intz("America/New_York")
+                    .in_tz("America/New_York")
                     .unwrap()
                     .strftime("%Y-%m-%d %H:%M:%S.000%:z")
             ),
@@ -248,7 +248,7 @@ ORDER BY HourBeginning, Price;
                 timestamps
                     .iter()
                     .map(|e| e
-                        .intz("America/New_York")
+                        .in_tz("America/New_York")
                         .unwrap()
                         .strftime("%Y-%m-%d %H:%M:%S.000%:z"))
                     .join("', '")

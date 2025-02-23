@@ -1,7 +1,13 @@
 use std::{
-    collections::HashSet, error::Error, fmt::Display, fs, hash::{Hash, Hasher}, path::Path
+    collections::HashSet,
+    error::Error,
+    fmt::Display,
+    fs,
+    hash::{Hash, Hasher},
+    path::Path,
 };
 
+use duckdb::Connection;
 use jiff::{
     civil::{Date, Time},
     Timestamp, ToSpan, Zoned,
@@ -11,7 +17,7 @@ use crate::interval::month::{month, Month};
 
 pub trait MisArchiveDuckDB {
     fn report_name(&self) -> String;
-     
+
     /// Which months to archive.  Default implementation.
     fn get_months(&self) -> Vec<Month> {
         let today = Zoned::now().date();
@@ -35,15 +41,42 @@ pub trait MisArchiveDuckDB {
     /// that will be inserted into DuckDB as is.
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
 
-    /// Get the existing reports already inserted in DuckDB.
-    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>>;
-
-    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>>;
+    fn setup(&self) -> Result<(), Box<dyn Error>>;
 
     /// Pass in a vector of csv files to upload into DuckDB.
     /// To prevent unnecessary work, files will be read and uploaded only if they don't already exist in the DB.  
     ///
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>>;
+
+    /// Get all the reports already in the DB for this tab
+    fn get_reports_duckdb(
+        &self,
+        tab: usize,
+        duckdb_path: &str,
+    ) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
+        let conn = Connection::open(duckdb_path)?;
+        let query = format!(
+            r#"
+        SELECT DISTINCT account_id, report_date, version
+        FROM tab{};
+        "#,
+            tab
+        );
+        let mut stmt = conn.prepare(&query).unwrap();
+        let res_iter = stmt.query_map([], |row| {
+            let n = 719528 + row.get::<usize, i32>(1).unwrap();
+            let microseconds: i64 = row.get(2).unwrap();
+            Ok(MisReportInfo {
+                report_name: self.report_name(),
+                account_id: row.get::<usize, usize>(0).unwrap(),
+                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
+                version: Timestamp::from_microsecond(microseconds).unwrap(),
+            })
+        })?;
+        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
+
+        Ok(res)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -105,7 +138,7 @@ impl From<String> for MisReportInfo {
         let time = Time::strptime("%H%M%S", parts[0].get(8..).unwrap()).unwrap();
         let zdt = date
             .at(time.hour(), time.minute(), time.second(), 0)
-            .intz("UTC")
+            .in_tz("UTC")
             .unwrap();
         let timestamp = zdt.timestamp();
 
@@ -212,7 +245,7 @@ pub fn parse_hour_ending(date: &Date, hour: &str) -> Zoned {
     } else {
         hour[0..2].parse().unwrap()
     };
-    let mut res = date.at(h - 1, 0, 0, 0).intz("America/New_York").unwrap();
+    let mut res = date.at(h - 1, 0, 0, 0).in_tz("America/New_York").unwrap();
 
     if hour == "02X" {
         res = res.saturating_add(1.hour());
@@ -243,13 +276,29 @@ pub struct MisTab {
     pub lines: Vec<String>,
 }
 
+// fn get_nth_settlement<K,F>(vs: Vec<K>, n: u8, func: F) -> Result<Vec<K>, Box<dyn Error>>
+//     where F: Fn(K) -> K
+// {
+
+//     Ok(vs)
+// }
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;
 
+    use itertools::Itertools;
     use jiff::{civil::Date, Timestamp, Zoned};
 
     use crate::db::isone::mis::lib_mis::*;
+
+    #[derive(Debug)]
+    struct Row {
+        hour_beginning: Zoned,
+        version: Timestamp,
+        ptid: usize,
+        value: f64,
+    }
 
     #[test]
     fn read_tab() -> Result<(), Box<dyn Error>> {
@@ -262,6 +311,78 @@ mod tests {
         // let tab0 = report.extract_tab(0, lines);
         // println!("{:?}", tab0.as_ref().unwrap().header);
         // assert_eq!(tab0.as_ref().unwrap().lines.len(), 57);
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[test]
+    fn nth_settlement_test() -> Result<(), Box<dyn Error>> {
+        let rows = vec![
+            Row {
+                hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-01-03 00:00:00Z".parse()?,
+                ptid: 4000,
+                value: 10.0,
+            },
+            Row {
+                hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-03-01 00:00:00Z".parse()?,
+                ptid: 4000,
+                value: 11.0,
+            },
+            Row {
+                hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
+                version: "2025-01-01 00:00:00Z".parse()?,
+                ptid: 4000,
+                value: 12.0,
+            },
+            Row {
+                hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-01-03 00:00:00Z".parse()?,
+                ptid: 4001,
+                value: 100.0,
+            },
+            Row {
+                hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-03-01 00:00:00Z".parse()?,
+                ptid: 4001,
+                value: 101.0,
+            },
+            //
+            Row {
+                hour_beginning: "2024-01-01 01:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-01-04 00:00:00Z".parse()?,
+                ptid: 4000,
+                value: 17.0,
+            },
+            Row {
+                hour_beginning: "2024-01-01 01:00:00-05:00[America/New_York]".parse()?,
+                version: "2024-01-04 00:00:00Z".parse()?,
+                ptid: 4001,
+                value: 107.0,
+            },
+        ];
+        let n = 2;
+
+        let mut res: Vec<Row> = Vec::new();
+        let groups = rows
+            .iter()
+            .into_group_map_by(|e| (e.ptid, e.hour_beginning.clone()));
+        for (_, mut vs) in groups {
+            vs.sort_by(|a, b| a.hour_beginning.cmp(&b.hour_beginning));
+            let v = vs[std::cmp::min(n, vs.len() - 1)];
+            res.push(Row {
+                hour_beginning: v.hour_beginning.clone(),
+                version: v.version,
+                ptid: v.ptid,
+                value: v.value,
+            });
+        }
+        res.sort_unstable_by_key(|e| (e.hour_beginning.clone(), e.ptid));
+        for e in res {
+            println!("{:?}", e);
+        }
 
         Ok(())
     }
@@ -324,6 +445,4 @@ mod tests {
         assert_eq!(filename, report.filename_iso());
         Ok(())
     }
-
-
 }

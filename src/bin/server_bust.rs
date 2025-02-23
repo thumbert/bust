@@ -1,6 +1,8 @@
 use actix_web::middleware::{self, Logger};
+use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use bust::api::{epa, hq, isone, nyiso};
+use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
 
@@ -39,11 +41,19 @@ async fn main() -> std::io::Result<()> {
     // let manager = DuckDBConnectionManager::file("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb");
     // let pool = r2d2::Pool::builder().build(manager).unwrap();
 
+    let sd_daasdt = ProdDb::sd_daasdt();
+    let sd_rtload = ProdDb::sd_rtload();
+    let sr_rsvcharge2 = ProdDb::sr_rsvcharge2();
+    let sr_rsvstl2 = ProdDb::sr_rsvstl2();
+
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
-            // .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(sd_daasdt.clone()))
+            .app_data(Data::new(sd_rtload.clone()))
+            .app_data(Data::new(sr_rsvcharge2.clone()))
+            .app_data(Data::new(sr_rsvstl2.clone()))
             .service(hello)
             // EPA
             .service(epa::hourly_emissions::all_facilities)
@@ -57,6 +67,13 @@ async fn main() -> std::io::Result<()> {
             .service(isone::capacity::monthly_capacity_bidsoffers::bids_offers)
             .service(isone::energy_offers::api_offers)
             .service(isone::energy_offers::api_stack)
+            .service(isone::mis::sd_daasdt::api_daily_charges)
+            .service(isone::mis::sd_daasdt::api_daily_credits)
+            .service(isone::mis::sd_daasdt::api_tab_data)
+            .service(isone::mis::sr_rsvcharge2::api_daily_charges)
+            .service(isone::mis::sr_rsvcharge2::api_tab_data)
+            .service(isone::mis::sr_rsvstl2::api_daily_credits)
+            .service(isone::mis::sr_rsvstl2::api_tab_data)
             // NYISO
             .service(nyiso::energy_offers::api_offers)
             .service(nyiso::energy_offers::api_stack)

@@ -1,6 +1,6 @@
 [package]
 name = "bust"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -61,12 +61,20 @@ name = "duckdb"
 path = "examples/duckdb/main.rs"
 
 [[example]]
+name = "datetime_example"
+path = "examples/duckdb/datetime_example.rs"
+
+[[example]]
 name = "decimal_example"
 path = "examples/duckdb/decimal_example.rs"
 
 [[example]]
 name = "duckdb_bug"
 path = "examples/duckdb/enum_bug.rs"
+
+[[example]]
+name = "list_example"
+path = "examples/duckdb/list_example.rs"
 
 [[example]]
 name = "inheritance"

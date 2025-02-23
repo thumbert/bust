@@ -1,12 +1,11 @@
 use std::{
-    collections::HashSet,
     error::Error,
     fs::{self},
     str::FromStr,
 };
 
 use duckdb::{params, Connection};
-use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
+use jiff::{civil::Date, Timestamp, Zoned};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +14,7 @@ use crate::interval::month::*;
 use super::lib_mis::*;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum AssetSubType {
+pub enum AssetSubType {
     #[serde(rename = "LOSSES")]
     Losses,
     #[serde(rename = "NORMAL")]
@@ -44,7 +43,7 @@ impl FromStr for AssetSubType {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-enum LocationType {
+pub enum LocationType {
     #[serde(rename = "METERING DOMAIN")]
     MeteringDomain,
     #[serde(rename = "NETWORK NODE")]
@@ -64,35 +63,33 @@ impl FromStr for LocationType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct RowTab0 {
-    account_id: usize,
-    report_date: Date,
-    version: Timestamp,
-    hour_beginning: Zoned,
-    asset_name: String,
-    asset_id: u32,
-    asset_subtype: AssetSubType,
-    location_id: u32,
-    location_name: String,
-    location_type: LocationType,
-    load_reading: f64,
-    ownership_share: f32,
-    share_of_load_reading: f64,
-    subaccount_id: Option<u32>,
-    subaccount_name: Option<String>,
+pub struct RowTab0 {
+    pub account_id: usize,
+    pub report_date: Date,
+    pub version: Timestamp,
+    pub hour_beginning: Zoned,
+    pub asset_name: String,
+    pub asset_id: u32,
+    pub asset_subtype: AssetSubType,
+    pub location_id: u32,
+    pub location_name: String,
+    pub location_type: LocationType,
+    pub load_reading: f64,
+    pub ownership_share: f32,
+    pub share_of_load_reading: f64,
+    pub subaccount_id: Option<String>,
+    pub subaccount_name: Option<String>,
 }
 
 pub struct SdRtloadReport {
-    info: MisReportInfo,
-    lines: Vec<String>,
+    pub info: MisReportInfo,
+    pub lines: Vec<String>,
 }
 
 impl MisReport for SdRtloadReport {}
 
 impl SdRtloadReport {
-
-
-    fn process_tab0(&self) -> Result<Vec<RowTab0>, Box<dyn Error>> {
+    pub fn process_tab0(&self) -> Result<Vec<RowTab0>, Box<dyn Error>> {
         let mut out: Vec<RowTab0> = Vec::new();
         let tab0 = extract_tab(0, &self.lines).unwrap();
         let data = tab0.lines.join("\n");
@@ -112,7 +109,7 @@ impl SdRtloadReport {
             let load_reading: f64 = record[8].parse()?;
             let ownership_share: f32 = record[9].parse()?;
             let share_of_load_reading: f64 = record[10].parse()?;
-            let subaccount_id: Option<u32> = record[11].parse().ok();
+            let subaccount_id: Option<String> = record[11].parse().ok();
             let subaccount_name: Option<String> = record[12].parse().ok();
 
             out.push(RowTab0 {
@@ -137,7 +134,7 @@ impl SdRtloadReport {
         Ok(out)
     }
 
-    fn export_csv(&self, archive: &SdRtloadArchive) -> Result<(), Box<dyn Error>> {
+    pub fn export_csv(&self, archive: &SdRtloadArchive) -> Result<(), Box<dyn Error>> {
         // tab 0
         let mut wtr = csv::Writer::from_path(archive.filename(0, &self.info))?;
         let records = self.process_tab0().unwrap();
@@ -150,6 +147,7 @@ impl SdRtloadReport {
     }
 }
 
+#[derive(Clone)]
 pub struct SdRtloadArchive {
     pub base_dir: String,
     pub duckdb_path: String,
@@ -170,29 +168,8 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
-    fn get_reports_duckdb(&self) -> Result<HashSet<MisReportInfo>, Box<dyn Error>> {
-        let conn = Connection::open(&self.duckdb_path)?;
-        let query = r#"
-        SELECT DISTINCT account_id, report_date, version
-        FROM tab0;
-        "#;
-        let mut stmt = conn.prepare(query).unwrap();
-        let res_iter = stmt.query_map([], |row| {
-            let n = 719528 + row.get::<usize, i32>(1).unwrap();
-            let microseconds: i64 = row.get(2).unwrap();
-            Ok(MisReportInfo {
-                report_name: self.report_name(),
-                account_id: row.get::<usize, usize>(0).unwrap(),
-                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
-                version: Timestamp::from_microsecond(microseconds).unwrap(),
-            })
-        })?;
-        let res: HashSet<MisReportInfo> = res_iter.map(|e| e.unwrap()).collect();
 
-        Ok(res)
-    }
-
-    fn setup_duckdb(&self) -> Result<(), Box<dyn Error>> {
+    fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing SD_RTLOAD archive ...");
         if fs::exists(&self.duckdb_path)? {
             fs::remove_file(&self.duckdb_path)?;
@@ -215,7 +192,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         load_reading DOUBLE NOT NULL,
         ownership_share FLOAT NOT NULL,
         share_of_load_reading DOUBLE NOT NULL,
-        subaccount_id UINTEGER,
+        subaccount_id VARCHAR,
         subaccount_name VARCHAR,
     );
     CREATE INDEX idx ON tab0 (report_date);
@@ -229,7 +206,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
-        let existing = self.get_reports_duckdb().unwrap();
+        let existing = self.get_reports_duckdb(0, &self.duckdb_path).unwrap();
         fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
         fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
 
@@ -255,7 +232,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         paths.sort_by_key(|e| e.path());
 
         if paths.is_empty() {
-            info!("No files to upload to DuckDB.  Exiting...");
+            info!("No new {} files to upload to DuckDB.  Continue.", self.report_name());
             return Ok(());
         } else {
             info!("Inserting {} files into DuckDB.", paths.len());
@@ -294,7 +271,7 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         info!("done\n");
 
         Ok(())
-    }    
+    }
 }
 
 #[cfg(test)]

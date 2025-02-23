@@ -16,7 +16,7 @@ pub const fn month(year: i16, month: i8) -> Month {
 }
 
 /// A civil Month structure (not timezone aware)
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq)]
 pub struct Month {
     // start_datetime: jc::DateTime,
     start_date: jc::Date,
@@ -81,14 +81,9 @@ impl Month {
         }
     }
 
-    pub fn is_after(&self, start: Month) -> Result<bool, Box<dyn Error>> {
-        let span = start.start_date.until(self.start_date)?;
-        Ok(span.get_days() > 0)
-    }
-
     pub fn up_to(&self, end: Month) -> Result<Vec<Month>, Box<dyn Error>> {
         let mut res: Vec<Month> = Vec::new();
-        if self.is_after(end)? {
+        if self > &end {
             return Err("input month is before self".into());
         }
         let mut current = *self;
@@ -107,6 +102,12 @@ impl Month {
         })
     }
 }
+
+// impl Ord for Month {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         todo!()
+//     }
+// }
 
 impl fmt::Display for Month {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -275,7 +276,6 @@ mod tests {
     fn test_up_to() -> Result<(), Box<dyn Error>> {
         let start = month(2024, 9);
         let end = month(2025, 2);
-        assert!(end.is_after(start)?);
 
         let months = start.up_to(end)?;
         assert_eq!(months.len(), 6);
@@ -298,4 +298,17 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_ordering() -> Result<(), Box<dyn Error>> {
+        let start = month(2024, 9);
+        assert!(start > month(2023, 9));
+        assert!(start >= month(2023, 9));
+        assert!(start < month(2025, 9));
+        assert!(start <= month(2025, 9));
+        assert!(start == month(2024, 9));
+        Ok(())
+    }
+
+    
 }
