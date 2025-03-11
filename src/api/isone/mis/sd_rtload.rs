@@ -2,10 +2,7 @@ use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::civil::Date;
 
-use crate::db::{
-    isone::mis::sd_rtload::{RowTab0, SdRtloadArchive},
-    prod_db::ProdDb,
-};
+use crate::db::isone::mis::sd_rtload::{RowTab0, SdRtloadArchive};
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Deserialize;
 
