@@ -18,7 +18,7 @@ async fn api_get_names() -> impl Responder {
 }
 
 /// Get the status for some/all facilities
-/// http://127.0.0.1:8111/nrc/generator_status/start/2024-12-04/end/2024-12-08?unit_names=Calvert Cliffs 1,Byron 1
+/// http://127.0.0.1:8111/nrc/generator-status/start/2024-12-04/end/2024-12-08?unit-names=Calvert Cliffs 1,Byron 1
 #[get("/nrc/generator_status/start/{start}/end/{end}")]
 async fn api_status(
     path: web::Path<(Date, Date)>,
@@ -31,7 +31,7 @@ async fn api_status(
     let names: Option<Vec<String>> = query
         .unit_names
         .as_ref()
-        .map(|ids| ids.split(',').map(|e| e.to_string()).collect());
+        .map(|ids| ids.split(',').map(|e| e.trim().to_string()).collect());
 
     let res = get_status(&conn, start_date, end_date, names);
     match res {
@@ -47,7 +47,7 @@ struct DataQuery {
     unit_names: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Row {
     name: String,
     date: Date,
@@ -111,7 +111,6 @@ mod tests {
 
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
-    use serde_json::Value;
 
     use crate::api::nrc::generator_status::*;
 
@@ -162,14 +161,13 @@ mod tests {
     fn api_status() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/hq/water_level/daily/start/2024-12-04/end/2024-12-08?station_ids=1-2951,1-9698",
+            "{}/nrc/generator_status/start/2024-12-04/end/2024-12-08?unit_names=Calvert Cliffs 1,Byron 1",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
-        let v: Value = serde_json::from_str(&response).unwrap();
-        if let Value::Array(xs) = v {
-            assert_eq!(xs.len(), 10);
-        }
+        let vs: Vec<Row> = serde_json::from_str(&response).unwrap();
+        assert_eq!(vs.len(), 10);
+        // println!("{:?}", vs);
         Ok(())
     }
 }

@@ -3,7 +3,7 @@ default:
 
 release_server:
     cargo test
-    cargo build --release
+    cargo build --bin server_bust --release
     cp -f ./target/release/server_bust ~/Software
 
 update_hq_hydro_data:
