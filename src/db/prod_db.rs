@@ -1,12 +1,10 @@
 use super::{
     hq::hydrometeorological_data_archive::HqHydroDataArchive,
     isone::{
-        mis::{
+        daas_reserve_data_archive::DaasReserveDataArchive, daas_strike_prices_archive::DaasStrikePricesArchive, mis::{
             sd_daasdt::SdDaasdtArchive, sd_rtload::SdRtloadArchive,
             sr_rsvcharge2::SrRsvcharge2Archive, sr_rsvstl2::SrRsvstl2Archive,
-        },
-        sevenday_solar_forecast_archive::SevendaySolarForecastArchive,
-        single_source_contingency_archive::SingleSourceContingencyArchive,
+        }, sevenday_solar_forecast_archive::SevendaySolarForecastArchive, single_source_contingency_archive::SingleSourceContingencyArchive
     },
     nrc::generator_status_archive::GeneratorStatusArchive,
 };
@@ -14,6 +12,26 @@ use super::{
 pub struct ProdDb {}
 
 impl ProdDb {
+    pub fn isone_daas_reserve_data() -> DaasReserveDataArchive {
+        DaasReserveDataArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/DASI/ReserveData"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/isone/daas_reserve_data.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn isone_daas_strike_prices() -> DaasStrikePricesArchive {
+        DaasStrikePricesArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/DASI/StrikePrices"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/isone/daas_strike_prices.duckdb"
+                    .to_string(),
+        }
+    }
+
     pub fn isone_single_source_contingency() -> SingleSourceContingencyArchive {
         SingleSourceContingencyArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/SingleSourceContingency"

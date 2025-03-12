@@ -3,6 +3,9 @@ TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
 
+## 2025-03-12
+- Work on daas_reserve_data_archive
+
 ## 2025-03-10
 - Add NRC API to the server
 
