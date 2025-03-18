@@ -2,7 +2,7 @@ use duckdb::{params, Connection};
 use flate2::read::GzDecoder;
 use itertools::Itertools;
 use jiff::{civil::*, ToSpan};
-use log::{error, info};
+// use log::{error, info};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;

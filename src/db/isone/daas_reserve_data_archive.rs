@@ -1,11 +1,34 @@
 use duckdb::{params, Connection};
-use jiff::{civil::*, Zoned};
+use flate2::read::GzDecoder;
+use jiff::{civil::*, Timestamp, Zoned};
 use log::{error, info};
+use rust_decimal::Decimal;
+use serde_json::Value;
 use std::error::Error;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
 
 use crate::interval::month::Month;
+
+#[derive(Debug, PartialEq)]
+pub struct Row {
+    hour_beginning: Zoned,
+    ten_min_spin_req_mw: Decimal,
+    total_ten_min_req_mw: Decimal,
+    total_thirty_min_req_mw: Decimal,
+    forecasted_energy_req_mw: Decimal,
+    tmsr_clearing_price: Decimal,
+    tmnsr_clearing_price: Decimal,
+    tmor_clearing_price: Decimal,
+    fer_clearing_price: Decimal,
+    tmsr_designation_mw: Decimal,
+    tmnsr_designation_mw: Decimal,
+    tmor_designation_mw: Decimal,
+    eir_designation_mw: Decimal,
+}
+
 
 #[derive(Clone)]
 pub struct DaasReserveDataArchive {
@@ -22,6 +45,86 @@ impl DaasReserveDataArchive {
             + "/daas_reserve_data_"
             + &date.to_string()
             + ".json"
+    }
+
+    /// Read one json.gz file corresponding to one day.
+    pub fn read_file(&self, path_gz: String) -> Result<Vec<Row>, Box<dyn Error>> {
+        let mut file = GzDecoder::new(File::open(path_gz).unwrap());
+        let mut buffer = String::new();
+        file.read_to_string(&mut buffer).unwrap();
+
+        let doc: Value = serde_json::from_str(&buffer)?;
+        let vs = doc["isone_web_services"]["day_ahead_reserves"]["day_ahead_reserve"].clone();
+        let mut rows: Vec<Row> = Vec::new();
+        match vs {
+            Value::Array(values) => {
+                for v in values {
+                    let timestamp: Timestamp = match v["market_hour"]["local_day"].clone() {
+                        Value::String(s) => s.parse()?,
+                        _ => panic!("local_day field is no longer a string"),
+                    };
+                    let hour_beginning = timestamp.in_tz("America/New_York")?;
+                    // println!("{}", hour_beginning);
+                    // println!("10min: {}", &v["ten_min_spin_req_mw"].to_string());
+                    // println!("10min: {}", Decimal::from_str(&format!("{}", v["ten_min_spin_req_mw"]))?);
+                    let row = Row {
+                        hour_beginning,
+                        ten_min_spin_req_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["ten_min_spin_req_mw"]
+                        ))?,
+                        total_ten_min_req_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["total_ten_min_req_mw"]
+                        ))?,
+                        total_thirty_min_req_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["total_thirty_min_req_mw"]
+                        ))?,
+                        forecasted_energy_req_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["forecasted_energy_req_mw"]
+                        ))?,
+                        tmsr_clearing_price: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmsr_clearing_price"]
+                        ))?,
+                        tmnsr_clearing_price: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmnsr_clearing_price"]
+                        ))?,
+                        tmor_clearing_price: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmor_clearing_price"]
+                        ))?,
+                        fer_clearing_price: Decimal::from_str(&format!(
+                            "{}",
+                            v["fer_clearing_price"]
+                        ))?,
+                        tmsr_designation_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmsr_designation_mw"]
+                        ))?,
+                        tmnsr_designation_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmnsr_designation_mw"]
+                        ))?,
+                        tmor_designation_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["tmor_designation_mw"]
+                        ))?,
+                        eir_designation_mw: Decimal::from_str(&format!(
+                            "{}",
+                            v["eir_designation_mw"]
+                        ))?,
+                    };
+                    rows.push(row);
+                }
+            }
+            _ => panic!("File format changed!"),
+        };
+
+        Ok(rows)
     }
 
     /// Data is published around 10:30 every day
@@ -46,10 +149,10 @@ impl DaasReserveDataArchive {
             last = last.tomorrow()?;
         }
         for day in month.days() {
-            info!("Working on {}", day);
             if day > last {
                 continue;
             }
+            info!("Working on {}", day);
             let fname = format!("{}.gz", self.filename(&day));
             if !Path::new(&fname).exists() {
                 self.download_file(day)?;
@@ -165,8 +268,21 @@ mod tests {
         // archive.setup()
 
         let month = month(2025, 3);
-        // archive.download_missing_days(month)
-        archive.update_duckdb(month)
+        archive.download_missing_days(month)?;
+        archive.update_duckdb(month)?;
+        Ok(())
+    }
+
+    #[ignore]
+    #[test]
+    fn read_file() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::isone_daas_reserve_data();
+        let filename = archive.filename(&date(2025, 3, 1));
+        let rows = archive.read_file(filename + ".gz")?;
+        assert_eq!(rows.len(), 24);
+        println!("{:?}", rows.first().unwrap());
+        Ok(())
     }
 
     #[ignore]

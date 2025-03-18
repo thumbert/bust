@@ -1,3 +1,4 @@
+pub mod lib_dam;
 pub mod lib_isoexpress;
 pub mod mis;
 pub mod daas_reserve_data_archive;
