@@ -65,7 +65,7 @@ impl Month {
         let end = self.end_date();
         self.start_date()
             .series(1.day())
-            .take_while(|e| e < &end)
+            .take_while(|e| e <= &end)
             .collect()
     }
 
@@ -256,7 +256,7 @@ fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
 mod tests {
     use std::error::Error;
 
-    use jiff::civil::DateTime;
+    use jiff::civil::{Date, DateTime};
 
     use super::{month, Month};
 
@@ -266,9 +266,10 @@ mod tests {
         assert_eq!(month.start(), "2024-03-01".parse::<DateTime>()?);
         assert_eq!(month.end(), "2024-04-01".parse::<DateTime>()?);
         assert_eq!(format!("{}", month), "2024-03");
-        // let month = "2024-07".parse::<Month>()?;
-        // println!("{}",month);
-        // println!("{:?}", month.days());
+        assert_eq!(month.start_date(), "2024-03-01".parse::<Date>()?);
+        assert_eq!(month.end_date(), "2024-03-31".parse::<Date>()?);
+        let month = "2024-03".parse::<Month>()?;
+        assert_eq!(month.days().len(), 31);
         Ok(())
     }
 

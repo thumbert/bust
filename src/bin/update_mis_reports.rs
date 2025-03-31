@@ -1,15 +1,7 @@
 use std::error::Error;
 
-use bust::{
-    db::{isone::mis::lib_mis::MisArchiveDuckDB, prod_db::ProdDb},
-    interval::month::Month,
-};
-use duckdb::{params, Connection};
-use jiff::{
-    civil::{Date, DateTime},
-    ToSpan, Zoned,
-};
-use log::{error, info};
+use bust::db::{isone::mis::lib_mis::MisArchiveDuckDB, prod_db::ProdDb};
+use log::info;
 
 /// Run this job every day at 10AM
 fn main() -> Result<(), Box<dyn Error>> {
