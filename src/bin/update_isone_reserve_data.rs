@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let archive = ProdDb::isone_daas_reserve_data();
 
     let today = Zoned::now().date();
-    if today.day() < 5 {
+    if today.day() < 8 {
         let focus = month(today.year(), today.month()).previous();
         if focus >= month(2025, 3) {
             archive.download_missing_days(focus)?;
