@@ -4,6 +4,7 @@ use duckdb::{
 };
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Person {
     id: i32,
     name: String,
@@ -24,7 +25,6 @@ INSERT INTO enum_test VALUES (3, 'BB');
     "#,
     )?;
     let mut stmt = conn.prepare("SELECT id, name FROM enum_test")?;
-    // The code below should work -- but will panic!
     let person_iter = stmt.query_map([], |row| {
         Ok(Person {
             id: row.get(0)?,

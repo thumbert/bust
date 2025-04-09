@@ -1,8 +1,10 @@
+use std::path::Path;
+
 use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{epa, hq, isone, admin, nrc, nyiso};
+use bust::api::{admin, epa, hq, isone, nrc, nyiso};
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -18,9 +20,9 @@ extern crate duckdb;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Port number
-    #[arg(short, long, default_value = "8111")]
-    port: u16,
+    /// Environment name, e.g., test, prod
+    #[arg(short, long, default_value = "prod")]
+    env: String,
 }
 
 #[get("/")]
@@ -42,6 +44,13 @@ async fn main() -> std::io::Result<()> {
     let sr_rsvcharge2 = ProdDb::sr_rsvcharge2();
     let sr_rsvstl2 = ProdDb::sr_rsvstl2();
 
+    dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
+    let port = match args.env.as_str() {
+        "prod" => 8111,
+        "test" => 8112,
+        _ => panic!("Invalid environment"),
+    };
+
     HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
@@ -54,6 +63,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(sr_rsvstl2.clone()))
             .service(hello)
             // Admin
+            .service(admin::jobs::api_get_job_names)
             .service(admin::jobs::api_get_log)
             .service(admin::jobs::api_run_job)
             // EPA
@@ -82,7 +92,7 @@ async fn main() -> std::io::Result<()> {
             .service(nyiso::energy_offers::api_offers)
             .service(nyiso::energy_offers::api_stack)
     })
-    .bind(("127.0.0.1", args.port))?
+    .bind(("127.0.0.1", port))?
     // .bind(("0.0.0.0", args.port))? // use this if you want to allow all connections
     .run()
     .await
