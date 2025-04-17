@@ -19,6 +19,7 @@ async fn api_get_job_names() -> impl Responder {
             job_names.push(file_name);
         }
     }
+    job_names.sort();
     HttpResponse::Ok().json(json!(job_names))
 }
 
