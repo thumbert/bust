@@ -2,6 +2,12 @@
 TODO:
 - For term parsing, continue to add rule checks in process_xxx functions to 
   make sure you panic if the wrong rule is passed in. 
+- Get rid of chrono and use jiff exclusively  
+
+## 2025-06-02
+- Work on NYISO DAM price report
+- Put NYISO DAM prices in DuckDB
+- Work on IESO DAM prices
 
 ## 2025-04-17
 - Bump DuckDB to 1.2.2 to fix json package compilation

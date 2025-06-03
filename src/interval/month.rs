@@ -81,6 +81,7 @@ impl Month {
         }
     }
 
+    /// Inclusive of the end month.
     pub fn up_to(&self, end: Month) -> Result<Vec<Month>, Box<dyn Error>> {
         let mut res: Vec<Month> = Vec::new();
         if self > &end {

@@ -4,7 +4,7 @@ use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{admin, epa, hq, isone, nrc, nyiso};
+use bust::api::{admin, epa, hq, ieso, isone, nrc, nyiso};
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -72,6 +72,8 @@ async fn main() -> std::io::Result<()> {
             .service(epa::hourly_emissions::api_data)
             // HQ
             .service(hq::hq_water_level::api_daily_level)
+            // IESO
+            .service(ieso::node_table::api_get_all)
             // ISONE
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)

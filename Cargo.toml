@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 actix-cors = "0.7.0"
 actix-web = "4"
+build_html = "2.6.0"
 cargo-watch = "8.5.2"
 chrono = "0.4.38"
 chrono-tz = "0.9.0"
@@ -19,7 +20,7 @@ env_logger = "0.11.3"
 flate2 = "1.0.35"
 futures = "0.3.28"
 itertools = "0.13.0"
-jiff = {version="0.1.8", features = ["serde"]}
+jiff = {version="0.2.14", features = ["serde"]}
 json5 = "0.4.1"
 lazy_static = "1.4.0"
 log = "0.4"
@@ -27,6 +28,7 @@ mongodb = "3.0.1"
 pest = "2.7.9"
 pest_derive = "2.7.9"
 plotly = "0.9.0"
+quick-xml = { version = "0.37", features = ["serialize"] }
 r2d2 = "0.8.10"
 # r2d2-duckdb = "0.1.0"
 regex = "1.11.0"
@@ -36,9 +38,11 @@ rust_decimal = {version="1.36.0", features = ["serde-with-float"]}
 rust_decimal_macros = "1.36.0"
 serde = {version="1.0.210", features = ["derive"]}
 serde_json = "1.0.132"
+tabled = "0.19.0"
 time = "0.3.36"
 thiserror = "1.0.64"
 tokio = {version = "1.32.0", features = ["full"]}
+zip = "4.0.0"
 
 [[bin]]
 name = "hello_world"

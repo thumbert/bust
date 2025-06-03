@@ -1,45 +1,98 @@
+use csv::ReaderBuilder;
 use duckdb::Connection;
-use jiff::civil::*;
+use flate2::read::GzDecoder;
+use jiff::tz::{self, TimeZone};
+use jiff::{civil::*, Zoned};
 use log::{error, info};
-use std::collections::HashSet;
 use std::error::Error;
+use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::{collections::HashSet, fs::File};
+
+use crate::db::isone::lib_isoexpress::download_file;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct SingleSourceContingencyArchive {
+pub struct IesoDaLmpNodalArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl SingleSourceContingencyArchive {
-    /// Return the json filename for the day.  Does not check if the file exists.  
+impl IesoDaLmpNodalArchive {
+    /// Return the csv filename for the day
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
-            + "/ssc_"
-            + &date.to_string()
-            + ".json"
+            + "/PUB_DAHourlyEnergyLMP_"
+            + &date.strftime("%Y%m%d").to_string()
+            + ".csv"
     }
 
-    /// Data is updated every 5 min or so
+    /// Data is published every day after 12PM
     pub fn download_file(&self, date: &Date) -> Result<(), Box<dyn Error>> {
-        let yyyymmdd = date.strftime("%Y%m%d");
-        super::lib_isoexpress::download_file(
+        download_file(
             format!(
-                "https://webservices.iso-ne.com/api/v1.1/singlesrccontingencylimits/day/{}",
-                yyyymmdd
+                "https://reports-public.ieso.ca/public/DAHourlyEnergyLMP/{}",
+                Path::new(&self.filename(date))
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("")
             ),
-            true,
-            Some("application/json".to_string()),
+            false,
+            None,
             Path::new(&self.filename(date)),
             true,
         )
     }
 
+    pub fn read_file(&self, date: &Date) -> Result<Vec<Row>, Box<dyn Error>> {
+        let file = File::open(self.filename(date) + ".gz")?;
+        let gz_decoder = GzDecoder::new(file);
+        let buf_reader = BufReader::new(gz_decoder);
+
+        // Skip the first two lines
+        let mut lines = buf_reader.lines();
+        let _ = lines.next(); // Skip the first line with the timestamp
+
+        // Collect the remaining lines into a string
+        let remaining_content: String = lines
+            .collect::<Result<Vec<String>, _>>()?
+            .join("\n");
+
+        // Create a CSV reader from the remaining content
+        let mut csv_reader = ReaderBuilder::new()
+            .has_headers(true) // Set to false if your remaining data doesn't have headers
+            .from_reader(remaining_content.as_bytes());
+
+        // Deserialize and process each record
+        let mut rows = Vec::new();
+        for result in csv_reader.records() {
+            let record = result?;
+            let hour: i8 = record.get(0).unwrap().parse()?;
+            let begin_hour = date
+                .at(hour - 1, 0, 0, 0)
+                .to_zoned(TimeZone::fixed(tz::offset(-5)))?;
+            let location_name = record.get(1).unwrap_or_default().to_string();
+            let lmp = record.get(2).unwrap_or_default().parse::<f64>()?;
+            let mcc = record.get(3).unwrap_or_default().parse::<f64>()?;
+            let mcl = record.get(4).unwrap_or_default().parse::<f64>()?;
+            rows.push(Row {
+                begin_hour,
+                location_name,
+                lmp,
+                mcc,
+                mcl,
+            });
+        }
+        rows.sort_unstable_by_key(|e| (e.location_name.clone(), e.begin_hour.clone()));
+
+        Ok(rows)
+    }
+
     /// Upload each individual day to DuckDB.
     /// Assumes a json.gz file exists.  Skips the day if it doesn't exist.
-    /// This method only works well for a few day.  For a lot of days, don't loop over days. 
+    /// This method only works well for a few day.  For a lot of days, don't loop over days.
     /// Consider using DuckDB directly by globbing the file names.
     ///  
     pub fn update_duckdb(&self, days: &HashSet<Date>) -> Result<(), Box<dyn Error>> {
@@ -117,6 +170,17 @@ EXCEPT
     }
 }
 
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Row {
+    pub location_name: String,
+    pub begin_hour: Zoned,
+    pub lmp: f64,
+    pub mcc: f64,
+    pub mcl: f64,
+}
+
+
 #[cfg(test)]
 mod tests {
 
@@ -158,10 +222,27 @@ mod tests {
 
     #[ignore]
     #[test]
+    fn read_file() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::ieso_dalmp_nodes();
+        let rows = archive.read_file(&date(2025, 5, 5))?;
+
+        let ab: Vec<&Row> = rows
+            .iter()
+            .filter(|row| row.location_name == "ABKENORA-LT.AG")
+            .collect();
+        assert_eq!(ab.len(), 24);
+        assert_eq!(ab[16].lmp, 10.28);
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_single_source_contingency();
-        archive.download_file(&date(2025, 1, 9))?;
+        let archive = ProdDb::ieso_dalmp_nodes();
+        archive.download_file(&date(2025, 5, 5))?;
         Ok(())
     }
 }

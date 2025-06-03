@@ -1,17 +1,46 @@
 use super::{
-    hq::hydrometeorological_data_archive::HqHydroDataArchive,
-    isone::{
+    hq::hydrometeorological_data_archive::HqHydroDataArchive, ieso::{da_lmp_nodes::IesoDaLmpNodalArchive, da_lmp_zones::IesoDaLmpZonalArchive, node_table::IesoNodeTableArchive}, isone::{
         daas_reserve_data_archive::DaasReserveDataArchive, daas_strike_prices_archive::DaasStrikePricesArchive, mis::{
             sd_daasdt::SdDaasdtArchive, sd_rtload::SdRtloadArchive,
             sr_rsvcharge2::SrRsvcharge2Archive, sr_rsvstl2::SrRsvstl2Archive,
         }, sevenday_solar_forecast_archive::SevendaySolarForecastArchive, single_source_contingency_archive::SingleSourceContingencyArchive
-    },
-    nrc::generator_status_archive::GeneratorStatusArchive,
+    }, nrc::generator_status_archive::GeneratorStatusArchive, nyiso::dalmp::NyisoDalmpArchive
 };
 
 pub struct ProdDb {}
 
 impl ProdDb {
+    pub fn ieso_dalmp_nodes() -> IesoDaLmpNodalArchive {
+        IesoDaLmpNodalArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Node"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/ieso/da_lmp.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn ieso_dalmp_zonal() -> IesoDaLmpZonalArchive {
+        IesoDaLmpZonalArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Zone"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/ieso/da_lmp.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn ieso_node_table() -> IesoNodeTableArchive {
+        IesoNodeTableArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/NodeTable"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/ieso/node_table.duckdb"
+                    .to_string(),
+        }
+    }
+
+
     pub fn isone_daas_reserve_data() -> DaasReserveDataArchive {
         DaasReserveDataArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/DASI/ReserveData"
@@ -37,7 +66,7 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/SingleSourceContingency"
                 .to_string(),
             duckdb_path:
-                "/home/adrian/Downloads/Archive/DuckDB/isone_single_source_contingency.duckdb"
+                "/home/adrian/Downloads/Archive/DuckDB/isone/single_source_contingency.duckdb"
                     .to_string(),
         }
     }
@@ -45,7 +74,7 @@ impl ProdDb {
     pub fn isone_sevenday_solar_forecast() -> SevendaySolarForecastArchive {
         SevendaySolarForecastArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/7daySolarForecast".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/IsoExpress/sevenday_solar_forecast.duckdb"
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_solar_forecast.duckdb"
                 .to_string(),
         }
     }
@@ -62,6 +91,16 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/NRC/ReactorStatus".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nrc_generation_status.duckdb"
                 .to_string(),
+        }
+    }
+
+    pub fn nyiso_dalmp() -> NyisoDalmpArchive {
+        NyisoDalmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/nyiso/dalmp.duckdb"
+                    .to_string(),
         }
     }
 

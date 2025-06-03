@@ -27,6 +27,18 @@ fn parse(s: &str) -> Result<Bucket, ParseError> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError;
 
+struct BucketAtc {}
+
+impl BucketLike for BucketAtc {
+    fn name(self) -> String {
+        String::from("ATC")
+    }
+
+    fn contains(self, datetime: DateTime<Tz>) -> bool {
+        true
+    }
+}
+
 pub trait BucketLike {
     fn name(self) -> String;
     fn contains(self, datetime: DateTime<Tz>) -> bool;

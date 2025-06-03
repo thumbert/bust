@@ -15,7 +15,7 @@ use jiff::{
 
 use crate::interval::month::{month, Month};
 
-pub trait MisArchiveDuckDB {
+pub trait MisArchiveDuckDB: Send + Sync {
     fn report_name(&self) -> String;
 
     /// Which months to archive.  Default implementation.
