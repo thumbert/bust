@@ -1,6 +1,6 @@
 use duckdb::Connection;
 use itertools::Itertools;
-use jiff::{civil::*, tz, Timestamp, ToSpan, Zoned};
+use jiff::{civil::*, tz, Timestamp, Zoned};
 use log::{error, info};
 use reqwest::blocking::get;
 use rust_decimal::Decimal;
@@ -107,11 +107,11 @@ impl NyisoDalmpArchive {
                 .unwrap()
                 .strftime("%Y-%m-%d %H:%M:%S%:z"),
             match ptids {
-                Some(ids) => format!("AND ptid in ({})", ids.iter().join("','")),
+                Some(ids) => format!("AND ptid in ({})", ids.iter().join(",")),
                 None => "".to_string(),
             }
         );
-        println!("{}", query);
+        // println!("{}", query);
         let mut stmt = conn.prepare(&query).unwrap();
         let res_iter = stmt.query_map([], |row| {
             let value = match row.get_ref_unwrap(2) {

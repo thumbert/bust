@@ -1,20 +1,49 @@
-use std::{collections::HashMap, error::Error, path::Path};
+use std::{collections::HashMap, error::Error, io::Write, path::Path};
 
-use build_html::Html;
+use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
 use bust::{
     db::{nyiso::dalmp::*, prod_db::ProdDb},
     interval::month::{month, Month},
 };
 use clap::Parser;
-use jiff::{civil::date, Zoned};
+use duckdb::Connection;
+use jiff::{
+    civil::{date, Date},
+    Zoned,
+};
 use rust_decimal::prelude::ToPrimitive;
 
+#[derive(Debug, Clone)]
 struct Cell {
     /// NM1/C, NM2/C, Fitz/C, C/A, .. NPX/G, A, G
     location_name: String,
     /// time band: 1x16, 1x8, 7x24, 0, 1, ... 23
     band: String,
     value: f64,
+}
+
+fn get_ptids() -> HashMap<String, i32> {
+    let mut ptids: HashMap<String, i32> = HashMap::new();
+    ptids.insert("A".to_string(), 61752);
+    ptids.insert("B".to_string(), 61753);
+    ptids.insert("C".to_string(), 61754);
+    ptids.insert("D".to_string(), 61755);
+    ptids.insert("E".to_string(), 61756);
+    ptids.insert("F".to_string(), 61757);
+    ptids.insert("G".to_string(), 61758);
+    ptids.insert("H".to_string(), 61759);
+    ptids.insert("I".to_string(), 61760);
+    ptids.insert("J".to_string(), 61761);
+    ptids.insert("K".to_string(), 61762);
+    ptids.insert("H Q".to_string(), 61844);
+    ptids.insert("NPX".to_string(), 61845);
+    ptids.insert("PJM".to_string(), 61847);
+    //
+    ptids.insert("NM1".to_string(), 23575);
+    ptids.insert("NM2".to_string(), 23744);
+    ptids.insert("Fitz".to_string(), 23598);
+    ptids.insert("Ginna".to_string(), 23603);
+    ptids
 }
 
 fn calc_1x16(ts: &[(Zoned, f64)]) -> f64 {
@@ -38,19 +67,12 @@ fn calc_1x8(ts: &[(Zoned, f64)]) -> f64 {
 }
 
 fn calc_1x24(ts: &[(Zoned, f64)]) -> f64 {
-    let data = ts
-        .iter()
-        .map(|(_, v)| v.to_owned())
-        .collect::<Vec<f64>>();
+    let data = ts.iter().map(|(_, v)| v.to_owned()).collect::<Vec<f64>>();
     let sum: f64 = data.iter().sum();
     sum / data.len() as f64
 }
 
-fn calc_cells_simple(
-    rows: &[Row],
-    location_name: &str,
-    ptids: &HashMap<String, i32>,
-) -> Vec<Cell> {
+fn calc_cells_simple(rows: &[Row], location_name: &str, ptids: &HashMap<String, i32>) -> Vec<Cell> {
     let ptid = ptids.get(location_name).unwrap().to_owned() as u32;
     let data = rows
         .iter()
@@ -58,7 +80,7 @@ fn calc_cells_simple(
         .map(|row| (row.hour_beginning.clone(), row.value.to_f64().unwrap()))
         .collect::<Vec<(Zoned, f64)>>();
 
-    let cells: Vec<Cell> = vec![
+    let mut cells: Vec<Cell> = vec![
         Cell {
             location_name: location_name.to_owned(),
             band: "1x16".to_owned(),
@@ -75,7 +97,27 @@ fn calc_cells_simple(
             value: calc_1x24(&data),
         },
     ];
+    for e in data {
+        cells.push(Cell {
+            location_name: location_name.to_owned(),
+            band: format!("HB{}", e.0.hour()),
+            value: e.1,
+        });
+    }
 
+    cells
+}
+
+fn calc_cells_spread(source: &[Cell], sink: &[Cell]) -> Vec<Cell> {
+    let name = format!("{}/{}", sink[0].location_name, source[0].location_name);
+    let mut cells: Vec<Cell> = Vec::new();
+    for i in 0..source.len() {
+        cells.push(Cell {
+            location_name: name.clone(),
+            band: source[i].band.clone(),
+            value: sink[i].value - source[i].value,
+        });
+    }
     cells
 }
 
@@ -85,88 +127,130 @@ fn calc_cells(rows: &[Row], ptids: &HashMap<String, i32>) -> Vec<Vec<Cell>> {
     let nm1 = calc_cells_simple(rows, "NM1", ptids);
     let nm2 = calc_cells_simple(rows, "NM2", ptids);
     let fitz = calc_cells_simple(rows, "Fitz", ptids);
+    let ginna = calc_cells_simple(rows, "Ginna", ptids);
     let a = calc_cells_simple(rows, "A", ptids);
+    let b = calc_cells_simple(rows, "B", ptids);
     let c = calc_cells_simple(rows, "C", ptids);
     let g = calc_cells_simple(rows, "G", ptids);
+    let npx = calc_cells_simple(rows, "NPX", ptids);
 
-    let nm1_c = vec![
-        Cell {
-            location_name: "NM1/C".to_string(),
-            band: "1x16".to_string(),
-            value: nm1[0].value - c[0].value,
-        },
-        Cell {
-            location_name: "NM1/C".to_string(),
-            band: "1x8".to_string(),
-            value: nm1[1].value - c[1].value,
-        },
-        Cell {
-            location_name: "NM1/C".to_string(),
-            band: "1x24".to_string(),
-            value: nm1[2].value - c[2].value,
-        },
-    ];
-
-    let nm2_c = vec![
-        Cell {
-            location_name: "NM2/C".to_string(),
-            band: "1x16".to_string(),
-            value: nm2[0].value - c[0].value,
-        },
-        Cell {
-            location_name: "NM2/C".to_string(),
-            band: "1x8".to_string(),
-            value: nm2[1].value - c[1].value,
-        },
-        Cell {
-            location_name: "NM2/C".to_string(),
-            band: "1x24".to_string(),
-            value: nm2[2].value - c[2].value,
-        },
-    ];
-
-    let fitz_c = vec![
-        Cell {
-            location_name: "Fitz/C".to_string(),
-            band: "1x16".to_string(),
-            value: fitz[0].value - c[0].value,
-        },
-        Cell {
-            location_name: "Fitz/C".to_string(),
-            band: "1x8".to_string(),
-            value: fitz[1].value - c[1].value,
-        },
-        Cell {
-            location_name: "Fitz/C".to_string(),
-            band: "1x24".to_string(),
-            value: fitz[2].value - c[2].value,
-        },
-    ];
+    let nm1_c = calc_cells_spread(&c, &nm1);
+    let nm2_c = calc_cells_spread(&c, &nm2);
+    let fitz_c = calc_cells_spread(&c, &fitz);
+    let ginna_b = calc_cells_spread(&b, &ginna);
+    let npx_g = calc_cells_spread(&g, &npx);
+    let c_a = calc_cells_spread(&a, &c);
+    let g_a = calc_cells_spread(&a, &g);
 
     table_cells.push(nm1_c);
     table_cells.push(nm2_c);
     table_cells.push(fitz_c);
+    table_cells.push(ginna_b);
+    table_cells.push(c_a);
+    table_cells.push(g_a);
+    table_cells.push(npx_g);
     table_cells.push(a);
+    table_cells.push(c);
     table_cells.push(g);
 
     table_cells
 }
 
-/// Get the hourly data price data for all the ptids for tomorrow from DuckDB
-fn get_data(ptids: &HashMap<String, i32>) -> Result<Vec<Row>, Box<dyn Error>> {
-    let asof = Zoned::now().date().tomorrow().unwrap();
+/// Make an HTML table from the data
+fn html_table(data: Vec<Vec<Cell>>) -> build_html::Table {
+    let mut table = build_html::Table::new();
+    let mut header = vec!["Location".to_string()];
+    header.extend(data[0].iter().map(|cell| cell.band.clone()));
+    table.add_header_row(header);
 
-    let archive = ProdDb::nyiso_dalmp();
+    for row in data {
+        let mut trow = TableRow::new();
+        // add the location name
+        let mut tcell = TableCell::new(build_html::TableCellType::Data);
+        if row[0].location_name.len() == 1 {
+            tcell = tcell.with_attributes([("style", "background-color:#eceff4;")]);
+        }
+        tcell = tcell.with_raw(row[0].location_name.clone());
+        trow.add_cell(tcell);
+        // add the prices
+        for cell in &row {
+            let mut tcell = TableCell::new(build_html::TableCellType::Data);
+            if cell.band == "1x24" {
+                tcell = tcell.with_attributes([("class", "col-border")]);
+            }
+            if cell.location_name.len() == 1 {
+                tcell = tcell.with_attributes([("style", "background-color:#eceff4;")]);
+            }
+            tcell = tcell.with_raw(format!("{:.2}", cell.value));
+            trow.add_cell(tcell);
+        }
+        table.add_custom_body_row(trow);
+    }
+    table
+}
+
+/// Get the hourly data price data for all the ptids for tomorrow from DuckDB
+fn make_table(
+    asof: Date,
+    component: LmpComponent,
+    ptids: &HashMap<String, i32>,
+    archive: &NyisoDalmpArchive,
+) -> Result<Vec<Vec<Cell>>, Box<dyn Error>> {
     let conn = duckdb::Connection::open(archive.duckdb_path.clone())?;
     let rows = archive.get_data(
         &conn,
         asof,
         asof,
-        LmpComponent::Lmp,
+        component,
         Some(ptids.clone().into_values().collect()),
     )?;
 
-    Ok(rows)
+    let cells = calc_cells(&rows, ptids);
+
+    Ok(cells)
+}
+
+fn make_report(asof: Date) -> Result<(), Box<dyn Error>> {
+    let ptids = get_ptids();
+
+    let archive = ProdDb::nyiso_dalmp();
+    let tbl_lmp = html_table(make_table(asof, LmpComponent::Lmp, &ptids, &archive)?);
+    // println!("{:?}", tbl_lmp);
+
+    // let tbl_mcc = make_table(asof, LmpComponent::Lmp, &ptids, &archive)?;
+    // println!("{:?}", tbl_mcc);
+
+    let html = format!(
+        r#"
+    <html>
+        <head>
+            <style>
+                .col-border {{
+                    border-right: 1px solid #d8dee9;
+                }}
+                table {{
+                    border-collapse: collapse;
+                }}
+                thead tr {{
+                    background: #d8dee9;       
+                }}
+                th, td {{
+                    padding: 4px;
+                    text-align: right;
+                }}
+            </style>
+        </head>
+        <body>
+            <h3>LMP, $/MWh</h3>
+            {}
+        </body>
+    </html>"#,
+        tbl_lmp.to_html_string()
+    );
+    let mut file = std::fs::File::create("/home/adrian/Downloads/nyiso_dalmp.html")?;
+    file.write_all(html.as_bytes())?;
+
+    Ok(())
 }
 
 #[derive(Parser, Debug)]
@@ -187,43 +271,30 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
-    let mut as_of = Zoned::now().date().tomorrow().unwrap();
-    if Zoned::now().hour() < 11 {
-        as_of = as_of.yesterday().unwrap();
+    let mut asof = Zoned::now().date();
+    if Zoned::now().hour() >= 11 {
+        asof = asof.tomorrow().unwrap();
     }
 
-    let current_month = month(as_of.year(), as_of.month());
+    let current_month = month(asof.year(), asof.month());
     let mut months: Vec<Month> = Vec::new();
-    if as_of.day() < 6 {
+    if asof.day() < 4 {
         months.push(current_month.previous());
     }
     months.push(current_month);
 
-    let archive = ProdDb::nyiso_dalmp();
+    // let archive = ProdDb::nyiso_dalmp();
     // for month in months {
     //     archive.download_file(month, NodeType::Gen)?;
     //     archive.download_file(month, NodeType::Zone)?;
     //     archive.update_duckdb(month)?;
     // }
 
-    let mut ptids: HashMap<String, i32> = HashMap::new();
-    ptids.insert("A".to_string(), 61752);
-    ptids.insert("B".to_string(), 61753);
-    ptids.insert("C".to_string(), 61754);
-    ptids.insert("F".to_string(), 61757);
-    ptids.insert("G".to_string(), 61758);
-    ptids.insert("NPX".to_string(), 61745);
-    //
-    ptids.insert("NM1".to_string(), 23575);
-    ptids.insert("NM2".to_string(), 23744);
-    ptids.insert("Fitz".to_string(), 23598);
-    ptids.insert("Ginna".to_string(), 23603);
+    make_report(asof)?;
 
-    let rows = get_data(&ptids)?;
-    let cells = calc_cells(&rows, &ptids);
-    println!("{} cells", cells.len());
-
-
+    // let rows = make_table(&ptids)?;
+    // let cells = calc_cells(&rows, &ptids);
+    // println!("{} cells", cells.len());
 
     Ok(())
 }
