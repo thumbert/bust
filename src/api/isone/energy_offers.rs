@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::{self, Display}, str::FromStr};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -96,6 +96,16 @@ pub enum Market {
     DA,
     RT,
 }
+
+impl fmt::Display for Market {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Market::DA => write!(f, "DA"),
+            Market::RT => write!(f, "RT"),
+        }
+    }
+}
+
 
 impl FromStr for Market {
     type Err = String;

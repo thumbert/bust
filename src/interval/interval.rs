@@ -1,4 +1,30 @@
 
+use jiff::{civil::Date, ToSpan};
+
+
+pub trait DateExt {
+    fn up_to(&self, end: Self) -> Vec<Self>
+    where
+        Self: Sized;
+}
+
+impl DateExt for Date {
+    fn up_to(&self, end: Self) -> Vec<Self> {
+        let mut dates = Vec::new();
+        let mut current = *self;
+        while current <= end {
+            dates.push(current);
+            current = current.saturating_add(1.days());
+        }
+        dates
+    }
+}
+
+
+
+
+
+
 // use chrono::{DateTime, Duration, NaiveTime, TimeZone, Timelike};
 // use std::cmp;
 // use std::fmt::Debug;

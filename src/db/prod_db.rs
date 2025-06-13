@@ -1,3 +1,5 @@
+use crate::db::isone::{masked_data::import_export_archive::ImportExportArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive};
+
 use super::{
     hq::hydrometeorological_data_archive::HqHydroDataArchive, ieso::{da_lmp_nodes::IesoDaLmpNodalArchive, da_lmp_zones::IesoDaLmpZonalArchive, node_table::IesoNodeTableArchive}, isone::{
         daas_reserve_data_archive::DaasReserveDataArchive, daas_strike_prices_archive::DaasStrikePricesArchive, mis::{
@@ -61,6 +63,16 @@ impl ProdDb {
         }
     }
 
+    pub fn isone_masked_import_export() -> ImportExportArchive {
+        ImportExportArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/ImportExport"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/isone/masked_import_export.duckdb"
+                    .to_string(),
+        }
+    }
+
     pub fn isone_single_source_contingency() -> SingleSourceContingencyArchive {
         SingleSourceContingencyArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/SingleSourceContingency"
@@ -75,6 +87,14 @@ impl ProdDb {
         SevendaySolarForecastArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/7daySolarForecast".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_solar_forecast.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_ttc() -> TotalTransferCapabilityArchive {
+        TotalTransferCapabilityArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/Ttc".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/ttc.duckdb"
                 .to_string(),
         }
     }

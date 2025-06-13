@@ -4,6 +4,10 @@ TODO:
   make sure you panic if the wrong rule is passed in. 
 - Get rid of chrono and use jiff exclusively  
 
+## 2025-06-13
+- Work on TTC data for ISONE
+- Work on masked import export bids/offers for ISONE
+
 ## 2025-06-02
 - Work on NYISO DAM price report
 - Put NYISO DAM prices in DuckDB

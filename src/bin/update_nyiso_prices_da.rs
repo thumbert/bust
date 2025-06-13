@@ -1,16 +1,16 @@
-use std::{collections::HashMap, error::Error, io::Write, path::Path};
+use std::{collections::HashMap, env, error::Error, io::Write, path::Path};
 
-use build_html::{Html, HtmlContainer, Table, TableCell, TableRow};
+use build_html::{Html, HtmlContainer, TableCell, TableRow};
 use bust::{
     db::{nyiso::dalmp::*, prod_db::ProdDb},
-    interval::month::{month, Month},
+    interval::month::{month, Month}, utils::send_email::*,
 };
 use clap::Parser;
-use duckdb::Connection;
 use jiff::{
     civil::{date, Date},
     Zoned,
 };
+use log::info;
 use rust_decimal::prelude::ToPrimitive;
 
 #[derive(Debug, Clone)]
@@ -210,15 +210,13 @@ fn make_table(
     Ok(cells)
 }
 
-fn make_report(asof: Date) -> Result<(), Box<dyn Error>> {
+fn make_report(asof: Date) -> Result<String, Box<dyn Error>> {
     let ptids = get_ptids();
 
     let archive = ProdDb::nyiso_dalmp();
     let tbl_lmp = html_table(make_table(asof, LmpComponent::Lmp, &ptids, &archive)?);
-    // println!("{:?}", tbl_lmp);
-
-    // let tbl_mcc = make_table(asof, LmpComponent::Lmp, &ptids, &archive)?;
-    // println!("{:?}", tbl_mcc);
+    let tbl_mcc = html_table(make_table(asof, LmpComponent::Mcc, &ptids, &archive)?);
+    let tbl_mcl = html_table(make_table(asof, LmpComponent::Mcc, &ptids, &archive)?);
 
     let html = format!(
         r#"
@@ -232,7 +230,7 @@ fn make_report(asof: Date) -> Result<(), Box<dyn Error>> {
                     border-collapse: collapse;
                 }}
                 thead tr {{
-                    background: #d8dee9;       
+                    background: #eceff4;       
                 }}
                 th, td {{
                     padding: 4px;
@@ -243,14 +241,21 @@ fn make_report(asof: Date) -> Result<(), Box<dyn Error>> {
         <body>
             <h3>LMP, $/MWh</h3>
             {}
+            <h3>MCC, $/MWh</h3>
+            {}
+            <h3>MCL, $/MWh</h3>
+            {}
         </body>
     </html>"#,
-        tbl_lmp.to_html_string()
+        tbl_lmp.to_html_string(),
+        tbl_mcc.to_html_string(),
+        tbl_mcl.to_html_string(),
     );
     let mut file = std::fs::File::create("/home/adrian/Downloads/nyiso_dalmp.html")?;
     file.write_all(html.as_bytes())?;
+    info!("Report written to /home/adrian/Downloads/nyiso_dalmp.html");
 
-    Ok(())
+    Ok(html)
 }
 
 #[derive(Parser, Debug)]
@@ -262,7 +267,8 @@ struct Args {
 }
 
 /// Run this job every day at 11:00AM
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     env_logger::builder()
@@ -271,7 +277,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
-    let mut asof = Zoned::now().date();
+    // let mut asof = Zoned::now().date();
+    let mut asof = date(2025, 6, 5);
     if Zoned::now().hour() >= 11 {
         asof = asof.tomorrow().unwrap();
     }
@@ -283,18 +290,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     months.push(current_month);
 
-    // let archive = ProdDb::nyiso_dalmp();
-    // for month in months {
-    //     archive.download_file(month, NodeType::Gen)?;
-    //     archive.download_file(month, NodeType::Zone)?;
-    //     archive.update_duckdb(month)?;
-    // }
+    let archive = ProdDb::nyiso_dalmp();
+    for month in months {
+        archive.download_file(month, NodeType::Gen)?;
+        archive.download_file(month, NodeType::Zone)?;
+        archive.update_duckdb(month)?;
+    }
 
-    make_report(asof)?;
+    let html = make_report(asof)?;
 
-    // let rows = make_table(&ptids)?;
-    // let cells = calc_cells(&rows, &ptids);
-    // println!("{} cells", cells.len());
+    let response = send_email(
+        env::var("EMAIL_FROM").unwrap(),
+        vec![env::var("GMAIL_BASE").unwrap()],
+        format!("NYISO LMP report for {}", asof),
+        "".to_string(),
+        Some(html),
+    )
+    .await?;
+
+    if response.status().is_success() {
+        info!("Email sent successfully!");
+    } else {
+        info!("Failed to send email. Status: {:?}", response.status());
+        let body = response.text().await?;
+        info!("Response body: {}", body);
+    }
 
     Ok(())
 }

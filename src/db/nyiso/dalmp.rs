@@ -251,15 +251,14 @@ impl NyisoDalmpArchive {
             .output()
             .expect("Failed to invoke duckdb command");
 
+        let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         if output.status.success() {
+            info!("{}", stdout);
             info!("done");
         } else {
             error!("Failed to update duckdb for month {}: {}", month, stderr);
         }
-        // let stdout = String::from_utf8_lossy(&output.stdout);
-        // println!("Stdout: {}", stdout);
-        // println!("Stderr: {}", stderr);
 
         Ok(())
     }
