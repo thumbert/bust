@@ -24,7 +24,7 @@ async fn api_ttc_data(path: web::Path<(Date, Date)>, query: web::Query<DataQuery
 
     let res = get_ttc_data(&conn, start_date, end_date, names);
     match res {
-        Ok(vs) => HttpResponse::Ok().json(vs),
+        Ok(vs) => HttpResponse::Ok().body(vs),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
