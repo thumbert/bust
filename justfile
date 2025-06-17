@@ -19,3 +19,12 @@ update_nrc_generator_status:
     cargo test --package bust --lib -- db::nrc::update_nrc_generator_status::tests --show-output
     cargo build --bin update_nrc_generator_status --release 
     cp ./target/release/update_nrc_generator_status ~/Software
+
+update_nyiso_prices_da:
+    cargo test --package bust --lib -- db::nyiso::dam_prices_archive::tests --show-output
+    cargo build --bin update_nyiso_prices_da --release 
+    cp ./target/release/update_nyiso_prices_da ~/Software
+    cargo build --bin email_nyiso_prices_da --release
+    cp ./target/release/email_nyiso_prices_da ~/Software
+
+    

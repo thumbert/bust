@@ -86,7 +86,11 @@ impl NyisoDalmpArchive {
         ptids: Option<Vec<i32>>,
     ) -> Result<Vec<Row>, Box<dyn Error>> {
         let mut query = "SELECT ptid, hour_beginning, ".to_string();
-        query.push_str(&format!("{} FROM dalmp ", component));
+        query.push_str(&format!("{} FROM dalmp ", match component {
+            LmpComponent::Lmp => "lmp",
+            LmpComponent::Mcl => "mlc",
+            LmpComponent::Mcc => "mcc",
+        }));
         query = format!(
             r#"
             {}
@@ -285,9 +289,9 @@ mod tests {
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::nyiso_dalmp();
-        // archive.setup()?;
+        archive.setup()?;
 
-        let months = month(2020, 2).up_to(month(2025, 5))?;
+        let months = month(2025, 6).up_to(month(2025, 6))?;
         for month in months {
             archive.update_duckdb(month)?;
         }
@@ -320,7 +324,7 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::nyiso_dalmp();
-        let months = month(2020, 1).up_to(month(2021, 12))?;
+        let months = month(2025, 6).up_to(month(2025, 6))?;
         for month in months {
             archive.download_file(month, NodeType::Gen)?;
             archive.download_file(month, NodeType::Zone)?;

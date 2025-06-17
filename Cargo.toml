@@ -27,7 +27,7 @@ log = "0.4"
 mongodb = "3.0.1"
 pest = "2.7.9"
 pest_derive = "2.7.9"
-plotly = "0.9.0"
+plotly = "0.12.1"
 quick-xml = { version = "0.37", features = ["serialize"] }
 r2d2 = "0.8.10"
 # r2d2-duckdb = "0.1.0"

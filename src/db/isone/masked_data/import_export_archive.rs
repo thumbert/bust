@@ -1,7 +1,5 @@
-use duckdb::Connection;
 use jiff::civil::*;
 use log::{error, info};
-use std::collections::HashSet;
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
@@ -29,13 +27,13 @@ impl ImportExportArchive {
             + ".json"
     }
 
+    /// https://webservices.iso-ne.com/api/v1.1/hbimportexport/marketType/da/day/20230104
     pub fn download_file(&self, date: &Date, market: &Market) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
         lib_isoexpress::download_file(
             format!(
                 "https://webservices.iso-ne.com/api/v1.1/hbimportexport/marketType/{}/day/{}",
-                market,
-                yyyymmdd
+                market, yyyymmdd
             ),
             true,
             Some("application/json".to_string()),
@@ -133,10 +131,13 @@ ORDER BY HourBeginning, MarketType, MaskedCustomerId;"#,
 #[cfg(test)]
 mod tests {
 
-    use jiff::{civil::date, ToSpan, Zoned};
+    use jiff::civil::date;
     use std::{error::Error, path::Path};
 
-    use crate::{db::prod_db::ProdDb, interval::month::month};
+    use crate::{
+        db::prod_db::ProdDb,
+        interval::{interval::DateExt, month::month},
+    };
     // use crate::interval::interval::DateExt;
 
     use super::*;
@@ -151,14 +152,19 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_import_export();
-        // let days = vec![date(2024, 12, 4), date(2024, 12, 5), date(2024, 12, 6)];
-        // let days = date(2024, 1, 1).up_to(date(2024, 12, 31));
+        // let days = date(2023, 1, 1).up_to(date(2023, 12, 31));
+        // let days = vec![
+        //     date(2023, 1, 5),
+        //     date(2023, 1, 7),
+        //     date(2023, 1, 8),
+        //     date(2023, 1, 9),
+        // ];
         // for day in &days {
         //     println!("Processing {}", day);
         //     archive.download_file(day, &Market::DA)?;
         //     archive.download_file(day, &Market::RT)?;
         // }
-        let months = month(2024, 2).up_to(month(2024, 12))?;
+        let months = month(2023, 2).up_to(month(2023, 12))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);
             archive.update_duckdb(month)?;

@@ -44,6 +44,7 @@ impl TotalTransferCapabilityArchive {
 
     /// Path to the CSV file with the ISO report for a given day.
     /// ISO doesn't publish this data as part of their webservices API. 
+    /// https://webservices.iso-ne.com/api/v1.1/totaltransfercapability/day/20250101
     pub fn filename(&self, date: Date) -> String {
         self.base_dir.to_owned()
             + "/Raw/"
