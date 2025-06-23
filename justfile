@@ -26,5 +26,5 @@ update_nyiso_prices_da:
     cp ./target/release/update_nyiso_prices_da ~/Software
     cargo build --bin email_nyiso_prices_da --release
     cp ./target/release/email_nyiso_prices_da ~/Software
+    cp -r .env ~/Software
 
-    

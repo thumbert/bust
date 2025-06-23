@@ -2,13 +2,11 @@ use std::{collections::HashMap, env, error::Error, io::Write, path::Path};
 
 use build_html::{Html, HtmlContainer, TableCell, TableRow};
 use bust::{
-    db::{nyiso::dalmp::*, prod_db::ProdDb}, utils::send_email::*,
+    db::{nyiso::dalmp::*, prod_db::ProdDb},
+    utils::send_email::*,
 };
 use clap::Parser;
-use jiff::{
-    civil::Date,
-    Zoned,
-};
+use jiff::{civil::Date, Zoned};
 use log::info;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -107,20 +105,29 @@ fn calc_cells_simple(rows: &[Row], location_name: &str, ptids: &HashMap<String, 
     cells
 }
 
-fn calc_cells_spread(source: &[Cell], sink: &[Cell]) -> Vec<Cell> {
+fn calc_cells_spread(source: &[Cell], sink: &[Cell], component: &LmpComponent) -> Vec<Cell> {
     let name = format!("{}/{}", sink[0].location_name, source[0].location_name);
+    let sign = if component == &LmpComponent::Mcc {
+        -1.0
+    } else {
+        1.0
+    };
     let mut cells: Vec<Cell> = Vec::new();
     for i in 0..source.len() {
         cells.push(Cell {
             location_name: name.clone(),
             band: source[i].band.clone(),
-            value: sink[i].value - source[i].value,
+            value: sign * (sink[i].value - source[i].value),
         });
     }
     cells
 }
 
-fn calc_cells(rows: &[Row], ptids: &HashMap<String, i32>) -> Vec<Vec<Cell>> {
+fn calc_cells(
+    rows: &[Row],
+    ptids: &HashMap<String, i32>,
+    component: &LmpComponent,
+) -> Vec<Vec<Cell>> {
     let mut table_cells: Vec<Vec<Cell>> = Vec::new();
 
     let nm1 = calc_cells_simple(rows, "NM1", ptids);
@@ -140,13 +147,13 @@ fn calc_cells(rows: &[Row], ptids: &HashMap<String, i32>) -> Vec<Vec<Cell>> {
     let k = calc_cells_simple(rows, "K", ptids);
     let npx = calc_cells_simple(rows, "NPX", ptids);
 
-    let nm1_c = calc_cells_spread(&c, &nm1);
-    let nm2_c = calc_cells_spread(&c, &nm2);
-    let fitz_c = calc_cells_spread(&c, &fitz);
-    let ginna_b = calc_cells_spread(&b, &ginna);
-    let npx_g = calc_cells_spread(&g, &npx);
-    let c_a = calc_cells_spread(&a, &c);
-    let g_a = calc_cells_spread(&a, &g);
+    let nm1_c = calc_cells_spread(&c, &nm1, component);
+    let nm2_c = calc_cells_spread(&c, &nm2, component);
+    let fitz_c = calc_cells_spread(&c, &fitz, component);
+    let ginna_b = calc_cells_spread(&b, &ginna, component);
+    let npx_g = calc_cells_spread(&g, &npx, component);
+    let c_a = calc_cells_spread(&a, &c, component);
+    let g_a = calc_cells_spread(&a, &g, component);
 
     table_cells.push(nm1_c);
     table_cells.push(nm2_c);
@@ -223,7 +230,7 @@ fn make_table(
         return Err(format!("No DAM price data found for asof: {}", asof).into());
     }
 
-    let cells = calc_cells(&rows, ptids);
+    let cells = calc_cells(&rows, ptids, &component);
 
     Ok(cells)
 }
@@ -300,7 +307,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         asof = asof.tomorrow().unwrap();
     }
     let html = make_report(asof)?;
-    
+
     let response = send_email(
         env::var("EMAIL_FROM").unwrap(),
         vec![env::var("EMAIL_WORK").unwrap()],

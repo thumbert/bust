@@ -5,6 +5,9 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-06-23
+- Fix the MCC calculation in the NYISO DALMP report for spreads
+
 ## 2025-06-16
 - Finish NYISO DALMP report 
 

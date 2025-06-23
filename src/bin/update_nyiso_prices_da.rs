@@ -8,7 +8,6 @@ use clap::Parser;
 use jiff::Zoned;
 use log::info;
 
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -29,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut asof = Zoned::now().date();
     // let mut asof = date(2025, 6, 5);
-    if Zoned::now().hour() >= 11 {
+    if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
     info!("Updating NYISO DALMP for asof date: {}", asof);
