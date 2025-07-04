@@ -9,7 +9,6 @@ use crate::db::{isone::total_transfer_capability_archive::TotalTransferCapabilit
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
-/// Get the status for some/all facilities
 /// http://127.0.0.1:8111/ttc/start/2024-01-01/end/2024-01-04?columns=hq_phase2_import,ny_north_import&format=csv
 #[get("/ttc/start/{start}/end/{end}")]
 async fn api_ttc_data(path: web::Path<(Date, Date)>, query: web::Query<DataQuery>) -> impl Responder {

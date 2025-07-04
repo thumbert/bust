@@ -12,7 +12,7 @@ TODO:
 - Finish NYISO DALMP report 
 
 ## 2025-06-13
-- Work on TTC data for ISONE
+- Work on TTC data for ISONE.  See example how to insert correctly into existing SQL table. 
 - Work on masked import export bids/offers for ISONE
 
 ## 2025-06-02

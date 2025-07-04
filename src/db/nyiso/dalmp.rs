@@ -220,29 +220,39 @@ impl NyisoDalmpArchive {
         (SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
         FROM (
             SELECT 
-            strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
-            ptid::INTEGER AS ptid,
-            row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp1))
-        UNION
+                strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
+                ptid::INTEGER AS ptid,
+                row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
+                "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+                "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+                "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+            FROM tmp1
+            )
+        ORDER BY hour_beginning, ptid
+        )
+        UNION 
         (SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
         FROM (SELECT 
-            strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
-            ptid::INTEGER AS ptid,
-            row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp2));
+                strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
+                ptid::INTEGER AS ptid,
+                row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
+                "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+                "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+                "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+            FROM tmp2
+            )
+        ORDER BY hour_beginning, ptid
+        )
+        ORDER BY hour_beginning, ptid;
 
 
         INSERT INTO dalmp
-        SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
-        EXCEPT 
-            SELECT * FROM dalmp            
+        (SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
+        WHERE NOT EXISTS (
+            SELECT * FROM dalmp d
+            WHERE d.hour_beginning = tmp.hour_beginning
+            AND d.ptid = tmp.ptid
+        ))
         ORDER BY hour_beginning, ptid;
         "#,
             self.filename(&month, NodeType::Zone),
@@ -291,7 +301,7 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         archive.setup()?;
 
-        let months = month(2025, 6).up_to(month(2025, 6))?;
+        let months = month(2020, 1).up_to(month(2025, 6))?;
         for month in months {
             archive.update_duckdb(month)?;
         }
@@ -303,6 +313,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::nyiso_dalmp();
         let conn = duckdb::Connection::open(archive.duckdb_path.clone())?;
+        // test a zone location at DST
         let rows = archive.get_data(
             &conn,
             date(2024, 11, 3),
@@ -311,11 +322,29 @@ mod tests {
             Some(vec![61752]),
         )?;
         assert_eq!(rows.len(), 25);
+        let values = rows[0..=2].iter().map(|r| r.value).collect::<Vec<_>>();
+        assert_eq!(values, vec![dec!(29.27), dec!(27.32), dec!(27.14)]);
         assert_eq!(
             rows[2].hour_beginning,
             "2024-11-03T01:00:00-05:00[America/New_York]".parse()?
         );
         assert_eq!(rows[2].value, dec!(27.14));
+
+        // test a gen location
+        let rows = archive.get_data(
+            &conn,
+            date(2025, 6, 27),
+            date(2025, 6, 27),
+            LmpComponent::Lmp,
+            Some(vec![23575]),
+        )?;
+        assert_eq!(rows.len(), 24);
+        assert_eq!(
+            rows[0].hour_beginning,
+            "2025-06-27T00:00:00-04:00[America/New_York]".parse()?
+        );
+        assert_eq!(rows[0].value, dec!(37.59));
+
         Ok(())
     }
 
@@ -332,6 +361,10 @@ mod tests {
         Ok(())
     }
 }
+
+
+
+
 
 // /// Read one csv.zip file corresponding to one month.
 // pub fn read_file(&self, path_zip: String) -> Result<Vec<Row>, Box<dyn Error>> {

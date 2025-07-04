@@ -155,6 +155,7 @@ fn calc_cells(
     let c_a = calc_cells_spread(&a, &c, component);
     let g_a = calc_cells_spread(&a, &g, component);
 
+    table_cells.push(nm1);
     table_cells.push(nm1_c);
     table_cells.push(nm2_c);
     table_cells.push(fitz_c);
@@ -303,7 +304,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
     let mut asof = Zoned::now().date();
-    if Zoned::now().hour() >= 11 {
+    if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
     let html = make_report(asof)?;
@@ -326,4 +327,52 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+
+    use jiff::civil::date;
+    use std::{error::Error, path::Path};
+
+    use super::*;
+
+    #[ignore]
+    #[test]
+    fn calc_test() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let asof = date(2025, 6, 27);
+        let ptids = get_ptids();
+
+        let archive = ProdDb::nyiso_dalmp();
+        let data = make_table(asof, LmpComponent::Lmp, &ptids, &archive)?;
+        let nm1 = data
+            .iter()
+            .find(|row| row[0].location_name == "NM1")
+            .unwrap()
+            .clone();
+        for cell in &nm1 {
+            println!("{} {}: {}", cell.location_name, cell.band, cell.value);
+        }
+
+        let c = data
+            .iter()
+            .find(|row| row[0].location_name == "C")
+            .unwrap()
+            .clone();
+        for cell in &c {
+            println!("{} {}: {}", cell.location_name, cell.band, cell.value);
+        }
+
+        let nm1_c = data
+            .iter()
+            .find(|row| row[0].location_name == "NM1/C")
+            .unwrap()
+            .clone();
+        for cell in &nm1_c {
+            println!("{} {}: {}", cell.location_name, cell.band, cell.value);
+        }
+
+        Ok(())
+    }
 }
