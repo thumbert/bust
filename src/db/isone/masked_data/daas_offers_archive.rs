@@ -24,12 +24,12 @@ impl DaasEnergyOffersArchive {
         + ".json"
     }
     
-    /// https://webservices.iso-ne.com/docs/v1.1/hbdaasenergyoffer/day/20250301
+    /// https://webservices.iso-ne.com/api/v1.1/hbdaasenergyoffer/day/20250301
     pub fn download_file(&self, date: &Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
         lib_isoexpress::download_file(
             format!(
-                "https://webservices.iso-ne.com/api/v1.1/hbdaasoffers/day/{}",
+                "https://webservices.iso-ne.com/api/v1.1/hbdaasenergyoffer/day/{}",
                 yyyymmdd
             ),
             true,
@@ -147,7 +147,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        let days = date(2023, 1, 1).up_to(date(2023, 12, 31));   
+        let days = date(2025, 3, 2).up_to(date(2025, 3, 31));   
         // let days = vec![
         //     date(2023, 1, 5),
         //     date(2023, 1, 7),
@@ -171,7 +171,7 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_masked_daas_offers();
-        archive.download_file(&date(2025, 1, 1))?;
+        archive.download_file(&date(2025, 3, 1))?;
         Ok(())
     }
 }
