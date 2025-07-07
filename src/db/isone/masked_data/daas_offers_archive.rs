@@ -50,56 +50,52 @@ impl DaasEnergyOffersArchive {
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS bidsoffers (
-        HourBeginning TIMESTAMPTZ NOT NULL,
-        MarketType ENUM('DA', 'RT') NOT NULL,
-        MaskedCustomerId UINTEGER NOT NULL,
-        MaskedSourceId UINTEGER NOT NULL,
-        MaskedSinkId UINTEGER NOT NULL,
-        EmergencyFlag BOOLEAN NOT NULL,
-        Direction ENUM('IMPORT', 'EXPORT') NOT NULL,
-        TransactionType ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') NOT NULL,
-        Mw DECIMAL(9,2) NOT NULL,
-        Price DECIMAL(9,2),
+CREATE TABLE IF NOT EXISTS offers (
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    masked_lead_participant_id INTEGER NOT NULL,
+    masked_asset_id INTEGER NOT NULL,
+    offer_mw DECIMAL(9,2) NOT NULL,
+    tmsr_offer_price DECIMAL(9,2) NOT NULL,
+    tmnsr_offer_price DECIMAL(9,2) NOT NULL,
+    tmor_offer_price DECIMAL(9,2) NOT NULL,
+    eir_offer_price DECIMAL(9,2) NOT NULL,
 );
-CREATE TEMPORARY TABLE tmp AS
-    SELECT unnest(HbImportExports.HbImportExport, recursive := true)
-    FROM read_json('~/Downloads/Archive/IsoExpress/PricingReports/ImportExport/Raw/{}/hbimportexport_*_{}-*.json.gz')
+
+CREATE TEMPORARY TABLE tmp
+AS
+    SELECT * 
+    FROM (
+        SELECT unnest(isone_web_services.offer_publishing.day_ahead_ancillary_services.daas_gen_offer_data, recursive := true)
+        FROM read_json('~/Downloads/Archive/IsoExpress/PricingReports/DaasOffers/Raw/{}/hbdaasenergyoffer_{}-*.json.gz')
+    )
+    ORDER BY local_day
 ;
 
-CREATE TEMPORARY TABLE tmp1 AS
-    (SELECT 
-        BeginDate::TIMESTAMPTZ as HourBeginning,
-        MarketType::ENUM('DA', 'RT') as MarketType,
-        MaskedCustomerId::UINTEGER as MaskedCustomerId,
-        MaskedSourceId::UINTEGER as MaskedSourceId,
-        MaskedSinkId::UINTEGER as MaskedSinkId,
-        IF(EmergencyFlag = 'Y', TRUE, FALSE) as EmergencyFlag,
-        Direction::ENUM('IMPORT', 'EXPORT') as Direction,
-        TransactionType::ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') as TransactionType,
-        Mw::DECIMAL(9,2) as Mw,
-        Price::DECIMAL(9,2) as Price
-    FROM tmp
-    ORDER BY MarketType, HourBeginning, MaskedCustomerId);
-
-INSERT INTO bidsoffers
-(SELECT * FROM tmp1 t
+INSERT INTO offers
+(
+    SELECT 
+        local_day::TIMESTAMPTZ as hour_beginning,
+        masked_lead_participant_id::INTEGER as masked_lead_participant_id,
+        masked_asset_id::INTEGER as masked_asset_id,
+        offer_mw::DECIMAL(9,2) as offer_mw,
+        tmsr_offer_price::DECIMAL(9,2) as tmsr_offer_price,
+        tmnsr_offer_price::DECIMAL(9,2) as tmnsr_offer_price,
+        tmor_offer_price::DECIMAL(9,2) as tmor_offer_price,
+        eir_offer_price::DECIMAL(9,2) as eir_offer_price
+    FROM tmp t
 WHERE NOT EXISTS (
-    SELECT * FROM bidsoffers b
-    WHERE
-        b.HourBeginning = t.HourBeginning AND
-        b.MarketType = t.MarketType AND
-        b.MaskedCustomerId = t.MaskedCustomerId AND
-        b.MaskedSourceId = t.MaskedSourceId AND
-        b.MaskedSinkId = t.MaskedSinkId AND
-        b.EmergencyFlag = t.EmergencyFlag AND
-        b.Direction = t.Direction AND
-        b.TransactionType = t.TransactionType AND
-        b.Mw = t.Mw AND
-        b.Price = t.Price
+        SELECT * FROM offers o
+        WHERE
+            o.hour_beginning = t.local_day AND
+            o.masked_lead_participant_id = t.masked_lead_participant_id AND
+            o.masked_asset_id = t.masked_asset_id AND
+            o.tmsr_offer_price = t.tmsr_offer_price AND
+            o.tmnsr_offer_price = t.tmnsr_offer_price AND
+            o.tmor_offer_price = t.tmor_offer_price AND
+            o.eir_offer_price = t.eir_offer_price
     )
-)
-ORDER BY HourBeginning, MarketType, MaskedCustomerId;"#,
+) ORDER BY hour_beginning, masked_lead_participant_id, masked_asset_id; 
+"#,
             month.start_date().year(),
             month
         );
@@ -147,22 +143,16 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        let days = date(2025, 3, 2).up_to(date(2025, 3, 31));   
-        // let days = vec![
-        //     date(2023, 1, 5),
-        //     date(2023, 1, 7),
-        //     date(2023, 1, 8),
-        //     date(2023, 1, 9),
-        // ];
-        for day in &days {
-            println!("Processing {}", day);
-            archive.download_file(day)?;
-        }
-        // let months = month(2023, 2).up_to(month(2023, 12))?;
-        // for month in &months {
-        //     println!("Updating DuckDB for month {}", month);
-        //     archive.update_duckdb(month)?;
+        // let days = date(2025, 3, 2).up_to(date(2025, 3, 31));   
+        // for day in &days {
+        //     println!("Processing {}", day);
+        //     archive.download_file(day)?;
         // }
+        let months = month(2025, 3).up_to(month(2025, 3))?;
+        for month in &months {
+            println!("Updating DuckDB for month {}", month);
+            archive.update_duckdb(month)?;
+        }
         Ok(())
     }
 

@@ -1,4 +1,4 @@
-use std::{fmt::{self, Display}, str::FromStr};
+use std::{fmt::{self}, str::FromStr};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
