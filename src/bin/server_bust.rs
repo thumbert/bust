@@ -78,6 +78,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)
             .service(isone::capacity::monthly_capacity_bidsoffers::bids_offers)
+            .service(isone::daas_offers::api_offers)
             .service(isone::energy_offers::api_offers)
             .service(isone::energy_offers::api_stack)
             .service(isone::mis::sd_daasdt::api_daily_charges)

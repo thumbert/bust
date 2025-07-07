@@ -1,17 +1,70 @@
+use std::{error::Error, fmt};
+
 use duckdb::{Connection, Result};
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
-use serde::{Deserialize, Serialize};
+use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
+
+fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&z.strftime("%Y-%m-%d %H:%M:%S%:z").to_string())
+}
+
+
+// Custom deserialization function for the Zoned field
+fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct ZonedVisitor;
+
+    impl Visitor<'_> for ZonedVisitor {
+        type Value = Zoned;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a timestamp string with or without a zone name")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Zoned, E>
+        where
+            E: de::Error,
+        {
+            // If string already contains '[America/New_York]' or any [Zone], parse directly
+            if v.contains('[') && v.contains(']') {
+                Zoned::strptime("%F %T%:z[%Q]", v).map_err(E::custom)
+            } else {
+                // Otherwise, append the assumed zone
+                let s = format!("{v}[America/New_York]");
+                Zoned::strptime("%F %T%:z[%Q]", &s).map_err(E::custom)
+            }
+        }
+    }
+
+    deserializer.deserialize_str(ZonedVisitor)
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Row {
     date: Date,
     version: Timestamp,
+    #[serde(serialize_with = "serialize_zoned_as_offset")]
     hour_beginning: Zoned,
 }
 
+#[derive(Debug, Deserialize)]
+struct Data {
+    #[serde(deserialize_with = "deserialize_zoned_assume_ny")]
+    #[allow(dead_code)]
+    hour_beginning: Zoned,
+    #[allow(dead_code)]
+    price: f64,
+}
+
 /// A short example of how to deal with jiff Dates, Timestamps, Zoned in DuckDB
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     let conn = Connection::open_in_memory()?;
     conn.execute_batch(
         r#"
@@ -39,13 +92,20 @@ INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T02:00
     })?;
 
     let items: Vec<Row> = res_iter.map(|e| e.unwrap()).collect();
-
     for item in &items {
         println!("Found item: {:?}", item);
     }
-
     println!("{}", json!(items.first().unwrap())); 
     // {"date":"2025-01-01","version":"2025-01-03T05:25:00Z","hour_beginning":"2025-01-01T00:00:00-05:00[America/New_York]"}
+
+    // How to deserialize it?
+    let json_data = "{\"hour_beginning\":\"2025-03-02 00:00:00-05:00[America/New_York]\",\"price\":42.0}";
+    let deserialized: Data = serde_json::from_str(json_data)?;
+    println!("{:?}", deserialized);
+
+    let json_data_wo = "{\"hour_beginning\":\"2025-03-02 00:00:00-05:00\",\"price\":42.0}";
+    let deserialized: Data = serde_json::from_str(json_data_wo)?;
+    println!("{:?}", deserialized);
 
     Ok(())
 }

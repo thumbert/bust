@@ -5,6 +5,10 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-07-07
+- Added DAAS offers API.  Have custom json serialization to skip the timezone info in the 
+  hour_beginning field. 
+
 ## 2025-06-23
 - Fix the MCC calculation in the NYISO DALMP report for spreads
 
