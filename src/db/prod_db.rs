@@ -1,6 +1,6 @@
 use crate::db::isone::{
     masked_data::{
-        daas_offers_archive::DaasEnergyOffersArchive, import_export_archive::ImportExportArchive,
+        daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
     },
     total_transfer_capability_archive::TotalTransferCapabilityArchive,
 };
@@ -65,8 +65,8 @@ impl ProdDb {
         }
     }
 
-    pub fn isone_masked_daas_offers() -> DaasEnergyOffersArchive {
-        DaasEnergyOffersArchive {
+    pub fn isone_masked_daas_offers() -> DaasOffersArchive {
+        DaasOffersArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaasOffers"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/masked_daas_offers.duckdb"

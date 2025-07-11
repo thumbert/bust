@@ -8,22 +8,22 @@ use crate::db::isone::lib_isoexpress;
 use crate::interval::month::Month;
 
 #[derive(Clone)]
-pub struct DaasEnergyOffersArchive {
+pub struct DaasOffersArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl DaasEnergyOffersArchive {
+impl DaasOffersArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
-        + "/Raw/"
-        + &date.year().to_string()
-        + "/hbdaasenergyoffer_"
-        + &date.to_string()
-        + ".json"
+            + "/Raw/"
+            + &date.year().to_string()
+            + "/hbdaasenergyoffer_"
+            + &date.to_string()
+            + ".json"
     }
-    
+
     /// https://webservices.iso-ne.com/api/v1.1/hbdaasenergyoffer/day/20250301
     pub fn download_file(&self, date: &Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
@@ -66,7 +66,7 @@ AS
     SELECT * 
     FROM (
         SELECT unnest(isone_web_services.offer_publishing.day_ahead_ancillary_services.daas_gen_offer_data, recursive := true)
-        FROM read_json('~/Downloads/Archive/IsoExpress/PricingReports/DaasOffers/Raw/{}/hbdaasenergyoffer_{}-*.json.gz')
+        FROM read_json('{}/Raw/{}/hbdaasenergyoffer_{}-*.json.gz')
     )
     ORDER BY local_day
 ;
@@ -96,6 +96,7 @@ WHERE NOT EXISTS (
     )
 ) ORDER BY hour_beginning, masked_lead_participant_id, masked_asset_id; 
 "#,
+            self.base_dir,
             month.start_date().year(),
             month
         );
@@ -132,7 +133,6 @@ mod tests {
         interval::{interval::DateExt, month::month},
     };
 
-
     #[ignore]
     #[test]
     fn update_db() -> Result<(), Box<dyn Error>> {
@@ -143,7 +143,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        // let days = date(2025, 3, 2).up_to(date(2025, 3, 31));   
+        // let days = date(2025, 3, 2).up_to(date(2025, 3, 31));
         // for day in &days {
         //     println!("Processing {}", day);
         //     archive.download_file(day)?;

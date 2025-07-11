@@ -155,7 +155,6 @@ fn calc_cells(
     let c_a = calc_cells_spread(&a, &c, component);
     let g_a = calc_cells_spread(&a, &g, component);
 
-    table_cells.push(nm1);
     table_cells.push(nm1_c);
     table_cells.push(nm2_c);
     table_cells.push(fitz_c);
@@ -307,6 +306,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
+    info!("Sending NYISO DALMP report for asof date: {}", asof);    
     let html = make_report(asof)?;
 
     let response = send_email(
