@@ -5,6 +5,9 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-07-14
+- Add ISONE hourly DALMP API.  Maybe this is the lucky time where I stick with it.
+
 ## 2025-07-07
 - Added DAAS offers API.  Have custom json serialization to skip the timezone info in the 
   hour_beginning field. 

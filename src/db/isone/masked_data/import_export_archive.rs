@@ -152,18 +152,12 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_import_export();
-        // let days = date(2023, 1, 1).up_to(date(2023, 12, 31));
-        // let days = vec![
-        //     date(2023, 1, 5),
-        //     date(2023, 1, 7),
-        //     date(2023, 1, 8),
-        //     date(2023, 1, 9),
-        // ];
-        // for day in &days {
-        //     println!("Processing {}", day);
-        //     archive.download_file(day, &Market::DA)?;
-        //     archive.download_file(day, &Market::RT)?;
-        // }
+        let days = date(2023, 1, 1).up_to(date(2023, 12, 31));
+        for day in &days {
+            println!("Processing {}", day);
+            archive.download_file(day, &Market::DA)?;
+            archive.download_file(day, &Market::RT)?;
+        }
         let months = month(2023, 2).up_to(month(2023, 12))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);

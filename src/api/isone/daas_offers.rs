@@ -52,7 +52,7 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -60,7 +60,7 @@ where
 }
 
 // Custom deserialization function for the Zoned field
-fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
+pub fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
 where
     D: Deserializer<'de>,
 {

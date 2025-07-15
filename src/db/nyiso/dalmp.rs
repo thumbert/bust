@@ -38,6 +38,7 @@ fn parse_component(s: &str) -> Result<LmpComponent, String> {
     match s.to_lowercase().as_str() {
         "lmp" => Ok(LmpComponent::Lmp),
         "mcl" => Ok(LmpComponent::Mcl),
+        "mlc" => Ok(LmpComponent::Mcl), // alias for Mcl
         "mcc" => Ok(LmpComponent::Mcc),
         _ => Err(format!("Unknown LMP component: {}", s)),
     }

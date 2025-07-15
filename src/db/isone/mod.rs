@@ -1,3 +1,4 @@
+pub mod dalmp_archive;
 pub mod lib_dam;
 pub mod lib_isoexpress;
 pub mod masked_data;

@@ -143,11 +143,11 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        // let days = date(2025, 3, 2).up_to(date(2025, 3, 31));
-        // for day in &days {
-        //     println!("Processing {}", day);
-        //     archive.download_file(day)?;
-        // }
+        let days = date(2025, 3, 2).up_to(date(2025, 3, 31));
+        for day in &days {
+            println!("Processing {}", day);
+            archive.download_file(day)?;
+        }
         let months = month(2025, 3).up_to(month(2025, 3))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);

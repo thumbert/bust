@@ -1,8 +1,7 @@
 use crate::db::isone::{
-    masked_data::{
+    dalmp_archive::IsoneDalmpArchive, masked_data::{
         daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
-    },
-    total_transfer_capability_archive::TotalTransferCapabilityArchive,
+    }, total_transfer_capability_archive::TotalTransferCapabilityArchive
 };
 
 use super::{
@@ -61,6 +60,14 @@ impl ProdDb {
         DaasStrikePricesArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/DASI/StrikePrices".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/daas_strike_prices.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_dalmp() -> IsoneDalmpArchive {
+        IsoneDalmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb"
                 .to_string(),
         }
     }
