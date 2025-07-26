@@ -11,6 +11,18 @@ update_hq_hydro_data:
     cargo build --bin update_hq_hydro_data --release 
     cp ./target/release/update_hq_hydro_data ~/Software
 
+update_isone_actual_interchange:
+    cargo build --bin update_isone_actual_interchange --release 
+    cp ./target/release/update_isone_actual_interchange ~/Software
+
+update_isone_prices_da:
+    cargo build --bin update_isone_prices_da --release 
+    cp ./target/release/update_isone_prices_da ~/Software
+
+update_isone_prices_rt:
+    cargo build --bin update_isone_prices_rt --release 
+    cp ./target/release/update_isone_prices_rt ~/Software
+
 update_isone_sevenday_solar_forecast_archive:
     cargo build --bin update_isone_sevenday_solar_forecast_archive --release 
     cp ./target/release/update_isone_sevenday_solar_forecast_archive ~/Software

@@ -1,3 +1,4 @@
+pub mod actual_interchange_archive;
 pub mod dalmp_archive;
 pub mod lib_dam;
 pub mod lib_isoexpress;
@@ -6,6 +7,7 @@ pub mod mis;
 pub mod daas_reserve_data_archive;
 pub mod daas_strike_prices_archive;
 pub mod monthly_capacity_auction_archive;
+pub mod rtlmp_archive;
 pub mod sevenday_capacity_forecast_archive;
 pub mod sevenday_solar_forecast_archive;
 pub mod single_source_contingency_archive;

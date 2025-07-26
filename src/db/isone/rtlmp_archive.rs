@@ -2,6 +2,7 @@ use jiff::civil::Date;
 use jiff::Zoned;
 use log::{error, info};
 use rust_decimal::Decimal;
+use std::fs;
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
@@ -18,18 +19,18 @@ pub struct Row {
 }
 
 #[derive(Clone)]
-pub struct IsoneDalmpArchive {
+pub struct IsoneRtLmpArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl IsoneDalmpArchive {
+impl IsoneRtLmpArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
-            + "/WW_DALMP_ISO_"
+            + "/WW_RTLMP_ISO_"
             + &date.strftime("%Y%m%d").to_string()
             + ".json"
     }
@@ -39,13 +40,13 @@ impl IsoneDalmpArchive {
     ///  
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting daily DALMP hourly price files for month {} ...",
+            "inserting daily RTLMP hourly price files for month {} ...",
             month
         );
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS da_lmp (
+CREATE TABLE IF NOT EXISTS rt_lmp (
     hour_beginning TIMESTAMPTZ NOT NULL,
     ptid UINTEGER NOT NULL,
     lmp DECIMAL(9,4) NOT NULL,
@@ -64,16 +65,16 @@ AS
     FROM (
         SELECT DISTINCT BeginDate, "@LocId", LmpTotal, CongestionComponent, LossComponent FROM (
             SELECT unnest(HourlyLmps.HourlyLmp, recursive := true)
-            FROM read_json('{}/Raw/{}/WW_DALMP_ISO_{}*.json.gz')
+            FROM read_json('{}/Raw/{}/WW_RTLMP_ISO_{}*.json.gz')
         )
     )
     ORDER BY hour_beginning, ptid
 ;
 
-INSERT INTO da_lmp
+INSERT INTO rt_lmp
 (SELECT * FROM tmp 
 WHERE NOT EXISTS (
-    SELECT * FROM da_lmp d
+    SELECT * FROM rt_lmp d
     WHERE d.hour_beginning = tmp.hour_beginning
     AND d.ptid = tmp.ptid
     )
@@ -111,7 +112,7 @@ ORDER BY hour_beginning, ptid;
         let yyyymmdd = date.strftime("%Y%m%d");
         super::lib_isoexpress::download_file(
             format!(
-                "https://webservices.iso-ne.com/api/v1.1/hourlylmp/da/final/day/{}",
+                "https://webservices.iso-ne.com/api/v1.1/hourlylmp/rt/final/day/{}",
                 yyyymmdd
             ),
             true,
@@ -123,20 +124,24 @@ ORDER BY hour_beginning, ptid;
 
     /// Look for missing days
     pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        let mut last = Zoned::now().date();
-        if Zoned::now().hour() > 13 {
-            last = last.tomorrow()?;
-        }
+        let last = Zoned::now().date();
         for day in month.days() {
-            if day > last {
+            if day >= last {
                 continue;
             }
             let fname = format!("{}.gz", self.filename(&day));
+            if Path::new(&fname).exists() {
+                let metadata = fs::metadata(&fname)?;
+                if metadata.len() < 100_000 {
+                    info!("File for day {} is incorrect, deleting it.", day);
+                    fs::remove_file(&fname)?;
+                } 
+            } 
             if !Path::new(&fname).exists() {
                 info!("Working on {}", day);
                 self.download_file(day)?;
                 info!("  downloaded file for {}", day);
-            }
+            } 
         }
         Ok(())
     }
@@ -159,11 +164,13 @@ mod tests {
             .is_test(true)
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
+        let archive = ProdDb::isone_rtlmp();
 
-        let month = month(2025, 7);
-        archive.download_missing_days(month)?;
-        archive.update_duckdb(&month)?;
+        let months = month(2025, 7).up_to(month(2025, 7)).unwrap();
+        for month in months {
+            archive.download_missing_days(month)?;
+            archive.update_duckdb(&month)?;
+        }
         Ok(())
     }
 
@@ -171,8 +178,8 @@ mod tests {
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
-        archive.download_file(date(2025, 7, 1))?;
+        let archive = ProdDb::isone_rtlmp();
+        archive.download_file(date(2023, 1, 1))?;
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use crate::db::isone::{
-    dalmp_archive::IsoneDalmpArchive, masked_data::{
-        daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
-    }, total_transfer_capability_archive::TotalTransferCapabilityArchive
+    actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, masked_data::{
+        da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive
+    }, rtlmp_archive::IsoneRtLmpArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
 };
 
 use super::{
@@ -48,6 +48,14 @@ impl ProdDb {
         }
     }
 
+    pub fn isone_actual_interchange() -> IsoneActualInterchangeArchive {
+        IsoneActualInterchangeArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/ActualInterchange".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/actual_interchange.duckdb"
+                .to_string(),
+        }
+    }
+
     pub fn isone_daas_reserve_data() -> DaasReserveDataArchive {
         DaasReserveDataArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/DASI/ReserveData".to_string(),
@@ -68,6 +76,15 @@ impl ProdDb {
         IsoneDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_masked_da_energy_offers() -> DaEnergyOffersArchive {
+        DaEnergyOffersArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaEnergyOffer"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/IsoExpress/energy_offers.duckdb"
                 .to_string(),
         }
     }
@@ -106,6 +123,14 @@ impl ProdDb {
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_solar_forecast.duckdb"
                     .to_string(),
+        }
+    }
+
+    pub fn isone_rtlmp() -> IsoneRtLmpArchive {
+        IsoneRtLmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/RtLmpHourly".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/rtlmp.duckdb"
+                .to_string(),
         }
     }
 

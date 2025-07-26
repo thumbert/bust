@@ -1,35 +1,26 @@
 use jiff::civil::Date;
 use jiff::Zoned;
 use log::{error, info};
-use rust_decimal::Decimal;
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
 
 use crate::interval::month::Month;
 
-#[derive(Debug, PartialEq)]
-pub struct Row {
-    hour_beginning: Zoned,
-    ptid: u32,
-    lmp: Decimal,
-    mcc: Decimal,
-    mlc: Decimal,
-}
 
 #[derive(Clone)]
-pub struct IsoneDalmpArchive {
+pub struct IsoneActualInterchangeArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl IsoneDalmpArchive {
+impl IsoneActualInterchangeArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
-            + "/WW_DALMP_ISO_"
+            + "/act_interchange_"
             + &date.strftime("%Y%m%d").to_string()
             + ".json"
     }
@@ -39,41 +30,37 @@ impl IsoneDalmpArchive {
     ///  
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting daily DALMP hourly price files for month {} ...",
+            "inserting actual interface flow files for month {} ...",
             month
         );
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS da_lmp (
+CREATE TABLE IF NOT EXISTS flows (
     hour_beginning TIMESTAMPTZ NOT NULL,
     ptid UINTEGER NOT NULL,
-    lmp DECIMAL(9,4) NOT NULL,
-    mcc DECIMAL(9,4) NOT NULL,
-    mcl DECIMAL(9,4) NOT NULL,
+    Net DECIMAL(9,2) NOT NULL,
+    Purchase DECIMAL(9,2) NOT NULL,
+    Sale DECIMAL(9,2) NOT NULL,
 );
 
-CREATE TEMPORARY TABLE tmp
-AS
+CREATE TEMPORARY TABLE tmp AS
     SELECT 
         BeginDate::TIMESTAMPTZ AS hour_beginning,
         "@LocId"::UINTEGER AS ptid,
-        LmpTotal::DECIMAL(9,4) AS "lmp",
-        CongestionComponent::DECIMAL(9,4) AS "mcc",
-        LossComponent::DECIMAL(9,4) AS "mcl" 
+        ActInterchange::DECIMAL(9,2) AS Net,
+        Purchase::DECIMAL(9,2) AS Purchase,
+        Sale::DECIMAL(9,2) AS Sale
     FROM (
-        SELECT DISTINCT BeginDate, "@LocId", LmpTotal, CongestionComponent, LossComponent FROM (
-            SELECT unnest(HourlyLmps.HourlyLmp, recursive := true)
-            FROM read_json('{}/Raw/{}/WW_DALMP_ISO_{}*.json.gz')
-        )
+        SELECT unnest(ActualInterchanges.ActualInterchange, recursive := true)
+        FROM read_json('{}/Raw/{}/act_interchange_{}*.json.gz')
     )
-    ORDER BY hour_beginning, ptid
-;
+ORDER BY hour_beginning, ptid;
 
-INSERT INTO da_lmp
+INSERT INTO flows
 (SELECT * FROM tmp 
 WHERE NOT EXISTS (
-    SELECT * FROM da_lmp d
+    SELECT * FROM flows d
     WHERE d.hour_beginning = tmp.hour_beginning
     AND d.ptid = tmp.ptid
     )
@@ -111,7 +98,7 @@ ORDER BY hour_beginning, ptid;
         let yyyymmdd = date.strftime("%Y%m%d");
         super::lib_isoexpress::download_file(
             format!(
-                "https://webservices.iso-ne.com/api/v1.1/hourlylmp/da/final/day/{}",
+                "https://webservices.iso-ne.com/api/v1.1/actualinterchange/day/{}",
                 yyyymmdd
             ),
             true,
@@ -121,14 +108,12 @@ ORDER BY hour_beginning, ptid;
         )
     }
 
-    /// Look for missing days
+    /// Look for missing days.  Does not download current day. 
     pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        let mut last = Zoned::now().date();
-        if Zoned::now().hour() > 13 {
-            last = last.tomorrow()?;
-        }
+        let last = Zoned::now().date();
         for day in month.days() {
-            if day > last {
+            if day >= last {
+                // incomplete day, don't download
                 continue;
             }
             let fname = format!("{}.gz", self.filename(&day));
@@ -159,11 +144,13 @@ mod tests {
             .is_test(true)
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
+        let archive = ProdDb::isone_actual_interchange();
 
-        let month = month(2025, 7);
-        archive.download_missing_days(month)?;
-        archive.update_duckdb(&month)?;
+        let months = month(2025, 1).up_to(month(2025, 7)).unwrap();
+        for month in months {
+            archive.download_missing_days(month)?;
+        }
+        // archive.update_duckdb(&month)?;
         Ok(())
     }
 
@@ -171,8 +158,8 @@ mod tests {
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
-        archive.download_file(date(2025, 7, 1))?;
+        let archive = ProdDb::isone_actual_interchange();
+        archive.download_file(date(2023, 1, 1))?;
         Ok(())
     }
 }
