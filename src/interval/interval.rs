@@ -1,5 +1,5 @@
 
-use jiff::{civil::Date, ToSpan};
+use jiff::{civil::Date, ToSpan, Zoned};
 
 
 pub trait DateExt {
@@ -38,44 +38,44 @@ impl DateExt for Date {
 
 // // use self::month_tz::MonthTz;
 
-// pub trait IntervalLike {
-//     fn tz(&self) -> Tz {
-//         self.start().timezone()
-//     }
-//     fn start(&self) -> DateTime<Tz>;
-//     fn end(&self) -> DateTime<Tz>;
-//     fn contains(&self, dt: DateTime<Tz>) -> bool {
-//         dt >= self.start() && dt < self.end()
-//     }
+pub trait IntervalLike {
+    // fn tz(&self) -> Tz {
+    //     self.start().timezone()
+    // }
+    fn start(&self) -> Zoned;
+    fn end(&self) -> Zoned;
+    // fn contains(&self, dt: DateTime<Tz>) -> bool {
+    //     dt >= self.start() && dt < self.end()
+    // }
 
-//     /// Split this interval into whole hours
-//     fn hours(&self) -> Vec<Hour> {
-//         let mut out: Vec<Hour> = Vec::new();
-//         let trunc_start = self
-//             .start()
-//             .with_time(NaiveTime::from_hms_opt(self.start().hour(), 0, 0).unwrap())
-//             .unwrap();
-//         let mut dt = self.start();
-//         if dt > trunc_start {
-//             dt = trunc_start + Duration::hours(1);
-//         }
-//         let end = self.end();
-//         while dt < end {
-//             out.push(Hour::containing(dt));
-//             dt += Duration::hours(1);
-//         }
-//         // check if you overshot
-//         if out.last().unwrap().end() > self.end() {
-//             out.pop().unwrap();
-//         }
-//         out
-//     }
+    // /// Split this interval into whole hours
+    // fn hours(&self) -> Vec<Hour> {
+    //     let mut out: Vec<Hour> = Vec::new();
+    //     let trunc_start = self
+    //         .start()
+    //         .with_time(NaiveTime::from_hms_opt(self.start().hour(), 0, 0).unwrap())
+    //         .unwrap();
+    //     let mut dt = self.start();
+    //     if dt > trunc_start {
+    //         dt = trunc_start + Duration::hours(1);
+    //     }
+    //     let end = self.end();
+    //     while dt < end {
+    //         out.push(Hour::containing(dt));
+    //         dt += Duration::hours(1);
+    //     }
+    //     // check if you overshot
+    //     if out.last().unwrap().end() > self.end() {
+    //         out.pop().unwrap();
+    //     }
+    //     out
+    // }
 
-//     // Return the timezone of this interval
-//     fn timezone(&self) -> Tz {
-//         self.start().timezone()
-//     }
-// }
+    // // Return the timezone of this interval
+    // fn timezone(&self) -> Tz {
+    //     self.start().timezone()
+    // }
+}
 
 // impl cmp::PartialEq for dyn IntervalLike {
 //     fn eq(&self, other: &Self) -> bool {

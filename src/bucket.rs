@@ -106,8 +106,9 @@ mod tests {
             .in_tz("America/New_York")
             .unwrap();
         assert!(Bucket::Atc.contains(&dt));
-        // assert!(ATC.contains(&dt));
-        // assert_eq!(parse("Flat"), Ok(ATC));
+        assert!(Bucket::Atc.name() == "ATC");
+        assert_eq!(parse_bucket("Flat"), Ok(Bucket::Atc));
+        assert_eq!("ATC".parse::<Bucket>(), Ok(Bucket::Atc)); 
     }
 
     // fn test_bucket_5x16() {
