@@ -2,11 +2,15 @@ use std::str::FromStr;
 
 use jiff::{civil::Weekday, Zoned};
 
-use crate::holiday::*;
+use crate::{
+    holiday::*,
+    interval::{hour_tz::HourTz, interval::IntervalTzLike, term_tz::TermTz},
+};
 
 pub trait BucketLike {
-    fn name(self) -> String;
-    fn contains(self, datetime: &Zoned) -> bool;
+    fn name(&self) -> String;
+    fn contains(&self, datetime: &Zoned) -> bool;
+    fn count_hours(&self, term: &TermTz) -> i32;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,10 +22,8 @@ pub enum Bucket {
     Offpeak,
 }
 
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError;
-
 
 impl FromStr for Bucket {
     type Err = String;
@@ -45,7 +47,7 @@ fn parse_bucket(s: &str) -> Result<Bucket, ParseError> {
 }
 
 impl BucketLike for Bucket {
-    fn name(self) -> String {
+    fn name(&self) -> String {
         match self {
             Bucket::Atc => String::from("ATC"),
             Bucket::B5x16 => String::from("5x16"),
@@ -55,7 +57,7 @@ impl BucketLike for Bucket {
         }
     }
 
-    fn contains(self, datetime: &Zoned) -> bool {
+    fn contains(&self, datetime: &Zoned) -> bool {
         match self {
             Bucket::Atc => true,
             Bucket::B5x16 => contains_5x16(datetime),
@@ -64,10 +66,23 @@ impl BucketLike for Bucket {
             Bucket::Offpeak => !contains_5x16(datetime),
         }
     }
+
+    fn count_hours(&self, term: &TermTz) -> i32 {
+        let mut hour = HourTz::containing(term.start());
+        let last = HourTz::containing(term.end());
+        let mut count: i32 = 0;
+        while hour < last {
+            if self.contains(&hour.start()) {
+                count += 1;
+            }
+            hour = hour.next();
+        }
+        count
+    }
 }
 
 fn contains_5x16(dt: &Zoned) -> bool {
-    if dt.weekday() == Weekday::Saturday && dt.weekday() == Weekday::Sunday {
+    if dt.weekday() == Weekday::Saturday || dt.weekday() == Weekday::Sunday {
         return false;
     }
     if dt.hour() < 7 || dt.hour() == 23 {
@@ -81,7 +96,7 @@ fn contains_2x16h(dt: &Zoned) -> bool {
     if dt.hour() < 7 || dt.hour() == 23 {
         return false;
     }
-    if dt.weekday() == Weekday::Saturday && dt.weekday() == Weekday::Sunday {
+    if dt.weekday() == Weekday::Saturday || dt.weekday() == Weekday::Sunday {
         true
     } else {
         NERC_CALENDAR.is_holiday(&dt.date())
@@ -97,7 +112,7 @@ mod tests {
 
     use jiff::civil::date;
 
-    use crate::{bucket::*};
+    use crate::{bucket::*, elec::iso::ISONE, interval::{month, term::Term}};
 
     #[test]
     fn test_bucket_atc() {
@@ -108,19 +123,28 @@ mod tests {
         assert!(Bucket::Atc.contains(&dt));
         assert!(Bucket::Atc.name() == "ATC");
         assert_eq!(parse_bucket("Flat"), Ok(Bucket::Atc));
-        assert_eq!("ATC".parse::<Bucket>(), Ok(Bucket::Atc)); 
+        assert_eq!("ATC".parse::<Bucket>(), Ok(Bucket::Atc));
     }
 
-    // fn test_bucket_5x16() {
-    //     let term = Interval::with_start_end(
-    //         New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap(),
-    //         New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap(),
-    //     );
-    //     let hours = term.unwrap().hours();
+    #[test]
+    fn test_bucket_5x16() {
+        let term = Term::new(date(2025, 1, 1), date(2025, 1, 31))
+            .unwrap()
+            .with_tz(&ISONE.tz);
+        let hours = Bucket::B5x16.count_hours(&term);
+        assert_eq!(hours, 352);
+    }
 
-    //     let dt = New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap();
-    //     assert!(Bucket::Atc.contains(dt));
-    //     assert!(ATC.contains(dt));
-    //     assert_eq!(parse("Flat"), Ok(ATC));
-    // }
+    #[test]
+    fn test_bucket_5x16_a() {
+        let term = "Cal 25".parse::<Term>().unwrap().with_tz(&ISONE.tz);
+        let months = term.months();
+        for month in months {
+            println!("Month: {:?}", month);
+            // let hours = Bucket::B5x16.count_hours(&month);
+            // assert_eq!(hours, 352);
+        }
+        let hours = Bucket::B5x16.count_hours(&term);
+        assert_eq!(hours, 4080);
+    }
 }

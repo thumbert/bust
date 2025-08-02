@@ -1,14 +1,23 @@
 
-use jiff::{civil::Date, ToSpan, Zoned};
+use jiff::{civil::{Date, DateTime}, tz::TimeZone, ToSpan, Zoned};
+
+use crate::interval::date_tz::DateTz;
 
 
 pub trait DateExt {
+    fn with_tz(&self, tz: &TimeZone) -> DateTz;
+
     fn up_to(&self, end: Self) -> Vec<Self>
     where
         Self: Sized;
 }
 
 impl DateExt for Date {
+    fn with_tz(&self, tz: &TimeZone) -> DateTz {
+        let dt = self.at(0, 0, 0, 0);
+        DateTz::containing(dt.to_zoned(tz.clone()).unwrap())
+    }
+
     fn up_to(&self, end: Self) -> Vec<Self> {
         let mut dates = Vec::new();
         let mut current = *self;
@@ -20,16 +29,18 @@ impl DateExt for Date {
     }
 }
 
+impl IntervalLike for Date {
+    fn start(&self) -> DateTime {
+        self.at(0, 0, 0, 0)
+    }
+    fn end(&self) -> DateTime {
+        self.at(0, 0, 0, 0) + 1.days()
+    }
+}
 
-
-
-
-
-// use chrono::{DateTime, Duration, NaiveTime, TimeZone, Timelike};
 // use std::cmp;
 // use std::fmt::Debug;
 
-// use chrono_tz::Tz;
 
 // use super::hour::Hour;
 // use super::month_tz::MonthTz;
@@ -42,8 +53,8 @@ pub trait IntervalLike {
     // fn tz(&self) -> Tz {
     //     self.start().timezone()
     // }
-    fn start(&self) -> Zoned;
-    fn end(&self) -> Zoned;
+    fn start(&self) -> DateTime;
+    fn end(&self) -> DateTime;
     // fn contains(&self, dt: DateTime<Tz>) -> bool {
     //     dt >= self.start() && dt < self.end()
     // }
@@ -75,6 +86,37 @@ pub trait IntervalLike {
     // fn timezone(&self) -> Tz {
     //     self.start().timezone()
     // }
+}
+
+pub trait IntervalTzLike {
+    fn start(&self) -> Zoned;
+    fn end(&self) -> Zoned;
+    fn contains(&self, dt: Zoned) -> bool {
+        dt >= self.start() && dt < self.end()
+    }
+}
+
+pub struct IntervalTz {
+    pub start: Zoned,
+    pub end: Zoned,
+}   
+
+impl IntervalTz {
+    pub fn new(start: Zoned, end: Zoned) -> Option<Self> {
+        if start.time_zone() != end.time_zone() || end < start {
+            return None;
+        }
+        Some(IntervalTz { start, end })
+    }
+}
+
+impl IntervalTzLike for IntervalTz {
+    fn start(&self) -> Zoned {
+        self.start.clone()
+    }
+    fn end(&self) -> Zoned {
+        self.end.clone()
+    }
 }
 
 // impl cmp::PartialEq for dyn IntervalLike {
@@ -142,9 +184,11 @@ pub trait IntervalLike {
 //     }
 // }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::collections::HashMap;
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use jiff::civil::date;
 
 //     use crate::interval::month_tz::MonthTz;
 //     use crate::interval::*;
@@ -154,19 +198,14 @@ pub trait IntervalLike {
 //     use interval::{Interval, IntervalLike};
 //     use itertools::Itertools;
 
-//     #[test]
-//     fn test_interval() {
-//         let start = New_York.with_ymd_and_hms(2022, 1, 1, 3, 15, 20).unwrap();
-//         let end = Tz::UTC.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
-//         assert_eq!(Interval::with_start_end(start, end), None); // can't be different timezones
-//         let end = New_York.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap();
-//         assert_eq!(Interval::with_start_end(start, end), None); // can't be negative interval
-//         let end = New_York.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
-//         assert_eq!(
-//             Interval::with_start_end(start, end).unwrap(),
-//             Interval { start, end }
-//         ); // works
-//     }
+    // #[test]
+    // fn test_date_ext() {
+    //     let date = date(2025, 1, 1);
+    //     assert_eq!(
+    //         Interval::with_start_end(start, end).unwrap(),
+    //         Interval { start, end }
+    //     ); // works
+    // }
 
 //     #[test]
 //     fn test_special_constructors() {
@@ -219,4 +258,4 @@ pub trait IntervalLike {
 //     //     // let hour = Hour {start: New_York.with_ymd_and_hms(2024, 7, 14, 16, 0, 0).unwrap()};
 
 //     // }
-// }
+}

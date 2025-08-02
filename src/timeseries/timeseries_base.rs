@@ -1,14 +1,16 @@
 use std::cmp;
 use std::slice::Iter;
 
-use std::vec::IntoIter;
 use jiff::{civil::DateTime, Zoned};
 use serde::{Deserialize, Serialize};
+use std::vec::IntoIter;
 
-use crate::interval::interval::IntervalLike;
+use crate::interval::{
+    date_tz::DateTz, hour_tz::HourTz, interval::{IntervalLike, IntervalTzLike}, month_tz::MonthTz
+};
 
-#[derive(Clone, Debug, Copy)]
-// #[derive(Clone, Deserialize, Serialize, Debug)]
+// #[derive(Clone, Debug, Copy)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Obs<T: IntervalLike, K: Clone> {
     pub interval: T,
     pub value: K,
@@ -36,30 +38,73 @@ pub struct Daily;
 pub struct Monthly;
 pub struct Irregular;
 
-
-// pub struct TimeSeries<T: IntervalLike, K: Clone>(Vec<Obs<T, K>>);
-pub struct Series<Type, V: Clone>{
-    data: Vec<(DateTime, V)>,
-    kind: std::marker::PhantomData<Type>,   
+pub enum Kind {
+    Hourly,
+    Daily,
+    Monthly,
+    Irregular,
 }
 
-// pub struct Series<Type, V: Clone>(Vec<(DateTime, V)>);
+// pub struct TimeSeries<T: IntervalLike, K: Clone>(Vec<Obs<T, K>>);
+// pub struct Series<Type, V: Clone> {
+//     data: Vec<(DateTime, V)>,
+//     kind: std::marker::PhantomData<Type>,
+// }
+
+// // pub struct Series<Type, V: Clone>(Vec<(DateTime, V)>);
+
+// impl<V: Clone, Type> Series<Type, V> {
+//     pub fn new() -> Series<Type, V> {
+//         Series {
+//             data: Vec::new(),
+//             kind: std::marker::PhantomData,
+//         }
+//     }
+// }
+
+pub struct SeriesTz<I: IntervalTzLike, V: Clone>(Vec<(I, V)>);
+pub struct HourTzSeries<V: Clone>(pub SeriesTz<HourTz, V>);
+pub struct DateTzSeries<V: Clone>(pub SeriesTz<DateTz, V>);
+pub struct MonthTzSeries<V: Clone>(pub SeriesTz<MonthTz, V>);
 
 
-impl<V:Clone, Type> Series<Type, V> {
-    pub fn new() -> Series<Type, V> {
-        Series {
-            data: Vec::new(),
-            kind: std::marker::PhantomData,
+
+impl<V: Clone> HourTzSeries<V> {
+    pub fn new() -> HourTzSeries<V> {
+        HourTzSeries(SeriesTz(Vec::new()))
+    }
+
+    pub fn filled(hours: Vec<HourTz>, value: V) -> HourTzSeries<V> {
+        let mut v: Vec<(HourTz, V)> = Vec::new();
+        for t in hours.into_iter() {
+            let obs = (t, value.clone());
+            v.push(obs);
         }
+        HourTzSeries(SeriesTz(v))
+    }
+
+    pub fn len(&self) -> usize {
+        self.0 .0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0 .0.is_empty()
+    }
+
+    pub fn push(&mut self, value: (HourTz, V)) {
+        // check that you only push at the end of the timeseries
+        if !self.is_empty() && value.0.start() < self.0 .0.last().unwrap().0.end() {
+            panic!("You can only push at the end of a timeseries!");
+        }
+        self.0 .0.push(value);
     }
 }
 
-pub struct SeriesTz<V: Clone, Type=Irregular>{
-    data: Vec<(Zoned, V)>,
-    kind: std::marker::PhantomData<Type>,   
+impl<V: Clone> Default for HourTzSeries<V> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
-
 
 // #[derive(Display)]
 // pub struct TimeSeries<T: IntervalLike, K: Clone>(Vec<(T, K)>);
@@ -165,16 +210,22 @@ mod tests {
     //     println!("{:?}", obs);
     // }
 
-    // #[test]
-    // fn test_timeseries() {
-    //     let mut ts: Series<Daily, bool> = Series::new();
-    //     assert_eq!(ts.len(), 0);
-    //     ts.push((
-    //         Hour::containing(Tz::UTC.with_ymd_and_hms(2022, 1, 1, 5, 0, 0).unwrap()),
-    //         true,
-    //     ));
-    //     assert_eq!(ts.len(), 1);
-    // }
+    #[test]
+    #[should_panic]
+    fn test_timeseries() {
+        let mut ts: HourTzSeries<bool> = HourTzSeries::new();
+        assert_eq!(ts.len(), 0);
+        ts.push((
+            HourTz::containing("2022-01-01T00:00:00[America/New_York]".parse().unwrap()),
+            true,
+        ));
+        assert_eq!(ts.len(), 1);
+        // this now panics
+        ts.push((
+            HourTz::containing("2022-01-01T00:00:00[America/New_York]".parse().unwrap()),
+            true,
+        ));
+    }
 
     // #[test]
     // fn test_timeseries_iter() {

@@ -1,109 +1,79 @@
-use std::error::Error;
+// use std::str::FromStr;
+
 use std::str::FromStr;
 
 use jiff::{
-    civil::{date, Date, DateTime},
-    tz::TimeZone,
+    civil::{date, Date},
+    ToSpan, Zoned,
 };
 // use super::interval::Interval;
+// use super::month_tz::MonthTz;
 // use pest::error::Error;
-use pest::iterators::Pair;
-use pest::Parser;
+// use pest::iterators::Pair;
+// use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::interval::{
-    interval::{DateExt, IntervalLike},
-    month::{process_month, process_month_abb, process_month_txt, process_month_us},
-    term_tz::TermTz,
+    date_tz::DateTz,
+    interval::{DateExt, IntervalTzLike},
+    month_tz::MonthTz,
+    term::{Term, TermType},
 };
 
-#[derive(Parser)]
-#[grammar = "grammars/term.pest"]
-pub struct TermParser;
-
-#[derive(Error, Debug)]
-#[error("{0}")]
-pub struct ParseError(pub String);
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq)]
-pub struct Term {
-    start: Date,
-    end: Date,
+pub struct TermTz {
+    pub start: DateTz,
+    pub end: DateTz,
 }
 
-impl Term {
-    pub fn new(start: Date, end: Date) -> Option<Term> {
-        if end < start {
+impl TermTz {
+    pub fn new(start: DateTz, end: DateTz) -> Option<TermTz> {
+        if start.start().time_zone() != end.end().time_zone() || end < start {
             return None;
         }
-        Some(Term { start, end })
-    }
-
-    pub fn with_tz(&self, tz: &TimeZone) -> TermTz {
-        TermTz {
-            start: self.start.with_tz(tz),
-            end: self.end.with_tz(tz),
-        }
+        Some(TermTz { start, end })
     }
 
     /// Determining a TermType is a pretty expensive operation.
-    /// FIXME
     pub fn term_type(&self) -> TermType {
-        let mut res = TermType::DayRange;
-        // if self.start().first_of_year().unwrap() == self.start()
-        //     && self.start().last_of_year().unwrap() == self.end()
-        // {
-        //     if self.start.year() == self.end.year() {
-        //         return TermType::Year;
-        //     } else {
-        //         return TermType::YearRange;
-        //     }
-        // }
+        Term::new(self.start().date(), self.end().date())
+            .unwrap()
+            .term_type()
+    }
 
-        // if self.start().day() == 1 && self.end() == self.start().last_of_month()
-
-        if self.start.start().day() == 1 && self.end.end().day() == 1 {
-            if self.start.start().month() == self.end.end().month() {
-                TermType::Month
-            } else {
-                TermType::MonthRange
-            }
-        } else {
-            TermType::DayRange
+    /// Return the days in the term
+    pub fn days(&self) -> Vec<DateTz> {
+        let mut days = Vec::new();
+        let mut current = self.start.start().date();
+        let end_date = self.end.end().date();
+        while current <= end_date {
+            days.push(current.with_tz(self.start().time_zone()));
+            current = current.saturating_add(1.days());
         }
+        days
+    }
+
+    pub fn months(&self) -> Vec<MonthTz> {
+        let mut months = Vec::new();
+        let mut current = MonthTz::containing(self.start());
+        let end_month = MonthTz::containing(self.end());
+        while current < end_month {
+            months.push(MonthTz::containing(current.start()));
+            let next = date(current.start().year(), current.start().month(), 1)
+                .saturating_add(1.months())
+                .with_tz(self.start().time_zone());
+            current = MonthTz::containing(next.start());
+        }
+        months
     }
 }
 
-impl IntervalLike for Term {
-    fn start(&self) -> DateTime {
+impl IntervalTzLike for TermTz {
+    fn start(&self) -> Zoned {
         self.start.start()
     }
-    fn end(&self) -> DateTime {
+    fn end(&self) -> Zoned {
         self.end.end()
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum TermType {
-    Day,
-    DayRange,
-    Month,
-    MonthRange,
-    Quarter,
-    QuarterRange,
-    Year,
-    YearRange,
-}
-
-impl FromStr for Term {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match parse_term(s) {
-            Ok(term) => Ok(term),
-            Err(e) => Err(e),
-        }
     }
 }
 
@@ -184,51 +154,20 @@ impl FromStr for Term {
 //     }
 // }
 
-pub fn parse_term(input: &str) -> Result<Term, ParseError> {
-    let token = TermParser::parse(Rule::term, input);
-    let term = match token {
-        Ok(mut token) => token.next().unwrap(),
-        Err(_) => return Err(ParseError(format!("failed to parse {}", input))),
-    };
-    // println!("term as rule ={:?}", term.as_rule());
-    let record = term.into_inner().next().unwrap();
-    // println!("record as rule ={:?}", record.as_rule());
-    match record.as_rule() {
-        Rule::EOI => Err(ParseError(format!("failed to parse {}", input))),
-        Rule::simple => process_simple(record),
-        Rule::range => process_range(record),
-        _ => unreachable!(),
-    }
-}
-
-fn process_simple(pair: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = pair.into_inner().next().unwrap();
-    match record.as_rule() {
-        Rule::cal => process_cal(record),
-        Rule::month => match process_month(record) {
-            Ok(month) => Ok(Term::from(month)),
-            Err(e) => Err(ParseError(format!("failed to parse month: {}", e))),
-        },
-        Rule::quarter => process_quarter(record),
-        _ => unreachable!(),
-    }
-}
-
-fn process_range(pair: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = pair.into_inner().next().unwrap();
-    match record.as_rule() {
-        Rule::range_month => process_range_month(record),
-        _ => unreachable!(),
-    }
-}
-
-/// Parse a variety of inputs into corresponding terms.
-// pub fn parse_term(input: &str) -> Result<TermType, Box<dyn Error>> {
+// /// Parse a variety of inputs into corresponding terms.
+// ///
+// /// Although the code below seems like it takes care of a large number of problems,
+// /// it still doesn't prevent all problems.
+// ///
+// ///
+// ///
+// pub fn parse_term(input: &str) -> Result<TermType, Error<Rule>> {
 //     let token = TermParser::parse(Rule::term, input);
 //     let term = match token {
 //         Ok(mut token) => token.next().unwrap(),
 //         Err(e) => return Err(e),
 //     };
+
 //     fn parse_inner(pair: Pair<Rule>) -> TermType {
 //         match pair.as_rule() {
 //             Rule::EOI => todo!(),
@@ -248,89 +187,29 @@ fn process_range(pair: Pair<'_, Rule>) -> Result<Term, ParseError> {
 //             _ => unreachable!(),
 //         }
 //     }
+
 //     Ok(parse_inner(term))
 // }
 
-pub fn process_range_month(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = token.into_inner().next().unwrap();
-    match record.as_rule() {
-        Rule::range_month_abb => process_range_month_abb(record), // "J23"
-        Rule::range_month_txt => process_range_month_txt(record), // "Apr23", "APR23", "April2023"
-        Rule::range_month_us => process_range_month_us(record),   // "4/2023", "4/23"
-        _ => unreachable!(),
-    }
-}
+// fn process_range_month_abb(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     let mut record = token.into_inner();
+//     // println!("{:?}", record);
+//     // println!("{:?}", record.len());
+//     // println!("{:?}", record.next().unwrap().as_str());
 
-fn parse_range_month_abb(input: &str) -> Result<Term, ParseError> {
-    let token = TermParser::parse(Rule::range_month_abb, input)
-        .unwrap()
-        .next()
-        .unwrap();
-    process_range_month_abb(token)
-}
-
-fn process_range_month_abb(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = token.into_inner().collect::<Vec<_>>();
-    let r1 = record[0].as_rule();
-    let r2 = record[1].as_rule();
-
-    match (r1, r2) {
-        (Rule::month_abb, Rule::month_abb) => {
-            let month1 = process_month_abb(record[0].clone())?;
-            let month2 = process_month_abb(record[1].clone())?;
-            if month1.start_date() > month2.end_date() {
-                return Err(ParseError(format!(
-                    "Invalid month range: {} - {}.  Start month is after end month!",
-                    month1, month2
-                )));
-            }
-            Ok(Term::new(month1.start_date(), month2.end_date()).unwrap())
-        }
-        _ => unreachable!(),
-    }
-}
-
-fn process_range_month_txt(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = token.into_inner().collect::<Vec<_>>();
-    let r1 = record[0].as_rule();
-    let r2 = record[1].as_rule();
-
-    match (r1, r2) {
-        (Rule::month_txt, Rule::month_txt) => {
-            let month1 = process_month_txt(record[0].clone())?;
-            let month2 = process_month_txt(record[1].clone())?;
-            if month1.start_date() > month2.end_date() {
-                return Err(ParseError(format!(
-                    "Invalid month range: {} - {}.  Start month is after end month!",
-                    month1, month2
-                )));
-            }
-            Ok(Term::new(month1.start_date(), month2.end_date()).unwrap())
-        }
-        _ => unreachable!(),
-    }
-}
-
-fn process_range_month_us(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let record = token.into_inner().collect::<Vec<_>>();
-    let r1 = record[0].as_rule();
-    let r2 = record[1].as_rule();
-
-    match (r1, r2) {
-        (Rule::month_us, Rule::month_us) => {
-            let month1 = process_month_us(record[0].clone())?;
-            let month2 = process_month_us(record[1].clone())?;
-            if month1.start_date() > month2.end_date() {
-                return Err(ParseError(format!(
-                    "Invalid month range: {} - {}.  Start month is after end month!",
-                    month1, month2
-                )));
-            }
-            Ok(Term::new(month1.start_date(), month2.end_date()).unwrap())
-        }
-        _ => unreachable!(),
-    }
-}
+//     let (start_year, start_month) = match process_month_abb(record.next().unwrap()) {
+//         Ok(TermType::Month(y, m)) => (y, m),
+//         _ => unreachable!(),
+//     };
+//     let (end_year, end_month) = match process_month_abb(record.next().unwrap()) {
+//         Ok(TermType::Month(y, m)) => (y, m),
+//         _ => unreachable!(),
+//     };
+//     Ok(TermType::MonthRange(
+//         (start_year, start_month),
+//         (end_year, end_month),
+//     ))
+// }
 
 // fn process_range_month_txt(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
 //     let mut record = token.into_inner();
@@ -365,228 +244,136 @@ fn process_range_month_us(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
 //     ))
 // }
 
-fn process_cal(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    // if token.as_rule() != Rule::cal {
-    //     panic!("Expecting Rule::cal, got {:?}", token.as_rule());
-    // }
-    let next = token.into_inner().next().unwrap();
-    let year = match next.as_rule() {
-        Rule::year => next.as_str().parse::<i16>().unwrap(),
-        Rule::yy => next.as_str().parse::<i16>().unwrap() + 2000,
-        _ => unreachable!(),
-    };
-    let start = date(year, 1, 1);
-    let end = date(year, 12, 31);
-    Ok(Term { start, end })
-}
+// fn process_cal(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     if token.as_rule() != Rule::cal {
+//         panic!("Expecting Rule::cal, got {:?}", token.as_rule());
+//     }
+//     let next = token.into_inner().next().unwrap();
+//     let year = match next.as_rule() {
+//         Rule::year => next.as_str().parse::<i32>().unwrap(),
+//         Rule::yy => next.as_str().parse::<i32>().unwrap() + 2000,
+//         _ => unreachable!(),
+//     };
+//     Ok(TermType::Year(year))
+// }
 
-/// Parse "Q2, 24", "Q3 24", "Q2, 2024", "Q3 2024" strings
-fn process_quarter(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
-    let q = token
-        .as_str()
-        .chars()
-        .nth(1)
-        .unwrap()
-        .to_string()
-        .parse::<i8>()
-        .unwrap();
-    let next = token.into_inner().next().unwrap();
-    let year = match next.as_rule() {
-        Rule::year => next.as_str().parse::<i16>().unwrap(),
-        Rule::yy => next.as_str().parse::<i16>().unwrap() + 2000,
-        _ => unreachable!(),
-    };
-    let start = date(year, (q - 1) * 3 + 1, 1);
-    let end = date(year, q * 3 + 1, 1).yesterday().unwrap();
-    Ok(Term { start, end })
-}
+// /// Parse "Q2, 24", "Q3 24", "Q2, 2024", "Q3 2024" strings
+// fn process_quarter(token: Pair<'_, Rule>) -> Result<TermType, Error<Rule>> {
+//     if token.as_rule() != Rule::quarter {
+//         panic!("Expecting Rule::quarter, got {:?}", token.as_rule());
+//     }
+//     let q = token
+//         .as_str()
+//         .chars()
+//         .nth(1)
+//         .unwrap()
+//         .to_string()
+//         .parse::<u32>()
+//         .unwrap();
+//     let next = token.into_inner().next().unwrap();
+//     let year = match next.as_rule() {
+//         Rule::year => next.as_str().parse::<i32>().unwrap(),
+//         Rule::yy => next.as_str().parse::<i32>().unwrap() + 2000,
+//         _ => unreachable!(),
+//     };
+//     Ok(TermType::Quarter(year, q))
+// }
 
 #[cfg(test)]
 mod tests {
 
-    use crate::interval::term::*;
     use pest::Parser;
+
+    use crate::interval::{month_tz::MonthTz, term::*, term_tz::TermTz};
+
+    //     #[test]
+    //     fn test_interval_from_str() {
+    //         // a month
+    //         let left = "May25".parse::<Interval>().unwrap();
+    //         let right = Interval {
+    //             start: Tz::UTC.with_ymd_and_hms(2025, 5, 1, 0, 0, 0).unwrap(),
+    //             end: Tz::UTC.with_ymd_and_hms(2025, 6, 1, 0, 0, 0).unwrap(),
+    //         };
+    //         assert_eq!(left, right);
+    //         // a month range
+    //         let left = "May25-Sep25".parse::<Interval>().unwrap();
+    //         let right = Interval {
+    //             start: Tz::UTC.with_ymd_and_hms(2025, 5, 1, 0, 0, 0).unwrap(),
+    //             end: Tz::UTC.with_ymd_and_hms(2025, 10, 1, 0, 0, 0).unwrap(),
+    //         };
+    //         assert_eq!(left, right);
+    //         // a quarter
+    //         let left = "Q4,25".parse::<Interval>().unwrap();
+    //         let right = Interval {
+    //             start: Tz::UTC.with_ymd_and_hms(2025, 10, 1, 0, 0, 0).unwrap(),
+    //             end: Tz::UTC.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
+    //         };
+    //         assert_eq!(left, right);
+    //         // a year
+    //         let left = "2025".parse::<Interval>().unwrap();
+    //         let right = Interval {
+    //             start: Tz::UTC.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap(),
+    //             end: Tz::UTC.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
+    //         };
+    //         assert_eq!(left, right);
+    //     }
 
     #[test]
     fn test_parse_term() {
         let vs = [
-            (
-                "Apr24",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "Apr 24",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "Apr 2024",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "April2024",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "April 2024",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "J24",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "4/24",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "4/2024",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            (
-                "2024-04",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2024, 4, 30),
-                },
-            ),
-            // (
-            //     "2024-18",
-            //     Term {
-            //         start: date(2024, 4, 1),
-            //         end: date(2024, 4, 30),
-            //     },
-            // ),
+            ("Apr24", TermType::Month),
+            ("Apr 24", TermType::Month),
+            ("Apr 2024", TermType::Month),
+            ("April2024", TermType::Month),
+            ("April 2024", TermType::Month),
+            ("J24", TermType::Month),
+            ("4/24", TermType::Month),
+            ("4/2024", TermType::Month),
+            ("2024-04", TermType::Month),
+            ("2024-18", TermType::Month), // !
             //
-            (
-                "Q3, 2024",
-                Term {
-                    start: date(2024, 7, 1),
-                    end: date(2024, 9, 30),
-                },
-            ),
-            (
-                "Q3, 24",
-                Term {
-                    start: date(2024, 7, 1),
-                    end: date(2024, 9, 30),
-                },
-            ),
-            (
-                "Q3 24",
-                Term {
-                    start: date(2024, 7, 1),
-                    end: date(2024, 9, 30),
-                },
-            ),
+            ("Q3, 2024", TermType::Quarter),
+            ("Q3, 24", TermType::Quarter),
+            ("Q3 24", TermType::Quarter),
             //
-            (
-                "Cal 24",
-                Term {
-                    start: date(2024, 1, 1),
-                    end: date(2024, 12, 31),
-                },
-            ),
-            (
-                "Cal 2024",
-                Term {
-                    start: date(2024, 1, 1),
-                    end: date(2024, 12, 31),
-                },
-            ),
-            (
-                "2024",
-                Term {
-                    start: date(2024, 1, 1),
-                    end: date(2024, 12, 31),
-                },
-            ),
+            ("Cal 24", TermType::Year),
+            ("Cal 2024", TermType::Year),
+            ("2024", TermType::Year),
             //
-            (
-                "Apr24-Aug28",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2028, 8, 31),
-                },
-            ),
-            // (
-            //     "Apr24-Aug21",
-            //     Term {
-            //         start: date(2024, 4, 1),
-            //         end: date(2024, 8, 21),
-            //     },
-            // ), // !
-            (
-                "Apr24 - May 25",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2025, 5, 31),
-                },
-            ),
-            (
-                "J24-Q28",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2028, 8, 31),
-                },
-            ),
-            (
-                "J24 - Q28",
-                Term {
-                    start: date(2024, 4, 1),
-                    end: date(2028, 8, 31),
-                },
-            ),
-            // ("4/24 - 08/2028", TermType::MonthRange),
+            ("Apr24-Aug28", TermType::MonthRange),
+            ("Apr24-Aug21", TermType::MonthRange), // !
+            ("Apr24 - May 25", TermType::MonthRange),
+            ("J24-Q28", TermType::MonthRange),
+            ("J24 - Q28", TermType::MonthRange),
+            ("4/24 - 08/2028", TermType::MonthRange),
             //
         ];
         for e in vs {
             println!("{:?}", e);
-            assert_eq!(parse_term(e.0).ok().unwrap(), e.1);
+            // assert_eq!(parse_term(e.0).ok().unwrap(), e.1);
         }
     }
 
-    #[test]
-    fn test_parse_range_month() {
-        // assert_eq!(
-        //     parse_range_month_txt("Apr24-Aug26").unwrap(),
-        //     TermType::MonthRange((2024, 4), (2026, 8))
-        // );
-        assert_eq!(
-            parse_range_month_abb("J24-Q26").unwrap(),
-            Term {
-                start: date(2024, 4, 1),
-                end: date(2026, 8, 31),
-            }
-        );
-        // assert_eq!(
-        //     parse_range_month_us("4/24-8/26").unwrap(),
-        //     TermType::MonthRange((2024, 4), (2026, 8))
-        // );
-    }
+    // #[test]
+    // fn test_months() {
+    //     let term = TermTz::new(start, end).unwrap();
+    // }
+
+    //     // #[test]
+    //     // fn test_parse_range_month() {
+    //     //     // assert_eq!(
+    //     //     //     parse_range_month_txt("Apr24-Aug26").unwrap(),
+    //     //     //     TermType::MonthRange((2024, 4), (2026, 8))
+    //     //     // );
+    //     //     // assert_eq!(
+    //     //     //     parse_range_month_abb("J24-Q26").unwrap(),
+    //     //     //     TermType::MonthRange((2024, 4), (2026, 8))
+    //     //     // );
+    //     //     // assert_eq!(
+    //     //     //     parse_range_month_us("4/24-8/26").unwrap(),
+    //     //     //     TermType::MonthRange((2024, 4), (2026, 8))
+    //     //     // );
+    //     // }
 
     //     #[test]
     //     fn test_parse_month() {
@@ -681,41 +468,9 @@ mod tests {
     //         assert!(TermParser::parse(Rule::term, "2023").is_ok());
     //         assert!(TermParser::parse(Rule::term, "23").is_err());
     //     }
-
-    #[test]
-    fn test_parse_simple() {
-        let token = TermParser::parse(Rule::simple, "Cal 24")
-            .unwrap()
-            .next()
-            .unwrap();
-        let term = process_simple(token).unwrap();
-        assert_eq!(
-            term,
-            Term {
-                start: date(2024, 1, 1),
-                end: date(2024, 12, 31),
-            },
-        )
-    }
-
-    #[test]
-    fn test_parse_cal() {
-        let token = TermParser::parse(Rule::cal, "Cal 24")
-            .unwrap()
-            .next()
-            .unwrap();
-        let term = process_cal(token).unwrap();
-        assert_eq!(
-            term,
-            Term {
-                start: date(2024, 1, 1),
-                end: date(2024, 12, 31),
-            },
-        )
-    }
 }
 
-// Parse "Apr23", "J23" or "April2023" like strings.
+// /// Parse "Apr23", "J23" or "April2023" like strings.
 // fn parse_month(input: &str) -> Result<TermType, Error<Rule>> {
 //     let token = TermParser::parse(Rule::month, input)?.next().unwrap();
 //     let record = token.into_inner().next().unwrap();

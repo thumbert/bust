@@ -7,6 +7,8 @@ use std::fmt::Formatter;
 
 use std::{error::Error, fmt, str::FromStr};
 
+use crate::interval::{interval::IntervalLike, month_tz::MonthTz, term::Term};
+
 use super::term::{ParseError, Rule, TermParser};
 
 #[inline]
@@ -108,6 +110,19 @@ impl Month {
     ) -> jiff::fmt::strtime::Display<'f> {
         self.start_date.strftime(format)
     }
+
+    pub fn with_tz(&self, tz: &str) -> MonthTz {
+        MonthTz::containing(self.start().in_tz(tz).unwrap())
+    }
+
+}
+
+impl From<Month> for Term {
+    fn from(m: Month) -> Self {
+        let start = m.start_date;
+        let end = m.end_date();
+        Term::new(start, end).unwrap()
+    }
 }
 
 impl fmt::Display for Month {
@@ -133,10 +148,24 @@ impl FromStr for Month {
     }
 }
 
+impl IntervalLike for Month {
+    fn start(&self) -> jc::DateTime {
+        self.start_date.at(0, 0, 0, 0)
+    }
+
+    fn end(&self) -> jc::DateTime {
+        self.start_date.saturating_add(1.month()).at(0, 0, 0, 0)
+    }
+}
+
 /// Parse various formats for a month:
 /// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"
-fn parse_month(input: &str) -> Result<Month, Box<dyn Error>> {
-    let token = TermParser::parse(Rule::month, input)?.next().unwrap();
+fn parse_month(input: &str) -> Result<Month, ParseError> {
+    let token = TermParser::parse(Rule::month, input).unwrap().next().unwrap();
+    process_month(token)
+}
+
+pub fn process_month(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     let record = token.into_inner().next().unwrap();
     match record.as_rule() {
         Rule::month_iso => process_month_iso(record), // "2023-04"
@@ -148,12 +177,12 @@ fn parse_month(input: &str) -> Result<Month, Box<dyn Error>> {
 }
 
 /// Parse "2023-03" like strings.    
-fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
+pub fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     let v: Vec<_> = token.as_str().split('-').collect();
     // println!("v={:?}", v);
     let year = v[0].parse::<i16>().unwrap();
     let m = v[1].parse::<i8>().unwrap();
-    let dt = jc::Date::new(year, m, 1)?;
+    let dt = jc::Date::new(year, m, 1).unwrap();
     Ok(Month { start_date: dt })
 }
 
@@ -161,7 +190,7 @@ fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
 /// - month > month_txt
 ///   - mon > feb: "Feb"
 ///   - yy: "23"
-fn process_month_txt(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
+pub fn process_month_txt(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     let mut record = token.into_inner();
     let m = match record
         .next()
@@ -202,7 +231,7 @@ fn process_month_txt(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
 /// - month > month_abb
 ///   - abb: "Z"
 ///   - yy: "23"
-fn process_month_abb(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
+pub fn process_month_abb(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     if token.as_rule() != Rule::month_abb {
         panic!("Expecting Rule::abb, got {:?}", token.as_rule());
     }
@@ -237,7 +266,7 @@ fn process_month_abb(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
 }
 
 /// Parse "4/28", "04/2028", etc.  This parser will fail on incorrect months, e.g. "15/2028".
-fn process_month_us(token: Pair<'_, Rule>) -> Result<Month, Box<dyn Error>> {
+pub fn process_month_us(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     let v: Vec<_> = token.as_str().split('/').collect();
     // println!("v={:?}", v);
     let m = v[0].parse::<i8>().unwrap();

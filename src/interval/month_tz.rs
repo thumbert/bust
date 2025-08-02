@@ -1,26 +1,62 @@
-// use chrono::offset::LocalResult;
-// use chrono::{DateTime, Datelike, TimeZone, Timelike};
-// use chrono_tz::Tz;
 // use std::fmt;
 // use std::fmt::{Debug, Formatter};
 
 // use super::interval::IntervalLike;
 
+use jiff::{
+    civil::{date, Date},
+    ToSpan, Zoned,
+};
 
-// #[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
-// pub struct MonthTz {
-//     start: DateTime<Tz>,
-// }
+use crate::interval::{date_tz::DateTz, interval::{DateExt, IntervalTzLike}};
 
-// impl MonthTz {
-//     pub fn new(year: i32, month: u32, tz: Tz) -> Option<MonthTz> {
-//         let start = tz.with_ymd_and_hms(year, month, 1, 0, 0, 0);
-//         match start {
-//             LocalResult::Single(start) => Some(MonthTz { start }),
-//             LocalResult::Ambiguous(_, _) => panic!("Wrong inputs!"),
-//             LocalResult::None => None,
-//         }
-//     }
+#[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
+pub struct MonthTz(Zoned);
+
+pub fn month_tz(year: i16, month: i8, tz: &str) -> MonthTz {
+    MonthTz::new(year, month, tz)
+}
+
+impl MonthTz {
+    pub fn new(year: i16, month: i8, tz: &str) -> MonthTz {
+        let start = date(year, month, 1).at(0, 0, 0, 0).in_tz(tz).unwrap();
+        MonthTz(start)
+    }
+
+    pub fn containing(zoned: Zoned) -> Self {
+        MonthTz(zoned.with().day(1).hour(0).minute(0).second(0).nanosecond(0).build().unwrap())
+    }
+
+    pub fn start_date(&self) -> DateTz {
+        DateTz::containing(self.start())
+    }
+
+
+    pub fn end_date(&self) -> DateTz {
+        DateTz::containing(self.end().checked_sub(1.day()).unwrap())    
+    }
+
+    // pub fn days(&self) -> Vec<DateTz> {
+    //     let end = self.end_date();
+    //     self.start_date()
+    //         .series(1.day())
+    //         .take_while(|e| e <= &end)
+    //         .collect()
+    // }
+
+    pub fn next(&self) -> MonthTz {
+        MonthTz(self.start().saturating_add(1.month()))
+    }
+}
+
+impl IntervalTzLike for MonthTz {
+    fn start(&self) -> Zoned {
+        self.0.clone()
+    }
+    fn end(&self) -> Zoned {
+        self.0.saturating_add(1.month())
+    }
+}
 
 //     pub fn from_int(yyyymm: u32, tz: Tz) -> Option<MonthTz> {
 //         let year = i32::try_from(yyyymm / 100).unwrap();
