@@ -67,8 +67,6 @@ pub struct HourTzSeries<V: Clone>(pub SeriesTz<HourTz, V>);
 pub struct DateTzSeries<V: Clone>(pub SeriesTz<DateTz, V>);
 pub struct MonthTzSeries<V: Clone>(pub SeriesTz<MonthTz, V>);
 
-
-
 impl<V: Clone> HourTzSeries<V> {
     pub fn new() -> HourTzSeries<V> {
         HourTzSeries(SeriesTz(Vec::new()))

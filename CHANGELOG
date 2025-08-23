@@ -5,6 +5,11 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-08-23
+- Extend term parser to days and day ranges.  Improve parsing for month_txt.
+- Add term_tz, month_tz 
+- Add more buckets 
+
 ## 2025-07-26
 - Add ISONE actual interchange data archive. 
 

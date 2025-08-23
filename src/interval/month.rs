@@ -114,7 +114,6 @@ impl Month {
     pub fn with_tz(&self, tz: &str) -> MonthTz {
         MonthTz::containing(self.start().in_tz(tz).unwrap())
     }
-
 }
 
 impl From<Month> for Term {
@@ -161,7 +160,10 @@ impl IntervalLike for Month {
 /// Parse various formats for a month:
 /// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"
 fn parse_month(input: &str) -> Result<Month, ParseError> {
-    let token = TermParser::parse(Rule::month, input).unwrap().next().unwrap();
+    let token = TermParser::parse(Rule::month, input)
+        .unwrap()
+        .next()
+        .unwrap();
     process_month(token)
 }
 
@@ -182,8 +184,11 @@ pub fn process_month_iso(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
     // println!("v={:?}", v);
     let year = v[0].parse::<i16>().unwrap();
     let m = v[1].parse::<i8>().unwrap();
-    let dt = jc::Date::new(year, m, 1).unwrap();
-    Ok(Month { start_date: dt })
+    let dt = jc::Date::new(year, m, 1);
+    match dt {
+        Ok(dt) => Ok(Month { start_date: dt }),
+        Err(e) => Err(ParseError(format!("{}", e))),
+    }
 }
 
 /// Parse "Apr23" or "August2024" like strings.

@@ -1,8 +1,10 @@
+use jiff::{
+    civil::{Date, DateTime},
+    tz::TimeZone,
+    ToSpan, Zoned,
+};
 
-use jiff::{civil::{Date, DateTime}, tz::TimeZone, ToSpan, Zoned};
-
-use crate::interval::date_tz::DateTz;
-
+use crate::interval::{date_tz::DateTz, hour_tz::HourTz, month_tz::MonthTz, term_tz::TermTz};
 
 pub trait DateExt {
     fn with_tz(&self, tz: &TimeZone) -> DateTz;
@@ -40,7 +42,6 @@ impl IntervalLike for Date {
 
 // use std::cmp;
 // use std::fmt::Debug;
-
 
 // use super::hour::Hour;
 // use super::month_tz::MonthTz;
@@ -96,10 +97,11 @@ pub trait IntervalTzLike {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
 pub struct IntervalTz {
     pub start: Zoned,
     pub end: Zoned,
-}   
+}
 
 impl IntervalTz {
     pub fn new(start: Zoned, end: Zoned) -> Option<Self> {
@@ -118,6 +120,43 @@ impl IntervalTzLike for IntervalTz {
         self.end.clone()
     }
 }
+
+impl From<HourTz> for IntervalTz {
+    fn from(term: HourTz) -> Self {
+        IntervalTz {
+            start: term.start(),
+            end: term.end(),
+        }
+    }
+}
+
+impl From<DateTz> for IntervalTz {
+    fn from(term: DateTz) -> Self {
+        IntervalTz {
+            start: term.start(),
+            end: term.end(),
+        }
+    }
+}
+
+impl From<MonthTz> for IntervalTz {
+    fn from(term: MonthTz) -> Self {
+        IntervalTz {
+            start: term.start(),
+            end: term.end(),
+        }
+    }
+}
+
+impl From<TermTz> for IntervalTz {
+    fn from(term: TermTz) -> Self {
+        IntervalTz {
+            start: term.start(),
+            end: term.end(),
+        }
+    }
+}
+
 
 // impl cmp::PartialEq for dyn IntervalLike {
 //     fn eq(&self, other: &Self) -> bool {
@@ -186,76 +225,71 @@ impl IntervalTzLike for IntervalTz {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
-    use jiff::civil::date;
+    use crate::interval::{
+        interval::{IntervalTz, IntervalTzLike},
+        month_tz::MonthTz,
+    };
 
-//     use crate::interval::month_tz::MonthTz;
-//     use crate::interval::*;
-//     use chrono::TimeDelta;
-//     use chrono_tz::America::New_York;
-//     use chrono_tz::Tz;
-//     use interval::{Interval, IntervalLike};
-//     use itertools::Itertools;
 
-    // #[test]
-    // fn test_date_ext() {
-    //     let date = date(2025, 1, 1);
-    //     assert_eq!(
-    //         Interval::with_start_end(start, end).unwrap(),
-    //         Interval { start, end }
-    //     ); // works
-    // }
+    #[test]
+    fn test_from_term() {
+        let term = MonthTz::new(2025, 1, "America/New_York");
+        assert_eq!(
+            IntervalTz::from(term.clone()),
+            IntervalTz::new(term.start(), term.end()).unwrap()
+        ); 
+    }
 
-//     #[test]
-//     fn test_special_constructors() {
-//         // with_y
-//         let term = Interval::with_y(2022, 2024, New_York).unwrap();
-//         assert_eq!(
-//             term.start,
-//             New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap()
-//         );
-//         assert_eq!(
-//             term.end,
-//             New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap()
-//         );
-//         // with_ym
-//         let term = Interval::with_ym((2023, 2), (2026, 3), New_York).unwrap();
-//         assert_eq!(
-//             term.start,
-//             New_York.with_ymd_and_hms(2023, 2, 1, 0, 0, 0).unwrap()
-//         );
-//         assert_eq!(
-//             term.end,
-//             New_York.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap()
-//         );
-//     }
+    //     #[test]
+    //     fn test_special_constructors() {
+    //         // with_y
+    //         let term = Interval::with_y(2022, 2024, New_York).unwrap();
+    //         assert_eq!(
+    //             term.start,
+    //             New_York.with_ymd_and_hms(2022, 1, 1, 0, 0, 0).unwrap()
+    //         );
+    //         assert_eq!(
+    //             term.end,
+    //             New_York.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap()
+    //         );
+    //         // with_ym
+    //         let term = Interval::with_ym((2023, 2), (2026, 3), New_York).unwrap();
+    //         assert_eq!(
+    //             term.start,
+    //             New_York.with_ymd_and_hms(2023, 2, 1, 0, 0, 0).unwrap()
+    //         );
+    //         assert_eq!(
+    //             term.end,
+    //             New_York.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap()
+    //         );
+    //     }
 
-//     #[test]
-//     fn split_hours() {
-//         let interval = Interval::with_start(
-//             New_York.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap(),
-//             TimeDelta::days(366),
-//         );
-//         let hours = interval.hours();
-//         let mut count: HashMap<MonthTz, usize> = HashMap::new();
-//         for (key, value) in &hours
-//             .into_iter()
-//             .group_by(|e| MonthTz::containing(e.start()))
-//         {
-//             count.insert(key, value.count());
-//         }
-//         println!("{:#?}", count);
+    //     #[test]
+    //     fn split_hours() {
+    //         let interval = Interval::with_start(
+    //             New_York.with_ymd_and_hms(2024, 2, 1, 0, 0, 0).unwrap(),
+    //             TimeDelta::days(366),
+    //         );
+    //         let hours = interval.hours();
+    //         let mut count: HashMap<MonthTz, usize> = HashMap::new();
+    //         for (key, value) in &hours
+    //             .into_iter()
+    //             .group_by(|e| MonthTz::containing(e.start()))
+    //         {
+    //             count.insert(key, value.count());
+    //         }
+    //         println!("{:#?}", count);
 
-//         // let month = Month::new(2022, 11, New_York).unwrap();
-//         // let hours = month.hours();
-//         // assert_eq!(hours.len(), 744);
-//     }
+    //         // let month = Month::new(2022, 11, New_York).unwrap();
+    //         // let hours = month.hours();
+    //         // assert_eq!(hours.len(), 744);
+    //     }
 
-//     // #[test]
-//     // fn visiblity_hour() {
-//     //     let hour = Hour::new(2024, 7, 1, 16, New_York);
-//     //     // let hour = Hour {start: New_York.with_ymd_and_hms(2024, 7, 14, 16, 0, 0).unwrap()};
+    //     // #[test]
+    //     // fn visiblity_hour() {
+    //     //     let hour = Hour::new(2024, 7, 1, 16, New_York);
+    //     //     // let hour = Hour {start: New_York.with_ymd_and_hms(2024, 7, 14, 16, 0, 0).unwrap()};
 
-//     // }
+    //     // }
 }

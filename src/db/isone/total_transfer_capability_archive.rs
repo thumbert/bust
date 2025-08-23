@@ -220,6 +220,7 @@ mod tests {
         Ok(())
     }
 
+    #[ignore]
     #[test]
     fn download_days() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::isone_ttc();

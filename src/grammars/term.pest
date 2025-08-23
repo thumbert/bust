@@ -1,42 +1,50 @@
 term = {SOI ~ (range | simple) ~ EOI}
 
-range = {range_cal | range_month }
-simple = {month | cal | quarter}
+range = {range_cal | range_month | range_day}
+simple = {day | month | cal | quarter}
 range_cal = {cal ~" "* ~ "-" ~ " "* ~ cal}
 range_month = {range_month_txt | range_month_abb | range_month_us}
 range_month_abb = {month_abb ~ " "? ~ "-" ~ " "? ~ month_abb}
-range_month_txt = {month_txt ~" "? ~ "-" ~ " "? ~ month_txt}
+range_month_txt = {month_txt ~ " "? ~ "-" ~ " "? ~ month_txt}
 range_month_us = {month_us ~ " "? ~ "-" ~ " "? ~ month_us}
+range_day = {range_day_txt | range_day_us}
+range_day_txt = {day_txt  ~ " "? ~ "-"  ~ " "? ~ day_txt}
+range_day_us = {day_us  ~ " "? ~ "-"  ~ " "? ~ day_us}
+
+day = {day_iso | day_txt | day_us}
+day_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2} ~ "-" ~ ASCII_DIGIT{2}}
+day_txt = {dd ~ mon ~ (year | yy)}
+day_us = {ASCII_DIGIT{1,2} ~ "/" ~ ASCII_DIGIT{1,2} ~ "/" ~ (year | yy)}
 
 month = {month_iso | month_txt | month_abb | month_us}
 month_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2}}
 month_txt = {mon ~ " "? ~ (year | yy)}
 month_abb = {("F" | "G" | "H" | "J" | "K" | "M" | "N" | "Q" | "U" | "V" | "X" | "Z") ~ yy}
-month_us = {("10" | "11" | "12" | "0"? ~ "1" | "0"? ~  "2" | "0"? ~ "3" | "0"? ~ "4" | "0"? ~ "5" | "0"? ~ "6" | "0"? ~ "7" | "0"? ~ "8" | "0"? ~ "9") ~ "/" ~ (year | yy)}
+month_us = {ASCII_DIGIT{1,2} ~ "/" ~ (year | yy)}
 mon = {jan | feb | mar | apr | may | jun | jul | aug | sep | oct | nov | dec}
-jan = {^"January" | ^"Jan"}
-feb = {^"February" | ^"Feb"}
-mar = {^"March" | ^"Mar"}
-apr = {^"April" | ^"Apr"}
+jan = {^"Jan" ~ !ASCII_ALPHA | ^"January"}
+feb = {^"Feb" ~ !ASCII_ALPHA | ^"February"}
+mar = {^"Mar" ~ !ASCII_ALPHA | ^"March"}
+apr = {^"Apr" ~ !ASCII_ALPHA | ^"April"}
 may = {^"May"}
-jun = {^"June" | ^"Jun"}
-jul = {^"July" | ^"Jul"}
-aug = {^"August" | ^"Aug"}
-sep = {^"September" | ^"Sep"}
-oct = {^"October" | ^"Oct"}
-nov = {^"November" | ^"Nov"}
-dec = {^"December" | ^"Dec"}
+jun = {^"Jun" ~ !ASCII_ALPHA | ^"June"}
+jul = {^"Jul" ~ !ASCII_ALPHA | ^"July"}
+aug = {^"Aug" ~ !ASCII_ALPHA | ^"August"}
+sep = {^"Sep" ~ !ASCII_ALPHA | ^"September"}
+oct = {^"Oct" ~ !ASCII_ALPHA | ^"October"}
+nov = {^"Nov" ~ !ASCII_ALPHA | ^"November"}
+dec = {^"Dec" ~ !ASCII_ALPHA | ^"December"}
 
 quarter = {"Q" ~ ("1" | "2" | "3" | "4") ~ ("," | " ") ~ " "* ~ (year | yy)}
 cal = {((("CAL" | "Cal") ~ " "?) ~  (year | yy)) | year}
 
-
+dd = {ASCII_DIGIT{1,2}}
 yy = {ASCII_DIGIT{2}}
 year = {ASCII_DIGIT{4}}
 
 
-//WHITESPACE = _{ " "}
 // Reminders:
 // ^ means match case insensitive
 // @ means it's a block
+// ~ !ASCII_ALPHA means it can't be followed by another character
 // Not using a WHITESPACE rule because you can't preclude "Jan 24" it would still parse as "Jan24". 

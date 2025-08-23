@@ -22,8 +22,8 @@ use crate::interval::{
 };
 
 pub struct TermTz {
-    pub start: DateTz,
-    pub end: DateTz,
+    pub start_date: DateTz,
+    pub end_date: DateTz,
 }
 
 impl TermTz {
@@ -31,7 +31,10 @@ impl TermTz {
         if start.start().time_zone() != end.end().time_zone() || end < start {
             return None;
         }
-        Some(TermTz { start, end })
+        Some(TermTz {
+            start_date: start,
+            end_date: end,
+        })
     }
 
     /// Determining a TermType is a pretty expensive operation.
@@ -44,8 +47,8 @@ impl TermTz {
     /// Return the days in the term
     pub fn days(&self) -> Vec<DateTz> {
         let mut days = Vec::new();
-        let mut current = self.start.start().date();
-        let end_date = self.end.end().date();
+        let mut current = self.start_date.start().date();
+        let end_date = self.end_date.end().date();
         while current <= end_date {
             days.push(current.with_tz(self.start().time_zone()));
             current = current.saturating_add(1.days());
@@ -70,10 +73,10 @@ impl TermTz {
 
 impl IntervalTzLike for TermTz {
     fn start(&self) -> Zoned {
-        self.start.start()
+        self.start_date.start()
     }
     fn end(&self) -> Zoned {
-        self.end.end()
+        self.end_date.end()
     }
 }
 
