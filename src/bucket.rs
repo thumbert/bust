@@ -71,8 +71,8 @@ impl BucketLike for Bucket {
     }
 
     fn count_hours<K: IntervalTzLike>(&self, term: &K) -> i32 {
-        let mut hour = HourTz::containing(term.start());
-        let last = HourTz::containing(term.end());
+        let mut hour = HourTz::containing(&term.start());
+        let last = HourTz::containing(&term.end());
         let mut count: i32 = 0;
         while hour < last {
             if self.contains(&hour.start()) {

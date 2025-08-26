@@ -1,10 +1,9 @@
-use std::error::Error;
 use std::str::FromStr;
+use std::fmt;
 
 use jiff::{
     civil::{date, Date, DateTime},
     tz::TimeZone,
-    SpanCompare, ToSpan,
 };
 // use super::interval::Interval;
 // use pest::error::Error;
@@ -48,11 +47,30 @@ impl Term {
         }
     }
 
+    /// Determine the term type, pretty expensive operation.
+    /// Go from the most specific to the most general.
+    pub fn term_type(&self) -> TermType {
+        if self.is_day() {
+            return TermType::Day;
+        }
+        if self.is_month() {
+            return TermType::Month;
+        }
+        if self.is_year() {
+            return TermType::Year;
+        }
+        if self.is_year_range() {
+            return TermType::YearRange;
+        }
+        if self.is_month_range() {
+            return TermType::MonthRange;
+        }
+        TermType::DayRange
+    }
+
     /// Determine if this term is a single day.
     pub fn is_day(&self) -> bool {
-        self.start.day() == self.end.day()
-            && self.start.month() == self.end.month()
-            && self.start.year() == self.end.year()
+        self.start == self.end
     }
 
     /// Determine if this term is a full calendar month.
@@ -77,6 +95,22 @@ impl Term {
         true
     }
 
+    /// Determine if this term is a quarter.
+    pub fn is_quarter(&self) -> bool {
+        self.start.day() == 1
+            && self.start.month() % 3 == 1
+            && self.end.month() == self.start.month() + 2
+            && self.end.day() == self.end.last_of_month().day()
+    }
+
+    /// Determine if this term is a quarter range.
+    pub fn is_quarter_range(&self) -> bool {
+        self.start.day() == 1
+            && self.start.month() % 3 == 1
+            && self.end.month() % 3 == 0
+            && self.end.day() == self.end.last_of_month().day()
+    }
+
     /// Determine if this term is a full calendar year.
     pub fn is_year(&self) -> bool {
         self.start.day() == 1
@@ -95,32 +129,6 @@ impl Term {
             && self.start.year() < self.end.year()
     }
 
-    /// Determining a TermType is a pretty expensive operation.  Use accordingly.
-    /// FIXME
-    pub fn term_type(&self) -> TermType {
-        let mut res = TermType::DayRange;
-        // if self.start().first_of_year().unwrap() == self.start()
-        //     && self.start().last_of_year().unwrap() == self.end()
-        // {
-        //     if self.start.year() == self.end.year() {
-        //         return TermType::Year;
-        //     } else {
-        //         return TermType::YearRange;
-        //     }
-        // }
-
-        // if self.start().day() == 1 && self.end() == self.start().last_of_month()
-
-        if self.start.start().day() == 1 && self.end.end().day() == 1 {
-            if self.start.start().month() == self.end.end().month() {
-                TermType::Month
-            } else {
-                TermType::MonthRange
-            }
-        } else {
-            TermType::DayRange
-        }
-    }
 }
 
 impl IntervalLike for Term {
@@ -132,14 +140,71 @@ impl IntervalLike for Term {
     }
 }
 
+impl fmt::Display for Term {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_day() {
+            return write!(f, "{}", self.start);
+        }
+        if self.is_month() {
+            return write!(f, "{}", self.start.strftime("%b%y"));
+        }
+        if self.is_month() {
+            return write!(f, "{}", self.start.strftime("%b%y"));
+        }
+        if self.is_quarter() {
+            return write!(
+                f,
+                "Q{},{}",
+                (self.start.month() - 1) / 3 + 1,
+                self.start.strftime("%y")
+            );
+        }
+        if self.is_year() {
+            return write!(f, "Cal{}", self.start.strftime("%y"));
+        }
+        if self.is_year_range() {
+            return write!(
+                f,
+                "Cal{}-Cal{}",
+                self.start.strftime("%y"),
+                self.end.strftime("%y")
+            );
+        }
+        if self.is_quarter_range() {
+            return write!(
+                f,
+                "Q{},{}-Q{},{}",
+                (self.start.month() - 1) / 3 + 1,
+                self.start.strftime("%y"),
+                (self.end.month() - 1) / 3 + 1,
+                self.end.strftime("%y")
+            );
+        }
+        if self.is_month_range() {
+            return write!(
+                f,
+                "{}-{}",
+                self.start.strftime("%b%y"),
+                self.end.strftime("%b%y")
+            );
+        }
+        write!(
+            f,
+            "{}{}-{}{}",
+            self.start.day(),
+            self.start.strftime("%b%y"),
+            self.end.day(),
+            self.end.strftime("%b%y")
+        )
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum TermType {
     Day,
     DayRange,
     Month,
     MonthRange,
-    Quarter,
-    QuarterRange,
     Year,
     YearRange,
 }
@@ -160,83 +225,6 @@ impl From<Date> for Term {
         Term::new(day, day).unwrap()
     }
 }
-
-// pub enum TokenType {
-//     MonthOfYear(u32),
-//     DayOfMonth(u32),
-//     Year(i32),
-//     Month((i32, u32)),
-// }
-
-// impl FromStr for MonthTz {
-//     type Err = ParseError;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let (year, month) = match parse_month(s) {
-//             Ok(TermType::Month(year, month)) => (year, month),
-//             Ok(_) => unreachable!(),
-//             Err(_) => return Err(ParseError(format!("Failed parsing {} as a month", s))),
-//         };
-//         if month > 12 {
-//             return Err(ParseError(format!("Month of year {} > 12", month)));
-//         }
-//         Ok(MonthTz::new(year, month, Tz::UTC).unwrap())
-//     }
-// }
-
-// impl FromStr for Interval {
-//     type Err = ParseError;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         if let Ok(term) = parse_term(s) {
-//             let interval = match term {
-//                 TermType::Day(_, _, _) => todo!(),
-//                 TermType::DayRange => todo!(),
-//                 TermType::Month(year, month) => {
-//                     let start = Tz::UTC.with_ymd_and_hms(year, month, 1, 0, 0, 0).unwrap();
-//                     let month = MonthTz::containing(start);
-//                     Interval {
-//                         start,
-//                         end: month.end(),
-//                     }
-//                 }
-//                 TermType::MonthRange(p1, p2) => {
-//                     let start = Tz::UTC.with_ymd_and_hms(p1.0, p1.1, 1, 0, 0, 0).unwrap();
-//                     let dt2 = Tz::UTC.with_ymd_and_hms(p2.0, p2.1, 1, 0, 0, 0).unwrap();
-//                     let month = MonthTz::containing(dt2);
-//                     let end = month.end();
-//                     // if end < start {
-//                     //     return
-//                     // }
-//                     Interval { start, end }
-//                 }
-//                 TermType::Quarter(year, quarter) => {
-//                     let start = Tz::UTC
-//                         .with_ymd_and_hms(year, 3 * (quarter - 1) + 1, 1, 0, 0, 0)
-//                         .unwrap();
-//                     let end = if quarter < 4 {
-//                         Tz::UTC
-//                             .with_ymd_and_hms(year, 3 * quarter + 1, 1, 0, 0, 0)
-//                             .unwrap()
-//                     } else {
-//                         Tz::UTC.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap()
-//                     };
-//                     Interval { start, end }
-//                 }
-//                 TermType::QuarterRange => todo!(),
-//                 TermType::Year(year) => {
-//                     let start = Tz::UTC.with_ymd_and_hms(year, 1, 1, 0, 0, 0).unwrap();
-//                     let end = Tz::UTC.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap();
-//                     Interval { start, end }
-//                 }
-//                 TermType::YearRange(_, _) => todo!(),
-//             };
-//             Ok(interval)
-//         } else {
-//             Err(ParseError(format!("Failed parsing {} as a term", s)))
-//         }
-//     }
-// }
 
 pub fn parse_term(input: &str) -> Result<Term, ParseError> {
     let token = TermParser::parse(Rule::term, input);
@@ -308,7 +296,7 @@ fn process_day_txt(token: Pair<'_, Rule>) -> Result<Date, ParseError> {
                 .as_str()
                 .parse::<i8>()
                 .map_err(|_| ParseError(format!("invalid day number: {}", dd.as_str())))?,
-            _ => unreachable!()
+            _ => unreachable!(),
         },
         _ => return Err(ParseError("expected day number".to_string())),
     };
@@ -375,7 +363,7 @@ fn process_day_us(token: Pair<'_, Rule>) -> Result<Date, ParseError> {
         .map_err(|_| ParseError(format!("invalid year in US date: {}", date_str)))?;
     if year < 100 {
         year += 2000; // assume 21st century for two-digit years
-    } 
+    }
     Ok(date(year, month, day))
 }
 
@@ -415,8 +403,10 @@ fn process_quarter(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
 fn process_range(pair: Pair<'_, Rule>) -> Result<Term, ParseError> {
     let record = pair.into_inner().next().unwrap();
     match record.as_rule() {
-        Rule::range_month => process_range_month(record),
         Rule::range_day => process_range_day(record),
+        Rule::range_month => process_range_month(record),
+        Rule::range_quarter => process_range_quarter(record),
+        Rule::range_cal => process_range_cal(record),
         _ => unreachable!(),
     }
 }
@@ -469,7 +459,6 @@ fn process_range_day_us(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
         _ => unreachable!(),
     }
 }
-
 
 pub fn process_range_month(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
     let record = token.into_inner().next().unwrap();
@@ -571,20 +560,86 @@ fn process_range_month_us(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
     }
 }
 
+fn process_range_quarter(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
+    let record = token.into_inner().collect::<Vec<_>>();
+    let r1 = record[0].as_rule();
+    let r2 = record[1].as_rule();
+    match (r1, r2) {
+        (Rule::quarter, Rule::quarter) => {
+            let q1 = process_quarter(record[0].clone())?;
+            let q2 = process_quarter(record[1].clone())?;
+            if q1.start >= q2.end {
+                return Err(ParseError(format!(
+                    "invalid quarter range: {} - {}.  End needs to be after start!",
+                    q1, q2
+                )));
+            }
+            Ok(Term::new(q1.start, q2.end).unwrap())
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn process_range_cal(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
+    let record = token.into_inner().collect::<Vec<_>>();
+    let r1 = record[0].as_rule();
+    let r2 = record[1].as_rule();
+
+    match (r1, r2) {
+        (Rule::cal, Rule::cal) => {
+            let cal1 = process_cal(record[0].clone())?;
+            let cal2 = process_cal(record[1].clone())?;
+            if cal1.start >= cal2.end {
+                return Err(ParseError(format!(
+                    "invalid year range: {} - {}.  End needs to be after start!",
+                    cal1, cal2
+                )));
+            }
+            Ok(Term::new(cal1.start, cal2.end).unwrap())
+        }
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-
     use crate::interval::term::*;
     use pest::Parser;
 
     #[test]
     fn test_term_type() {
+        assert!(parse_term("15Apr24").unwrap().is_day());
         assert!(parse_term("12Feb24").unwrap().is_day());
         assert!(parse_term("Feb24").unwrap().is_month());
         assert!(parse_term("Feb24-Aug26").unwrap().is_month_range());
         assert!(parse_term("2024").unwrap().is_year());
         assert!(parse_term("2024").unwrap().is_month_range());
-        // assert!(parse_term("Cal24-Cal26").unwrap().is_year_range());
+        assert!(parse_term("Cal24").unwrap().is_year());
+        assert!(parse_term("Cal24-Cal26").unwrap().is_year_range());
+        assert!(parse_term("Q1,24").unwrap().is_quarter());
+        assert!(parse_term("1Apr24-30Jun24").unwrap().is_quarter());
+        assert!(!parse_term("1Feb24-31May24").unwrap().is_quarter());
+        assert!(parse_term("Q2,24-Q3,24").unwrap().is_quarter_range());
+        assert!(parse_term("1Apr24-30Sep24").unwrap().is_quarter_range());
+    }
+
+    #[test]
+    fn test_fmt() {
+        assert_eq!(
+            "2024-04-15".parse::<Term>().unwrap().to_string(),
+            "2024-04-15"
+        );
+        assert_eq!("2024-04".parse::<Term>().unwrap().to_string(), "Apr24");
+        assert_eq!("Q2,24".parse::<Term>().unwrap().to_string(), "Q2,24");
+        assert_eq!("Cal24".parse::<Term>().unwrap().to_string(), "Cal24");
+        assert_eq!(
+            "Cal24-Cal26".parse::<Term>().unwrap().to_string(),
+            "Cal24-Cal26"
+        );
+        assert_eq!(
+            "10Jan24-2Feb25".parse::<Term>().unwrap().to_string(),
+            "10Jan24-2Feb25"
+        );
     }
 
     #[test]
@@ -596,6 +651,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
+                TermType::Day,
             ),
             (
                 "2024-04-15",
@@ -603,6 +659,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
+                TermType::Day
             ),
             (
                 "4/15/2024",
@@ -610,6 +667,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
+                TermType::Day
             ),
             (
                 "04/15/2024",
@@ -617,6 +675,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
+                TermType::Day
             ),
             (
                 "Apr24",
@@ -624,6 +683,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "Apr 24",
@@ -631,6 +691,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "Apr 2024",
@@ -638,6 +699,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "April2024",
@@ -645,6 +707,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "April 2024",
@@ -652,6 +715,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "J24",
@@ -659,6 +723,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "4/24",
@@ -666,6 +731,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "4/2024",
@@ -673,6 +739,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "2024-04",
@@ -680,6 +747,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2024, 4, 30),
                 },
+                TermType::Month,
             ),
             (
                 "Q3, 2024",
@@ -687,6 +755,7 @@ mod tests {
                     start: date(2024, 7, 1),
                     end: date(2024, 9, 30),
                 },
+                TermType::MonthRange,
             ),
             (
                 "Q3, 24",
@@ -694,6 +763,7 @@ mod tests {
                     start: date(2024, 7, 1),
                     end: date(2024, 9, 30),
                 },
+                TermType::MonthRange,
             ),
             (
                 "Q3 24",
@@ -701,6 +771,7 @@ mod tests {
                     start: date(2024, 7, 1),
                     end: date(2024, 9, 30),
                 },
+                TermType::MonthRange,
             ),
             //
             (
@@ -709,6 +780,7 @@ mod tests {
                     start: date(2024, 1, 1),
                     end: date(2024, 12, 31),
                 },
+                TermType::Year,
             ),
             (
                 "Cal 2024",
@@ -716,6 +788,7 @@ mod tests {
                     start: date(2024, 1, 1),
                     end: date(2024, 12, 31),
                 },
+                TermType::Year,
             ),
             (
                 "2024",
@@ -723,6 +796,7 @@ mod tests {
                     start: date(2024, 1, 1),
                     end: date(2024, 12, 31),
                 },
+                TermType::Year,
             ),
             //
             (
@@ -731,6 +805,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2028, 8, 20),
                 },
+                TermType::DayRange,
             ),
             (
                 "4/15/24-8/20/28",
@@ -738,6 +813,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2028, 8, 20),
                 },
+                TermType::DayRange,
             ),
             (
                 "4/15/24 - 8/20/28",
@@ -745,6 +821,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2028, 8, 20),
                 },
+                TermType::DayRange,
             ),
             //
             (
@@ -753,6 +830,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2028, 8, 31),
                 },
+                TermType::MonthRange,
             ),
             (
                 "Apr24 - May 25",
@@ -760,6 +838,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2025, 5, 31),
                 },
+                TermType::MonthRange,
             ),
             (
                 "J24-Q28",
@@ -767,6 +846,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2028, 8, 31),
                 },
+                TermType::MonthRange,
             ),
             (
                 "J24 - Q28",
@@ -774,6 +854,7 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2028, 8, 31),
                 },
+                TermType::MonthRange,
             ),
             (
                 "4/24-8/28",
@@ -781,11 +862,29 @@ mod tests {
                     start: date(2024, 4, 1),
                     end: date(2028, 8, 31),
                 },
+                TermType::MonthRange,
+            ),
+            (
+                "Q1,24-Q3,25",
+                Term {
+                    start: date(2024, 1, 1),
+                    end: date(2025, 9, 30),
+                },
+                TermType::MonthRange,
+            ),
+            (
+                "Cal24-Cal25",
+                Term {
+                    start: date(2024, 1, 1),
+                    end: date(2025, 12, 31),
+                },
+                TermType::YearRange,
             ),
         ];
         for e in vs {
             // println!("{:?}", e);
             assert_eq!(parse_term(e.0).ok().unwrap(), e.1);
+            assert_eq!(e.1.term_type(), e.2);
         }
     }
 
@@ -802,7 +901,7 @@ mod tests {
         //     .next()
         //     .unwrap();
         // let term = process_day_us(token);
-        // println!("{:?}", term); 
+        // println!("{:?}", term);
         assert_eq!(parse_day_txt("15Apr24").unwrap(), date(2024, 4, 15));
     }
 

@@ -5,6 +5,9 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-08-25
+- Improvements to SeriesTz, maybe I found a decent design.  Let's see how it holds. 
+
 ## 2025-08-23
 - Extend term parser to days and day ranges.  Improve parsing for month_txt.
 - Add term_tz, month_tz 

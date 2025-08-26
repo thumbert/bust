@@ -1,1 +1,2 @@
-pub mod timeseries_base;
+pub mod hourtz_series;
+pub mod series_tz;

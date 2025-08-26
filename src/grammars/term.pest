@@ -1,6 +1,6 @@
 term = {SOI ~ (range | simple) ~ EOI}
 
-range = {range_cal | range_month | range_day}
+range = {range_cal | range_month | range_day | range_quarter}
 simple = {day | month | cal | quarter}
 range_cal = {cal ~" "* ~ "-" ~ " "* ~ cal}
 range_month = {range_month_txt | range_month_abb | range_month_us}
@@ -10,6 +10,7 @@ range_month_us = {month_us ~ " "? ~ "-" ~ " "? ~ month_us}
 range_day = {range_day_txt | range_day_us}
 range_day_txt = {day_txt  ~ " "? ~ "-"  ~ " "? ~ day_txt}
 range_day_us = {day_us  ~ " "? ~ "-"  ~ " "? ~ day_us}
+range_quarter = {quarter ~ " "? ~ "-"  ~ " "? ~ quarter}
 
 day = {day_iso | day_txt | day_us}
 day_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2} ~ "-" ~ ASCII_DIGIT{2}}
@@ -35,7 +36,7 @@ oct = {^"Oct" ~ !ASCII_ALPHA | ^"October"}
 nov = {^"Nov" ~ !ASCII_ALPHA | ^"November"}
 dec = {^"Dec" ~ !ASCII_ALPHA | ^"December"}
 
-quarter = {"Q" ~ ("1" | "2" | "3" | "4") ~ ("," | " ") ~ " "* ~ (year | yy)}
+quarter = {"Q" ~ ("1" | "2" | "3" | "4") ~ ("," | " ") ~ " "? ~ (year | yy)}
 cal = {((("CAL" | "Cal") ~ " "?) ~  (year | yy)) | year}
 
 dd = {ASCII_DIGIT{1,2}}

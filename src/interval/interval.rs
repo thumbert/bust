@@ -17,7 +17,7 @@ pub trait DateExt {
 impl DateExt for Date {
     fn with_tz(&self, tz: &TimeZone) -> DateTz {
         let dt = self.at(0, 0, 0, 0);
-        DateTz::containing(dt.to_zoned(tz.clone()).unwrap())
+        DateTz::containing(&dt.to_zoned(tz.clone()).unwrap())
     }
 
     fn up_to(&self, end: Self) -> Vec<Self> {

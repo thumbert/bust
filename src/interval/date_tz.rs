@@ -14,7 +14,7 @@ impl PartialOrd for DateTz {
 }
 
 impl DateTz {
-    pub fn containing(zoned: Zoned) -> Self {
+    pub fn containing(zoned: &Zoned) -> Self {
         DateTz(zoned.start_of_day().unwrap())
     }
 

@@ -28,12 +28,12 @@ impl MonthTz {
     }
 
     pub fn start_date(&self) -> DateTz {
-        DateTz::containing(self.start())
+        DateTz::containing(&self.start())
     }
 
 
     pub fn end_date(&self) -> DateTz {
-        DateTz::containing(self.end().checked_sub(1.day()).unwrap())    
+        DateTz::containing(&self.end().checked_sub(1.day()).unwrap())    
     }
 
     // pub fn days(&self) -> Vec<DateTz> {

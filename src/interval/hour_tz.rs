@@ -28,7 +28,7 @@ impl IntervalTzLike for HourTz {
 
 impl HourTz {
     /// Return the hour that contains this datetime.
-    pub fn containing(dt: Zoned) -> HourTz {
+    pub fn containing(dt: &Zoned) -> HourTz {
         let start = dt.with().minute(0).second(0).nanosecond(0).build().unwrap();
         HourTz { start }
     }
@@ -68,7 +68,7 @@ mod tests {
         let dt = "2022-04-15T03:15:20[America/New_York]"
             .parse::<Zoned>()
             .unwrap();
-        let hour = HourTz::containing(dt);
+        let hour = HourTz::containing(&dt);
         assert_eq!(hour.start.hour(), 3);
         assert_eq!(hour.start.day(), 15);
         assert_eq!(hour.start.month(), 4);
