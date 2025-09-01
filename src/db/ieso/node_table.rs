@@ -157,7 +157,6 @@ pub struct Row {
     pub name: String,
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -174,8 +173,6 @@ mod tests {
         assert_eq!(area, LocationType::Area);
         Ok(())
     }
-
-
 
     #[ignore]
     #[test]

@@ -1,8 +1,13 @@
-use crate::db::isone::{
-    actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, masked_data::{
-        da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive
-    }, rtlmp_archive::IsoneRtLmpArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
-};
+use crate::db::{ieso::da_lmp_area::IesoDaLmpAreaArchive, isone::{
+    actual_interchange_archive::IsoneActualInterchangeArchive,
+    dalmp_archive::IsoneDalmpArchive,
+    masked_data::{
+        da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive,
+        import_export_archive::ImportExportArchive,
+    },
+    rtlmp_archive::IsoneRtLmpArchive,
+    total_transfer_capability_archive::TotalTransferCapabilityArchive,
+}};
 
 use super::{
     hq::hydrometeorological_data_archive::HqHydroDataArchive,
@@ -27,6 +32,13 @@ use super::{
 pub struct ProdDb {}
 
 impl ProdDb {
+    pub fn ieso_dalmp_area() -> IesoDaLmpAreaArchive {
+        IesoDaLmpAreaArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Area".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/da_lmp.duckdb".to_string(),
+        }
+    }
+
     pub fn ieso_dalmp_nodes() -> IesoDaLmpNodalArchive {
         IesoDaLmpNodalArchive {
             base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Node".to_string(),
@@ -74,9 +86,9 @@ impl ProdDb {
 
     pub fn isone_dalmp() -> IsoneDalmpArchive {
         IsoneDalmpArchive {
-            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb"
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly"
                 .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb".to_string(),
         }
     }
 
@@ -128,9 +140,9 @@ impl ProdDb {
 
     pub fn isone_rtlmp() -> IsoneRtLmpArchive {
         IsoneRtLmpArchive {
-            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/RtLmpHourly".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/rtlmp.duckdb"
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/RtLmpHourly"
                 .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/rtlmp.duckdb".to_string(),
         }
     }
 

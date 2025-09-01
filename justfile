@@ -11,6 +11,10 @@ update_hq_hydro_data:
     cargo build --bin update_hq_hydro_data --release 
     cp ./target/release/update_hq_hydro_data ~/Software
 
+update_ieso_prices_da:
+    cargo build --bin update_ieso_prices_da --release 
+    cp ./target/release/update_ieso_prices_da ~/Software
+
 update_isone_actual_interchange:
     cargo build --bin update_isone_actual_interchange --release 
     cp ./target/release/update_isone_actual_interchange ~/Software

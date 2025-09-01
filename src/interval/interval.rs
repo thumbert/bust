@@ -89,7 +89,7 @@ pub trait IntervalLike {
     // }
 }
 
-pub trait IntervalTzLike {
+pub trait IntervalTzLike: PartialEq + Clone {
     fn start(&self) -> Zoned;
     fn end(&self) -> Zoned;
     fn contains(&self, dt: Zoned) -> bool {

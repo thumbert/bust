@@ -74,6 +74,7 @@ async fn main() -> std::io::Result<()> {
             .service(hq::hq_water_level::api_daily_level)
             // IESO
             .service(ieso::node_table::api_get_all)
+            .service(ieso::dalmp::api_hourly_prices)
             // ISONE
             .service(isone::actual_interchange::api_actual_flows)
             .service(isone::capacity::monthly_capacity_results::results_interface)

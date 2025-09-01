@@ -1,13 +1,15 @@
 use csv::ReaderBuilder;
-use duckdb::Connection;
 use flate2::read::GzDecoder;
 use jiff::tz::{self, TimeZone};
 use jiff::{civil::*, Zoned};
 use log::{error, info};
+use rust_decimal::Decimal;
 use std::error::Error;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::{collections::HashSet, fs::File};
+use std::process::Command;
+use std::str::FromStr;
+use std::fs::File;
 
 use crate::db::isone::lib_isoexpress::download_file;
 use serde::{Deserialize, Serialize};
@@ -56,9 +58,7 @@ impl IesoDaLmpNodalArchive {
         let _ = lines.next(); // Skip the first line with the timestamp
 
         // Collect the remaining lines into a string
-        let remaining_content: String = lines
-            .collect::<Result<Vec<String>, _>>()?
-            .join("\n");
+        let remaining_content: String = lines.collect::<Result<Vec<String>, _>>()?.join("\n");
 
         // Create a CSV reader from the remaining content
         let mut csv_reader = ReaderBuilder::new()
@@ -74,9 +74,9 @@ impl IesoDaLmpNodalArchive {
                 .at(hour - 1, 0, 0, 0)
                 .to_zoned(TimeZone::fixed(tz::offset(-5)))?;
             let location_name = record.get(1).unwrap_or_default().to_string();
-            let lmp = record.get(2).unwrap_or_default().parse::<f64>()?;
-            let mcc = record.get(3).unwrap_or_default().parse::<f64>()?;
-            let mcl = record.get(4).unwrap_or_default().parse::<f64>()?;
+            let lmp = Decimal::from_str(record.get(2).unwrap())?;
+            let mcc = Decimal::from_str(record.get(3).unwrap())?;
+            let mcl = Decimal::from_str(record.get(4).unwrap())?;
             rows.push(Row {
                 begin_hour,
                 location_name,
@@ -90,104 +90,100 @@ impl IesoDaLmpNodalArchive {
         Ok(rows)
     }
 
-    /// Upload each individual day to DuckDB.
-    /// Assumes a json.gz file exists.  Skips the day if it doesn't exist.
-    /// This method only works well for a few day.  For a lot of days, don't loop over days.
-    /// Consider using DuckDB directly by globbing the file names.
+    /// Upload one individual day to DuckDB.
+    /// Assumes a csv.gz file exists.  Skips the day if it doesn't exist.
     ///  
-    pub fn update_duckdb(&self, days: &HashSet<Date>) -> Result<(), Box<dyn Error>> {
-        let conn = Connection::open(self.duckdb_path.clone())?;
-        conn.execute_batch(
-            r"
-CREATE TABLE IF NOT EXISTS ssc (
-        BeginDate TIMESTAMPTZ NOT NULL,
-        RtFlowMw DOUBLE NOT NULL,
-        LowestLimitMw DOUBLE NOT NULL,
-        DistributionFactor DOUBLE NOT NULL,
-        InterfaceName VARCHAR NOT NULL,
-        ActualMarginMw DOUBLE NOT NULL,
-        AuthorizedMarginMw DOUBLE NOT NULL,
-        BaseLimitMw DOUBLE NOT NULL,
-        SingleSourceContingencyLimitMw DOUBLE NOT NULL,
-);",
-        )?;
-        conn.execute_batch(
-            r"
-CREATE TEMPORARY TABLE tmp (
-        BeginDate TIMESTAMPTZ NOT NULL,
-        RtFlowMw DOUBLE NOT NULL,
-        LowestLimitMw DOUBLE NOT NULL,
-        DistributionFactor DOUBLE NOT NULL,
-        InterfaceName VARCHAR NOT NULL,
-        ActMarginMw DOUBLE NOT NULL,
-        AuthorizedMarginMw DOUBLE NOT NULL,
-        BaseLimitMw DOUBLE NOT NULL,
-        SingleSrcContingencyMw DOUBLE NOT NULL,
-);",
-        )?;
+    pub fn update_duckdb(&self, day: &Date) -> Result<(), Box<dyn Error>> {
+        info!(
+            "inserting DALMP hourly prices for IESO's hubs for day {} ...",
+            day
+        );
+        let sql = format!(
+            r#"
+CREATE TABLE IF NOT EXISTS da_lmp (
+    location_type ENUM('AREA', 'HUB', 'NODE') NOT NULL,
+    location_name VARCHAR NOT NULL,
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    lmp DECIMAL(9,4) NOT NULL,
+    mcc DECIMAL(9,4) NOT NULL,
+    mcl DECIMAL(9,4) NOT NULL,
+);
 
-        for day in days {
-            let path = self.filename(day) + ".gz";
-            if !Path::new(&path).exists() {
-                info!("No file for {}.  Skipping", day);
-                continue;
-            }
-
-            // insert into duckdb
-            conn.execute_batch(&format!(
-                "
-INSERT INTO tmp
-    SELECT unnest(SingleSrcContingencyLimits.SingleSrcContingencyLimit, recursive := true)
-    FROM read_json('~/Downloads/Archive/IsoExpress/SingleSourceContingency/Raw/{}/ssc_{}.json.gz')
-;",
-                day.year(),
-                day
-            ))?;
-
-            let query = r"
-INSERT INTO ssc
+CREATE TEMPORARY TABLE tmp_n
+AS
     SELECT 
-        BeginDate::TIMESTAMPTZ,
-        RtFlowMw::DOUBLE,
-        LowestLimitMw::DOUBLE,
-        DistributionFactor::DOUBLE,
-        InterfaceName::VARCHAR,
-        ActMarginMw::DOUBLE as ActualMarginMw,
-        AuthorizedMarginMw::DOUBLE,
-        BaseLimitMw::DOUBLE,
-        SingleSrcContingencyMw::DOUBLE as SingleSourceContingencyLimitMw,
-    FROM tmp
-EXCEPT 
-    SELECT * FROM ssc
-;";
-            match conn.execute(query, []) {
-                Ok(updated) => info!("{} rows were updated for day {}", updated, day),
-                Err(e) => error!("{}", e),
-            }
+        'NODE' AS location_type,
+        "Pricing Location" AS location_name,
+        ('{} ' ||  hour-1 || ':00:00.000-05:00')::TIMESTAMPTZ AS hour_beginning,
+        "LMP" AS lmp,
+        "Energy Loss Price" as mcl,
+        "Energy Congestion Price" as mcc
+    FROM read_csv('{}/Raw/{}/PUB_DAHourlyEnergyLMP_{}.csv.gz', 
+    skip = 1,
+    columns = {{
+        'hour': "UINT8 NOT NULL",
+        'Pricing Location': "VARCHAR NOT NULL",
+        'LMP': "DECIMAL(9,4) NOT NULL",
+        'Energy Loss Price': "DECIMAL(9,4) NOT NULL",
+        'Energy Congestion Price': "DECIMAL(9,4) NOT NULL"
+        }}
+    )
+;
+
+INSERT INTO da_lmp BY NAME
+(SELECT * FROM tmp_n 
+WHERE NOT EXISTS (
+    SELECT * FROM da_lmp d
+    WHERE d.hour_beginning = tmp_n.hour_beginning
+    AND d.location_name = tmp_n.location_name
+    )
+)
+ORDER BY hour_beginning, location_name;
+"#,
+            day,
+            self.base_dir,
+            day.year(),
+            day.strftime("%Y%m%d"),
+        );
+        // println!("{}", sql);
+
+        let output = Command::new("duckdb")
+            .arg("-c")
+            .arg(&sql)
+            .arg(&self.duckdb_path)
+            .output()
+            .expect("Failed to invoke duckdb command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if output.status.success() {
+            info!("{}", stdout);
+            info!("done");
+        } else {
+            error!("Failed to update duckdb for day {}: {}", day, stderr);
         }
 
         Ok(())
     }
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Row {
     pub location_name: String,
     pub begin_hour: Zoned,
-    pub lmp: f64,
-    pub mcc: f64,
-    pub mcl: f64,
+    pub lmp: Decimal,
+    pub mcc: Decimal,
+    pub mcl: Decimal,
 }
-
 
 #[cfg(test)]
 mod tests {
 
-    use jiff::{civil::date, ToSpan, Zoned};
+    use jiff::civil::date;
+    use rust_decimal_macros::dec;
     use std::{error::Error, path::Path};
 
-    use crate::db::prod_db::ProdDb;
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     use super::*;
 
@@ -200,23 +196,13 @@ mod tests {
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
-        let archive = ProdDb::isone_single_source_contingency();
-        // let days = vec![date(2024, 12, 4), date(2024, 12, 5), date(2024, 12, 6)];
-        // let days: Vec<Date> = date(2024, 1, 1).series(1.day()).take(366).collect();
-        // let days: HashSet<Date> = date(2024, 4, 1)
-        //     .series(1.day())
-        //     .take_while(|e| e <= &date(2024, 12, 31))
-        //     .collect();
-        let today = Zoned::now().date();
-        let days: HashSet<Date> = date(2025, 4, 29)
-            .series(1.day())
-            .take_while(|e| e <= &today)
-            .collect();
-        for day in &days {
+        let archive = ProdDb::ieso_dalmp_nodes();
+        let term = "Jul25-Aug25".parse::<Term>()?;
+        for day in &term.days() {
             println!("Processing {}", day);
-            archive.download_file(day)?;
+            // archive.download_file(day)?;
+            archive.update_duckdb(day)?;
         }
-        archive.update_duckdb(&days)?;
         Ok(())
     }
 
@@ -232,7 +218,7 @@ mod tests {
             .filter(|row| row.location_name == "ABKENORA-LT.AG")
             .collect();
         assert_eq!(ab.len(), 24);
-        assert_eq!(ab[16].lmp, 10.28);
+        assert_eq!(ab[16].lmp, dec!(10.28));
 
         Ok(())
     }
@@ -242,7 +228,11 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::ieso_dalmp_nodes();
-        archive.download_file(&date(2025, 5, 5))?;
+
+        let term = "1Jun25-27Aug25".parse::<Term>().unwrap();
+        for day in term.days() {
+            archive.download_file(&day)?;
+        }
         Ok(())
     }
 }

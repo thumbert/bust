@@ -4,8 +4,6 @@ use jiff::{civil::*, Zoned};
 use log::{error, info};
 use quick_xml::de::from_str;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
-use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
@@ -18,18 +16,22 @@ use crate::interval::month::Month;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct IesoDaLmpZonalArchive {
+pub struct IesoDaLmpAreaArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl IesoDaLmpZonalArchive {
+impl IesoDaLmpAreaArchive {
+    pub fn get_missing_days() -> Vec<Date> {
+        vec![date(2025, 6, 1), date(2025, 6, 2)]
+    }
+
     /// Return the xml filename for the day
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
-            + "/PUB_DAHourlyZonal_"
+            + "/PUB_DAHourlyOntarioZonalPrice_"
             + &date.strftime("%Y%m%d").to_string()
             + ".xml"
     }
@@ -38,7 +40,7 @@ impl IesoDaLmpZonalArchive {
     pub fn download_file(&self, date: &Date) -> Result<(), Box<dyn Error>> {
         download_file(
             format!(
-                "https://reports-public.ieso.ca/public/DAHourlyZonal/{}",
+                "https://reports-public.ieso.ca/public/DAHourlyOntarioZonalPrice/{}",
                 Path::new(&self.filename(date))
                     .file_name()
                     .and_then(|name| name.to_str())
@@ -58,14 +60,12 @@ impl IesoDaLmpZonalArchive {
     ///
     pub fn make_gzfile_for_month(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         let file_out = format!(
-            "{}/month/zonal_da_prices_{}.csv",
+            "{}/month/area_da_prices_{}.csv",
             self.base_dir.to_owned(),
             month
         );
         let mut wtr = csv::Writer::from_path(&file_out)?;
         wtr.write_record([
-            "location_type",
-            "location_name",
             "hour_beginning",
             "lmp",
             "mcc",
@@ -80,11 +80,12 @@ impl IesoDaLmpZonalArchive {
             if day > last {
                 continue;
             }
+            if IesoDaLmpAreaArchive::get_missing_days().contains(&day) {
+                continue;
+            }
             let rows = self.read_file(&day)?;
             for row in rows {
                 let _ = wtr.write_record(&[
-                    "HUB".to_owned(),
-                    row.location_name.to_owned().replace(":HUB", ""),
                     row.begin_hour
                         .strftime("%Y-%m-%dT%H:%M:%S.000%:z")
                         .to_string(),
@@ -114,31 +115,21 @@ impl IesoDaLmpZonalArchive {
         file.read_to_string(&mut buffer).unwrap();
 
         let doc: Document = from_str(&buffer)?;
-        let mut rows = Vec::new();
+        let mut rows: Vec<Row> = Vec::new();
         let delivery_date: Date = doc.doc_body.delivery_date.parse()?;
-        for transaction_zone in doc.doc_body.hourly_prices.transaction_zones {
-            for component in transaction_zone.components {
-                let lmp_component = match component.price_component.as_str() {
-                    "Zonal Price" => LmpComponent::Lmp,
-                    "Energy Loss Price" => LmpComponent::Mcl,
-                    "Energy Congestion Price" => LmpComponent::Mcc,
-                    _ => panic!("Unknown component: {}", component.price_component),
-                };
-                for delivery_hour in component.delivery_hours {
-                    let begin_hour = delivery_date
-                        .at(delivery_hour.hour - 1, 0, 0, 0)
-                        .to_zoned(TimeZone::fixed(tz::offset(-5)))?;
-                    rows.push(Row2 {
-                        location_name: transaction_zone.zone_name.clone(),
-                        component: lmp_component.clone(),
-                        begin_hour,
-                        price: Decimal::from_str(&delivery_hour.lmp)?,
-                    });
-                }
-            }
+        for hpc in doc.doc_body.hourly_price_components {
+            let begin_hour = delivery_date
+                .at(hpc.hour - 1, 0, 0, 0)
+                .to_zoned(TimeZone::fixed(tz::offset(-5)))?;
+            rows.push(Row {
+                begin_hour,
+                lmp: Decimal::from_str(&hpc.lmp)?,
+                mcc: Decimal::from_str(&hpc.mcc)?,
+                mcl: Decimal::from_str(&hpc.mcl)?,
+            });
         }
 
-        Ok(transpose(rows))
+        Ok(rows)
     }
 
     /// Upload each individual day to DuckDB.
@@ -148,7 +139,7 @@ impl IesoDaLmpZonalArchive {
     ///  
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting DALMP hourly prices for IESO's hubs for month {} ...",
+            "inserting DALMP hourly prices for IESO's area for month {} ...",
             month
         );
         let sql = format!(
@@ -164,11 +155,12 @@ CREATE TABLE IF NOT EXISTS da_lmp (
 
 CREATE TEMPORARY TABLE tmp_z
 AS
-    SELECT location_type, location_name, hour_beginning, lmp, mcc, mcl
-    FROM read_csv('{}/month/zonal_da_prices_{}.csv.gz', 
+    SELECT 
+        'AREA' AS location_type,
+        'ONTARIO' AS location_name,
+        hour_beginning, lmp, mcc, mcl
+    FROM read_csv('{}/month/area_da_prices_{}.csv.gz', 
     columns = {{
-        'location_type': "ENUM('HUB', 'NODE') NOT NULL",
-        'location_name': "VARCHAR NOT NULL",
         'hour_beginning': "TIMESTAMPTZ NOT NULL",
         'lmp': "DECIMAL(9,4) NOT NULL",
         'mcc': "DECIMAL(9,4) NOT NULL",
@@ -242,111 +234,33 @@ struct DocConfidentiality {
 struct DocBody {
     #[serde(rename = "DeliveryDate")]
     delivery_date: String,
-    #[serde(rename = "HourlyPrices")]
-    hourly_prices: HourlyPrices,
+    #[serde(rename = "HourlyPriceComponents")]
+    hourly_price_components: Vec<HourlyPriceComponents>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct HourlyPrices {
-    #[serde(rename = "TransactionZone")]
-    transaction_zones: Vec<TransactionZone>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct TransactionZone {
-    #[serde(rename = "ZoneName")]
-    zone_name: String,
-    #[serde(rename = "Components")]
-    components: Vec<Components>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Components {
-    #[serde(rename = "PriceComponent")]
-    price_component: String,
-    #[serde(rename = "DeliveryHour")]
-    delivery_hours: Vec<DeliveryHour>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct DeliveryHour {
-    #[serde(rename = "Hour")]
+struct HourlyPriceComponents {
+    #[serde(rename = "PricingHour")]
     hour: i8,
-    #[serde(rename = "LMP")]
+    #[serde(rename = "ZonalPrice")]
     lmp: String,
-    #[serde(rename = "FLAG")]
-    flag: u8,
+    #[serde(rename = "LossPriceCapped")]
+    mcl: String,
+    #[serde(rename = "CongestionPriceCapped")]
+    mcc: String,
+    #[serde(rename = "Flag")]
+    flag: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Row {
-    pub location_name: String,
     pub begin_hour: Zoned,
     pub lmp: Decimal,
     pub mcc: Decimal,
     pub mcl: Decimal,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub enum LmpComponent {
-    Lmp,
-    Mcl,
-    Mcc,
-}
 
-#[derive(Debug, Deserialize, Serialize)]
-struct Row2 {
-    location_name: String,
-    component: LmpComponent,
-    begin_hour: Zoned,
-    price: Decimal,
-}
-
-impl std::fmt::Display for Row2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Location: {}, Component: {:?}, Begin Hour: {}, Price: {}",
-            self.location_name, self.component, self.begin_hour, self.price
-        )
-    }
-}
-
-/// Transpose the data to have the tree prices in one row.
-fn transpose(data: Vec<Row2>) -> Vec<Row> {
-    let mut groups: HashMap<(String, Zoned), Vec<Row2>> = HashMap::new();
-    for e in data {
-        let key = (e.location_name.clone(), e.begin_hour.clone());
-        groups.entry(key).or_default().push(e);
-    }
-
-    let mut rows: Vec<Row> = Vec::new();
-    for (k, v) in &groups {
-        let location_name = k.0.clone();
-        let begin_hour = k.1.clone();
-        let mut lmp = dec!(0.0);
-        let mut mcc = dec!(0.0);
-        let mut mcl = dec!(0.0);
-
-        for row in v {
-            match row.component {
-                LmpComponent::Lmp => lmp = row.price,
-                LmpComponent::Mcc => mcc = row.price,
-                LmpComponent::Mcl => mcl = row.price,
-            }
-        }
-        rows.push(Row {
-            location_name,
-            begin_hour,
-            lmp,
-            mcc,
-            mcl,
-        });
-    }
-    rows.sort_unstable_by_key(|e| (e.location_name.clone(), e.begin_hour.clone()));
-
-    rows
-}
 
 #[cfg(test)]
 mod tests {
@@ -360,8 +274,6 @@ mod tests {
         interval::{month::month, term::Term},
     };
 
-    use super::*;
-
     #[ignore]
     #[test]
     fn update_db() -> Result<(), Box<dyn Error>> {
@@ -371,11 +283,11 @@ mod tests {
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
-        let archive = ProdDb::ieso_dalmp_zonal();
+        let archive = ProdDb::ieso_dalmp_area();
         let term = "Jun25-Aug25".parse::<Term>()?;
         let months = term.months();
         for month in months {
-            archive.make_gzfile_for_month(&month)?;
+            // archive.make_gzfile_for_month(&month)?;
             archive.update_duckdb(&month)?;
         }
         Ok(())
@@ -385,17 +297,11 @@ mod tests {
     #[test]
     fn read_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::ieso_dalmp_zonal();
-        let rows = archive.read_file(&date(2025, 5, 5))?;
+        let archive = ProdDb::ieso_dalmp_area();
+        let rows = archive.read_file(&date(2025, 6, 3))?;
         println!("Read file, had {} rows", rows.len());
-
-        let toronto: Vec<&Row> = rows
-            .iter()
-            .filter(|row| row.location_name == "TORONTO")
-            .collect();
-        assert_eq!(toronto.len(), 24);
-        assert_eq!(toronto[8].lmp, dec!(26.11));
-
+        assert_eq!(rows.len(), 24);
+        assert_eq!(rows[8].lmp, dec!(21.21));
         Ok(())
     }
 
@@ -403,9 +309,8 @@ mod tests {
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::ieso_dalmp_zonal();
-
-        let term = "1Jun25-27Aug25".parse::<Term>().unwrap();
+        let archive = ProdDb::ieso_dalmp_area();
+        let term = "Jul25-Aug25".parse::<Term>().unwrap();
         for day in term.days() {
             archive.download_file(&day)?;
         }
@@ -416,8 +321,8 @@ mod tests {
     #[test]
     fn make_monthly_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::ieso_dalmp_zonal();
-        archive.make_gzfile_for_month(&month(2025, 7))?;
+        let archive = ProdDb::ieso_dalmp_area();
+        archive.make_gzfile_for_month(&month(2025, 8))?;
         Ok(())
     }
 }

@@ -11,6 +11,7 @@ use crate::interval::{
     date_tz::DateTz, hour_tz::HourTz, interval::{DateExt, IntervalTzLike}, month_tz::MonthTz, term::{Term, TermType}
 };
 
+#[derive(Clone,PartialEq)]
 pub struct TermTz {
     pub start_date: DateTz,
     pub end_date: DateTz,
@@ -58,6 +59,8 @@ impl TermTz {
         days
     }
 
+    /// Returns the months in this term.  If the term is not an exact month or 
+    /// month range, return the minimal vector of months that cover the term.   
     pub fn months(&self) -> Vec<MonthTz> {
         let mut months = Vec::new();
         let mut current = MonthTz::containing(self.start());

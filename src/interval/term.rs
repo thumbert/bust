@@ -1,9 +1,9 @@
-use std::str::FromStr;
 use std::fmt;
+use std::str::FromStr;
 
 use jiff::{
     civil::{date, Date, DateTime},
-    tz::TimeZone,
+    tz::TimeZone, ToSpan,
 };
 // use super::interval::Interval;
 // use pest::error::Error;
@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::interval::{
     interval::{DateExt, IntervalLike},
-    month::{process_month, process_month_abb, process_month_txt, process_month_us},
+    month::{process_month, process_month_abb, process_month_txt, process_month_us, Month},
     term_tz::TermTz,
 };
 
@@ -45,6 +45,32 @@ impl Term {
             start_date: self.start.with_tz(tz),
             end_date: self.end.with_tz(tz),
         }
+    }
+
+    /// Return the days in the term
+    pub fn days(&self) -> Vec<Date> {
+        let mut days = Vec::new();
+        let mut current = self.start;
+        while current <= self.end {
+            days.push(current);
+            current = current.saturating_add(1.days());
+        }
+        days
+    }
+
+    /// Returns the months in this term.  If the term is not an exact month or
+    /// month range, return the minimal vector of months that cover the term.   
+    pub fn months(&self) -> Vec<Month> {
+        let mut months = Vec::new();
+        let mut current = Month::containing(self.start());
+        let end_month = Month::containing(self.end());
+        while current < end_month {
+            months.push(Month::containing(current.start()));
+            let next = date(current.start().year(), current.start().month(), 1)
+                .saturating_add(1.months());
+            current = Month::containing(next.start());
+        }
+        months
     }
 
     /// Determine the term type, pretty expensive operation.
@@ -128,7 +154,6 @@ impl Term {
             && self.end.month() == 12
             && self.start.year() < self.end.year()
     }
-
 }
 
 impl IntervalLike for Term {
@@ -659,7 +684,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
-                TermType::Day
+                TermType::Day,
             ),
             (
                 "4/15/2024",
@@ -667,7 +692,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
-                TermType::Day
+                TermType::Day,
             ),
             (
                 "04/15/2024",
@@ -675,7 +700,7 @@ mod tests {
                     start: date(2024, 4, 15),
                     end: date(2024, 4, 15),
                 },
-                TermType::Day
+                TermType::Day,
             ),
             (
                 "Apr24",

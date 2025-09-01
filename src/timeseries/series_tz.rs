@@ -12,6 +12,13 @@ use crate::interval::{
     month_tz::MonthTz,
 };
 
+pub enum JoinType {
+    Inner,
+    Left,
+    Outer,
+    Right,
+}
+
 // #[derive(Clone, Debug, Copy)]
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Obs<T: IntervalLike, K: Clone> {
@@ -182,11 +189,6 @@ impl<I: IntervalTzLike, V: Clone> SeriesTz<I, V> {
         self.0.extend(iter);
     }
 
-    // /// Returns an iterator that consumes the series.
-    // pub fn into_iter(self) -> std::vec::IntoIter<(I, V)> {
-    //     self.0.into_iter()
-    // }
-
     /// Retains only elements specified by the predicate.
     pub fn retain<F>(&mut self, f: F)
     where
@@ -212,6 +214,33 @@ impl<I: IntervalTzLike, V: Clone> SeriesTz<I, V> {
     {
         self.0.drain(range)
     }
+
+    /// Merge this timeseries with another one.
+    pub fn merge<K: Clone>(&self, y: SeriesTz<I, K>, join_type: JoinType) -> SeriesTz<I, (V, K)> {
+        let mut ts: SeriesTz<I, (V, K)> = SeriesTz::new();
+        if self.is_empty() || y.is_empty() {
+            return ts;
+        }
+        match join_type {
+            JoinType::Inner => {
+                let mut j: usize = 0;
+                for e in self {
+                    while y.get(j).unwrap().0.start() < e.0.start() && j < y.len() - 1 {
+                        j += 1;
+                    }
+                    let yj = y.get(j).unwrap();
+                    if e.0 == yj.0 {
+                        ts.push((e.0.clone(), (e.1.clone(), yj.1.clone())));
+                    }
+                }
+            }
+            JoinType::Left => todo!(),
+            JoinType::Outer => todo!(),
+            JoinType::Right => todo!(),
+        }
+
+        ts
+    }
 }
 
 /// Implement SeriesTz<(I,V)>  + V
@@ -230,31 +259,24 @@ where
     }
 }
 
-// // Implement TimeSeries<(I,V)> + TimeSeries<(I,V)>
-// impl<I: IntervalTzLike, V: Clone> Add for SeriesTz<I,V>
-// where
-//     V: Clone + Add<Output = V>,
-// {
-//     type Output = SeriesTz<I,V>;
-//     fn add(self, rhs: SeriesTz<I,V>) -> Self::Output {
-//         // Build a hashmap for fast lookup of rhs values by Zoned
-//         use std::collections::HashMap;
-//         let rhs_map: HashMap<Zoned, T> = rhs.data.into_iter().collect();
-//         TimeSeries {
-//             data: self.data
-//                 .into_iter()
-//                 .filter_map(|(z, v)| {
-//                     if let Some(rv) = rhs_map.get(&z) {
-//                         Some((z, v + rv.clone()))
-//                     } else {
-//                         None // Only sum matching timestamps
-//                     }
-//                 })
-//                 .collect(),
-//         }
-//     }
-// }
+// Implement TimeSeries<(I,V)> + TimeSeries<(I,V)>
+impl<I: IntervalTzLike, V: Clone> Add for SeriesTz<I, V>
+where
+    V: Clone + Add<Output = V>,
+{
+    type Output = SeriesTz<I, V>;
+    fn add(self, rhs: SeriesTz<I, V>) -> Self::Output {
+        let merged = self.merge(rhs, JoinType::Inner);
+        SeriesTz(merged.into_iter().map(|z| (z.0, z.1 .0 + z.1 .1)).collect())
+    }
+}
 
+// Implement FromIterator for SeriesTz
+impl<I: IntervalTzLike, V: Clone> FromIterator<(I, V)> for SeriesTz<I, V> {
+    fn from_iter<T: IntoIterator<Item = (I, V)>>(iter: T) -> Self {
+        SeriesTz(iter.into_iter().collect())
+    }
+}
 
 // Implement IntoIterator for TimeSeries so it can be iterated directly.
 impl<I: IntervalTzLike, V: Clone> IntoIterator for SeriesTz<I, V> {
@@ -301,6 +323,59 @@ impl<I: IntervalTzLike, V: Clone> Default for SeriesTz<I, V> {
         Self::new()
     }
 }
+
+
+// /// Iterator for merging two SeriesTz instances
+// pub struct MergeIterator<'a, T, V> {
+//     iter1: std::slice::Iter<'a, (T, V)>,
+//     iter2: std::slice::Iter<'a, (T, V)>,
+// }
+
+// impl<'a, T, V> MergeIterator<'a, T, V>
+// where
+//     T: Ord,
+// {
+//     pub fn new(series1: &'a [(T, V)], series2: &'a [(T, V)]) -> Self {
+//         Self {
+//             iter1: series1.iter(),
+//             iter2: series2.iter(),
+//         }
+//     }
+// }
+
+// impl<'a, T, V> Iterator for MergeIterator<'a, T, V>
+// where
+//     T: Ord + Clone,
+//     V: Clone,
+// {
+//     type Item = (T, V);
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         match (self.iter1.next(), self.iter2.next()) {
+//             (Some((t1, v1)), Some((t2, v2))) => {
+//                 if t1 <= t2 {
+//                     Some((t1.clone(), v1.clone()))
+//                 } else {
+//                     Some((t2.clone(), v2.clone()))
+//                 }
+//             }
+//             (Some((t1, v1)), None) => Some((t1.clone(), v1.clone())),
+//             (None, Some((t2, v2))) => Some((t2.clone(), v2.clone())),
+//             (None, None) => None,
+//         }
+//     }
+// }
+
+// impl<T, V> SeriesTz<T, V>
+// where
+//     T: IntervalTzLike + Ord + Clone,
+//     V: Clone,
+// {
+//     pub fn merge<'a>(&'a self, other: &'a Self) -> MergeIterator<'a, T, V> {
+//         MergeIterator::new(&self.0, &other.0)
+//     }
+// }
+
 
 pub struct DateTzSeries<V: Clone>(pub SeriesTz<DateTz, V>);
 pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);
@@ -415,26 +490,29 @@ mod tests {
     fn test_different_intervals() {
         let mut ts: SeriesTz<_, f64> = SeriesTz::new();
         assert_eq!(ts.len(), 0);
-        ts.push((
-            date(2022, 1, 1).with_tz(&ISONE.tz),
-            1.0
-        ));
+        ts.push((date(2022, 1, 1).with_tz(&ISONE.tz), 1.0));
     }
-
 
     #[test]
     fn test_timeseries_add() {
         let hours = "Jan25".parse::<Term>().unwrap().with_tz(&ISONE.tz).hours();
+        // add a scalar
         let ts1: SeriesTz<HourTz, f64> = SeriesTz::fill(hours.clone(), 1.0);
-        let res = ts1 + 2.0;
-        // for e in res.iter() {
-        //     println!("{:?}", e);
-        // }
+        let res = ts1.clone() + 2.0;
         assert_eq!(res.first().unwrap().1, 3.0);
 
-        // let ts2: SeriesTz<HourTz, f64> = SeriesTz::fill(hours.clone(), 1.0);
+        // add another timeseries, same domain
+        let ts2: SeriesTz<HourTz, f64> = SeriesTz::fill(hours.clone(), 1.0);
+        let res = ts1.clone() + ts2;
+        assert_eq!(res.len(), hours.len());
+        assert_eq!(res.first().unwrap().1, 2.0);
 
-
+        // add another timeseries, different domain
+        let ts2: SeriesTz<HourTz, f64> =
+            SeriesTz::fill(hours.iter().take(32).cloned().collect(), 1.0);
+        let res = ts1.clone() + ts2;
+        assert_eq!(res.len(), 32);
+        assert_eq!(res.first().unwrap().1, 2.0);
     }
 
     // #[test]
