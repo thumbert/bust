@@ -1,13 +1,16 @@
-use crate::db::{ieso::da_lmp_area::IesoDaLmpAreaArchive, isone::{
-    actual_interchange_archive::IsoneActualInterchangeArchive,
-    dalmp_archive::IsoneDalmpArchive,
-    masked_data::{
-        da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive,
-        import_export_archive::ImportExportArchive,
+use crate::db::{
+    ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive},
+    isone::{
+        actual_interchange_archive::IsoneActualInterchangeArchive,
+        dalmp_archive::IsoneDalmpArchive,
+        masked_data::{
+            da_energy_offers_archive::DaEnergyOffersArchive,
+            daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
+        },
+        rtlmp_archive::IsoneRtLmpArchive,
+        total_transfer_capability_archive::TotalTransferCapabilityArchive,
     },
-    rtlmp_archive::IsoneRtLmpArchive,
-    total_transfer_capability_archive::TotalTransferCapabilityArchive,
-}};
+};
 
 use super::{
     hq::hydrometeorological_data_archive::HqHydroDataArchive,
@@ -50,6 +53,13 @@ impl ProdDb {
         IesoDaLmpZonalArchive {
             base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Zone".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/da_lmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn ieso_generation_output_by_fuel() -> IesoGenOutputByFuelArchive {
+        IesoGenOutputByFuelArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/GenerationOutputByFuel".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/generation_output_by_fuel.duckdb".to_string(),
         }
     }
 

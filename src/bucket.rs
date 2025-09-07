@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use jiff::{civil::Weekday, Zoned};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     holiday::*,
@@ -13,7 +14,7 @@ pub trait BucketLike {
     fn count_hours<K: IntervalTzLike>(&self, term: &K) -> i32;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum Bucket {
     Atc,
     B5x16,
@@ -33,6 +34,19 @@ impl FromStr for Bucket {
             Ok(bucket) => Ok(bucket),
             Err(_) => Err(format!("Failed parsing {} as an bucket", s)),
         }
+    }
+}
+
+
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g. 
+// "ATC" and "atc", not only the canonical one "Atc".
+impl<'de> Deserialize<'de> for Bucket {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Bucket::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 

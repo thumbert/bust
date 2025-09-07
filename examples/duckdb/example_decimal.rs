@@ -46,6 +46,8 @@ INSERT INTO test VALUES ('pen', '0.49');
     };
     println!("{}", json!(item)); // {"name":"ham","price":10.99}
 
+    // For an example of how to read a DuckDB column of type DECIMAL(9,4)[]
+    // see file example_list.rs!
 
     Ok(())
 }

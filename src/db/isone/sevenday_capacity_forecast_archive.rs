@@ -1,9 +1,9 @@
+use jiff::civil::Date;
 use reqwest::blocking::Client;
 use reqwest::header::ACCEPT;
 use reqwest::Error;
 use std::{env, fs};
 
-use chrono::NaiveDate;
 
 struct SevendayForecastArchive {}
 
@@ -12,7 +12,7 @@ impl SevendayForecastArchive {
         "/home/adrian/Downloads/Archive/IsoExpress/7dayCapacityForecast".to_string()
     }
 
-    fn filename(date: NaiveDate) -> String {
+    fn filename(date: Date) -> String {
         SevendayForecastArchive::base_dir()
             + "/Raw"
             + "/7dayforecast_"
@@ -20,7 +20,7 @@ impl SevendayForecastArchive {
             + ".json"
     }
 
-    fn download_days(days: Vec<NaiveDate>) -> Result<(), Error> {
+    fn download_days(days: Vec<Date>) -> Result<(), Error> {
         let client = Client::new();
         let user_name = env::var("ISONE_WS_USER").unwrap();
         let password = env::var("ISONE_WS_PASSWORD").unwrap();
@@ -53,7 +53,7 @@ impl SevendayForecastArchive {
 
 struct DailyForecast {
     day_index: u8,
-    market_date: NaiveDate,
+    market_date: Date,
     cso_mw: f32,
     cold_weather_outages_mw: f32,
     other_outages_mw: f32,
@@ -81,7 +81,7 @@ struct DailyForecast {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use reqwest::Error;
     use serde_json::Value;
     use std::fs;
@@ -90,12 +90,12 @@ mod tests {
 
     #[test]
     fn download_day() -> Result<(), Error> {
-        SevendayForecastArchive::download_days(vec![NaiveDate::from_ymd_opt(2024, 6, 17).unwrap()])
+        SevendayForecastArchive::download_days(vec![date(2024, 6, 17)])
     }
 
     #[test]
     fn parse_file() -> Result<(), String> {
-        let path = SevendayForecastArchive::filename(NaiveDate::from_ymd_opt(2024, 6, 17).unwrap());
+        let path = SevendayForecastArchive::filename(date(2024, 6, 17));
         let json = fs::read_to_string(path).expect("Failed to read the file");
         let v: Value = serde_json::from_str(&json).unwrap();
         let fcsts = &v["SevenDayForecasts"]["SevenDayForecast"];

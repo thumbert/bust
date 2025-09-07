@@ -3,7 +3,8 @@ use std::str::FromStr;
 
 use jiff::{
     civil::{date, Date, DateTime},
-    tz::TimeZone, ToSpan,
+    tz::TimeZone,
+    ToSpan,
 };
 // use super::interval::Interval;
 // use pest::error::Error;
@@ -14,7 +15,7 @@ use thiserror::Error;
 
 use crate::interval::{
     interval::{DateExt, IntervalLike},
-    month::{process_month, process_month_abb, process_month_txt, process_month_us, Month},
+    month::{month, process_month, process_month_abb, process_month_txt, process_month_us, Month},
     term_tz::TermTz,
 };
 
@@ -62,15 +63,28 @@ impl Term {
     /// month range, return the minimal vector of months that cover the term.   
     pub fn months(&self) -> Vec<Month> {
         let mut months = Vec::new();
-        let mut current = Month::containing(self.start());
-        let end_month = Month::containing(self.end());
-        while current < end_month {
+        let mut current = month(self.start.year(), self.start.month());
+        let end_month = month(self.end.year(), self.end.month());
+        while current <= end_month {
             months.push(Month::containing(current.start()));
-            let next = date(current.start().year(), current.start().month(), 1)
-                .saturating_add(1.months());
+            let next =
+                date(current.start().year(), current.start().month(), 1).saturating_add(1.months());
             current = Month::containing(next.start());
         }
         months
+    }
+
+    /// Returns the years in this term.  If the term is not an exact year or
+    /// year range, return the minimal vector of years that cover the term.
+    pub fn years(&self) -> Vec<i16> {
+        let mut years = Vec::new();
+        let mut current = self.start.year();
+        let end = self.end.year();
+        while current <= end {
+            years.push(current);
+            current += 1;
+        }
+        years
     }
 
     /// Determine the term type, pretty expensive operation.
@@ -999,5 +1013,23 @@ mod tests {
                 end: date(2024, 12, 31),
             },
         )
+    }
+
+    #[test]
+    fn test_months() {
+        let term = "Feb24-Aug24".parse::<Term>().unwrap();
+        assert_eq!(term.months().len(), 7);
+        let term = "14Feb24-3Aug24".parse::<Term>().unwrap();
+        assert_eq!(term.months().len(), 7);
+    }
+
+    #[test]
+    fn test_years() {
+        let term = "Cal24".parse::<Term>().unwrap();
+        assert_eq!(term.years(), vec![2024]);
+        let term = "Cal24-Cal26".parse::<Term>().unwrap();
+        assert_eq!(term.years(), vec![2024, 2025, 2026]);
+        let term = "13Jan24-3Aug24".parse::<Term>().unwrap();
+        assert_eq!(term.years(), vec![2024]);
     }
 }

@@ -42,10 +42,10 @@ INSERT INTO test VALUES ([2.0, 2.718, 4.35], [200.2, 210.51, 220.75]);
                 .iter()
                 .map(|e| match e {
                     Value::Decimal(v) => v.to_owned(),
-                    _ => panic!("Expected a double"),
+                    _ => panic!("Expected a decimal"),
                 })
                 .collect::<Vec<Decimal>>(),
-            _ => panic!("Expected a list of doubles"),
+            _ => panic!("Expected a list of decimals"),
         };
         Ok(Row { mws, prices })
     })?;
