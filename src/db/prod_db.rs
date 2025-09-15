@@ -1,5 +1,5 @@
 use crate::db::{
-    ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive},
+    ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive, vgforecast_summary::IesoVGForecastSummaryArchive},
     isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         dalmp_archive::IsoneDalmpArchive,
@@ -9,7 +9,7 @@ use crate::db::{
         },
         rtlmp_archive::IsoneRtLmpArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    },
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
 
 use super::{
@@ -69,6 +69,14 @@ impl ProdDb {
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/node_table.duckdb".to_string(),
         }
     }
+
+    pub fn ieso_vgforecast_summary() -> IesoVGForecastSummaryArchive {
+        IesoVGForecastSummaryArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Ieso/VGForecastSummary".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/vgforecast_summary.duckdb".to_string(),
+        }
+    }
+
 
     pub fn isone_actual_interchange() -> IsoneActualInterchangeArchive {
         IsoneActualInterchangeArchive {
@@ -182,6 +190,13 @@ impl ProdDb {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn statistics_canada_generation() -> StatisticsCanadaGenerationArchive {
+        StatisticsCanadaGenerationArchive {
+            base_dir: "/home/adrian/Downloads/Archive/StatisticsCanada/ElectricityProduction".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/statistics_canada/energy_generation.duckdb".to_string(),
         }
     }
 

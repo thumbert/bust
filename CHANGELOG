@@ -5,6 +5,10 @@ TODO:
 - Get rid of chrono and use jiff exclusively  
 - Finish NYISO DA LMP report
 
+## 2025-09-07
+- Add IESO generation_output_by_fuel archive.
+- Add API for IESO DAM prices.
+
 ## 2025-09-01
 - Update IESO DALMP archives, downloader.
 
