@@ -8,7 +8,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    let archive = ProdDb::hq_total_demand_prelim();
+    let archive = ProdDb::hq_fuel_mix();
     archive.download_file()?;
 
     let month = Month::containing(Zoned::now().datetime());

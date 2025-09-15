@@ -1,34 +1,26 @@
-// 15-minute data for total electricity demand in Quebec.
-// https://donnees.hydroquebec.com/explore/dataset/demande-electricite-quebec/information/
+// Hourly data for total electricity demand in Quebec.
+// https://donnees.hydroquebec.com/explore/dataset/historique-demande-electricite-quebec/information/
 
-
-use duckdb::Connection;
-use flate2::read::GzDecoder;
 use jiff::civil::*;
-use jiff::Timestamp;
 use jiff::Zoned;
 use log::error;
 use log::info;
 use rust_decimal::Decimal;
 use serde::Serialize;
-use serde_json::Value;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::Read;
 use std::path::Path;
 use std::process::Command;
-use std::str::FromStr;
 
 use crate::interval::month::Month;
 
-pub struct HqTotalDemandArchive {
+/// This is finalized data.  
+pub struct HqFinalizedTotalDemandArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
-
-
 
 #[derive(Debug, Serialize)]
 pub struct Row {
@@ -36,7 +28,7 @@ pub struct Row {
     pub value: Decimal,
 }
 
-impl HqTotalDemandArchive {
+impl HqFinalizedTotalDemandArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
@@ -57,35 +49,38 @@ impl HqTotalDemandArchive {
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS total_demand (
-    zoned TIMESTAMPTZ NOT NULL,
+CREATE TABLE IF NOT EXISTS total_demand_final (
+    hour_beginning TIMESTAMPTZ NOT NULL,
     value DECIMAL(9,2) NOT NULL,
 );
 
 CREATE TEMPORARY TABLE tmp
 AS
     SELECT 
-       date::TIMESTAMPTZ AS zoned,
-       valeurs_demandetotal::DECIMAL(9,2) AS value
+       date::TIMESTAMPTZ - INTERVAL 1 HOUR AS hour_beginning,
+       moyenne_mw::DECIMAL(9,2) AS value
     FROM (
         SELECT unnest(results, recursive := true)
-        FROM read_json('~/Downloads/Archive/HQ/TotalDemand/Raw/2025/total_demand_{}-*.json.gz')
+        FROM read_json('~/Downloads/Archive/HQ/TotalDemandFinal/Raw/{}/total_demand_{}-*.json.gz')
     )
     WHERE value IS NOT NULL
-    ORDER BY zoned
+    ORDER BY hour_beginning
 ;
 
-INSERT INTO total_demand
+INSERT INTO total_demand_final
 (
     SELECT * FROM tmp t
     WHERE NOT EXISTS (
-        SELECT * FROM total_demand d
+        SELECT * FROM total_demand_final d
         WHERE
-            d.zoned = t.zoned AND
+            d.hour_beginning = t.hour_beginning AND
             d.value = t.value
     )
-) ORDER BY zoned; 
-            "#, month.strftime("%Y-%m"));
+) ORDER BY hour_beginning; 
+            "#,
+            month.start_date().year(),
+            month.strftime("%Y-%m")
+        );
 
         // println!("{}", sql);
 
@@ -108,13 +103,12 @@ INSERT INTO total_demand
         Ok(())
     }
 
-    /// Data is updated on the website every 15 min
-    pub fn download_file(&self) -> Result<(), Box<dyn Error>> {
-        let url = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/demande-electricite-quebec/records?limit=100";
+    /// New data is published annually! On 15-Sep-2025 only data up to end of 2023 is available.
+    pub fn download_file(&self, day: &Date) -> Result<(), Box<dyn Error>> {
+        let url = format!("https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/historique-demande-electricite-quebec/records?where=date%20%3E%3D%20date%27{}%27%20and%20date%20%3C%20date%27{}%27&limit=40", day, day.tomorrow().unwrap());
         let resp = reqwest::blocking::get(url).expect("request failed");
         let body = resp.text().expect("body invalid");
-        let today: Date = Zoned::now().date();
-        let path = &self.filename(&today);
+        let path = &self.filename(day);
         let dir = Path::new(path).parent().unwrap();
         let _ = fs::create_dir_all(dir);
         let mut out = File::create(path).expect("failed to create file");
@@ -136,12 +130,9 @@ INSERT INTO total_demand
 #[cfg(test)]
 mod tests {
 
-    use jiff::{civil::date, ToSpan};
     use std::error::Error;
 
-    use crate::db::prod_db::ProdDb;
-
-    use super::*;
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     #[ignore]
     #[test]
@@ -150,29 +141,23 @@ mod tests {
             .filter_level(log::LevelFilter::Info)
             .is_test(true)
             .try_init();
-        let archive = ProdDb::hq_total_demand();
-        // let days = vec![date(2024, 12, 4), date(2024, 12, 5), date(2024, 12, 6)];
-        let days: Vec<Date> = date(2024, 12, 8).series(1.day()).take(5).collect();
-        
-        // archive.update_duckdb(days)
+        let archive = ProdDb::hq_total_demand_final();
+        let term = "Feb19".parse::<Term>().unwrap();
+        for month in term.months() {
+            archive.update_duckdb(month)?;
+        }
+
         Ok(())
     }
-
-    // #[test]
-    // fn process_hourly_level_data() -> Result<(), Box<dyn Error>> {
-    //     let archive = ProdDb::hq_hydro_data();
-    //     let day = date(2024, 12, 5);
-    //     let path = archive.filename(&day) + ".gz";
-    //     let xs = archive.process_hourly_observations(&path, Variable::WaterLevel)?;
-    //     assert_eq!(xs.len(), 72324);
-    //     Ok(())
-    // }
 
     #[ignore]
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
-        let archive = ProdDb::hq_total_demand();
-        archive.download_file()?;
+        let archive = ProdDb::hq_total_demand_final();
+        let term = "Jan24".parse::<Term>().unwrap();
+        for day in term.days() {
+            archive.download_file(&day)?;
+        }   
         Ok(())
     }
 }

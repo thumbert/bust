@@ -3,7 +3,9 @@ TODO:
 - Experiment writing a Rust UDF function in DuckDB
 
 ## 2025-09-15
-- Add HQ total system demand 30-min data (with gaps)
+- Add HQ total system demand data (30-min with gaps, preliminary)
+- Add HQ total system demand data (hourly, finalized)
+- Add HQ RT hourly fuel mix data
 
 ## 2025-09-07
 - Add IESO generation_output_by_fuel archive.

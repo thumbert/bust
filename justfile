@@ -6,6 +6,10 @@ release_server:
     cargo build --bin server_bust --release
     cp -f ./target/release/server_bust ~/Software
 
+update_hq_fuel_mix:
+    cargo build --bin update_hq_fuel_mix --release
+    cp ./target/release/update_hq_fuel_mix ~/Software
+
 update_hq_hydro_data:
     cargo test --package bust --lib -- db::hq::hydrometeorological_data_archive::tests --show-output
     cargo build --bin update_hq_hydro_data --release 

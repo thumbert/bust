@@ -1,5 +1,13 @@
 use crate::db::{
-    hq::electricity_demand::HqTotalDemandArchive, ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive, vgforecast_summary::IesoVGForecastSummaryArchive}, isone::{
+    hq::{
+        electricity_demand_prelim::HqPrelimTotalDemandArchive,
+        electricity_demand_final::HqFinalizedTotalDemandArchive, fuel_mix::HqFuelMixArchive,
+    },
+    ieso::{
+        da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
+        vgforecast_summary::IesoVGForecastSummaryArchive,
+    },
+    isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         dalmp_archive::IsoneDalmpArchive,
         masked_data::{
@@ -8,7 +16,8 @@ use crate::db::{
         },
         rtlmp_archive::IsoneRtLmpArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
+    },
+    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
 
 use super::{
@@ -58,7 +67,9 @@ impl ProdDb {
     pub fn ieso_generation_output_by_fuel() -> IesoGenOutputByFuelArchive {
         IesoGenOutputByFuelArchive {
             base_dir: "/home/adrian/Downloads/Archive/Ieso/GenerationOutputByFuel".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/generation_output_by_fuel.duckdb".to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/ieso/generation_output_by_fuel.duckdb"
+                    .to_string(),
         }
     }
 
@@ -72,10 +83,10 @@ impl ProdDb {
     pub fn ieso_vgforecast_summary() -> IesoVGForecastSummaryArchive {
         IesoVGForecastSummaryArchive {
             base_dir: "/home/adrian/Downloads/Archive/Ieso/VGForecastSummary".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/vgforecast_summary.duckdb".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ieso/vgforecast_summary.duckdb"
+                .to_string(),
         }
     }
-
 
     pub fn isone_actual_interchange() -> IsoneActualInterchangeArchive {
         IsoneActualInterchangeArchive {
@@ -177,10 +188,24 @@ impl ProdDb {
         }
     }
 
-    pub fn hq_total_demand() -> HqTotalDemandArchive {
-        HqTotalDemandArchive {
-            base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemand".to_string(),
+    pub fn hq_total_demand_final() -> HqFinalizedTotalDemandArchive {
+        HqFinalizedTotalDemandArchive {
+            base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemandFinal".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/total_demand.duckdb".to_string(),
+        }
+    }
+
+    pub fn hq_total_demand_prelim() -> HqPrelimTotalDemandArchive {
+        HqPrelimTotalDemandArchive {
+            base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemandPrelim".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/total_demand.duckdb".to_string(),
+        }
+    }
+
+    pub fn hq_fuel_mix() -> HqFuelMixArchive {
+        HqFuelMixArchive {
+            base_dir: "/home/adrian/Downloads/Archive/HQ/FuelMix".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/fuel_mix.duckdb".to_string(),
         }
     }
 
@@ -201,8 +226,11 @@ impl ProdDb {
 
     pub fn statistics_canada_generation() -> StatisticsCanadaGenerationArchive {
         StatisticsCanadaGenerationArchive {
-            base_dir: "/home/adrian/Downloads/Archive/StatisticsCanada/ElectricityProduction".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/statistics_canada/energy_generation.duckdb".to_string(),
+            base_dir: "/home/adrian/Downloads/Archive/StatisticsCanada/ElectricityProduction"
+                .to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/statistics_canada/energy_generation.duckdb"
+                    .to_string(),
         }
     }
 
