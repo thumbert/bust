@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-struct OffersQuery {
+struct LmpQuery {
     /// One or more locations, separated by commas.
     /// If not specified, return all ptids.  Use carefully
     /// because it's a lot of data...
@@ -30,7 +30,7 @@ struct OffersQuery {
 #[get("/ieso/dalmp/hourly/start/{start}/end/{end}")]
 async fn api_hourly_prices(
     path: web::Path<(Date, Date)>,
-    query: web::Query<OffersQuery>,
+    query: web::Query<LmpQuery>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(ProdDb::ieso_dalmp_zonal().duckdb_path, config).unwrap();
@@ -57,7 +57,7 @@ async fn api_hourly_prices(
 #[get("/ieso/dalmp/daily/bucket/{bucket}/start/{start}/end/{end}")]
 async fn api_daily_prices(
     path: web::Path<(Bucket, Date, Date)>,
-    query: web::Query<OffersQuery>,
+    query: web::Query<LmpQuery>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(ProdDb::ieso_dalmp_zonal().duckdb_path, config).unwrap();
