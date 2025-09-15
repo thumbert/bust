@@ -209,10 +209,7 @@ impl HqHydroDataArchive {
         let mut station_info: Vec<StationInfo> = Vec::new();
         for e in station.iter() {
             let start = Date::strptime("%Y/%m/%d", e["date debut"].as_str().unwrap());
-            let end = match Date::strptime("%Y/%m/%d", e["date fin"].to_string()) {
-                Ok(d) => Some(d),
-                Err(_) => None,
-            };
+            let end = Date::strptime("%Y/%m/%d", e["date fin"].to_string()).ok();
             // println!("{:?}", e);
             let one = StationInfo {
                 code_region_qc: e["CodeRegionQC"].as_str().unwrap().parse::<i32>().unwrap(),

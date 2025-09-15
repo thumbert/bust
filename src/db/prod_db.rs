@@ -1,6 +1,5 @@
 use crate::db::{
-    ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive, vgforecast_summary::IesoVGForecastSummaryArchive},
-    isone::{
+    hq::electricity_demand::HqTotalDemandArchive, ieso::{da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive, vgforecast_summary::IesoVGForecastSummaryArchive}, isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         dalmp_archive::IsoneDalmpArchive,
         masked_data::{
@@ -9,7 +8,7 @@ use crate::db::{
         },
         rtlmp_archive::IsoneRtLmpArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
 };
 
 use super::{
@@ -175,6 +174,13 @@ impl ProdDb {
         HqHydroDataArchive {
             base_dir: "/home/adrian/Downloads/Archive/HQ/HydroMeteorologicalData".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq_water_level.duckdb".to_string(),
+        }
+    }
+
+    pub fn hq_total_demand() -> HqTotalDemandArchive {
+        HqTotalDemandArchive {
+            base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemand".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/total_demand.duckdb".to_string(),
         }
     }
 

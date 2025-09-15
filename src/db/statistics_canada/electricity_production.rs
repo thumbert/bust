@@ -1,6 +1,5 @@
 use duckdb::Connection;
 use jiff::{civil::*, Timestamp, Zoned};
-use log::{error, info};
 use std::error::Error;
 use std::path::Path;
 

@@ -107,7 +107,6 @@ pub fn get_hourly_prices(
 ) -> Result<Vec<Row>> {
     let query = format!(
         r#"
-
 WITH unpivot_alias AS (
     UNPIVOT da_lmp
     ON {}
@@ -173,42 +172,48 @@ pub fn get_daily_prices(
     ptids: Option<Vec<i32>>,
     components: Option<Vec<LmpComponent>>,
 ) -> Result<Vec<RowD>> {
+    conn.execute("LOAD icu;", [])?;
     let query = format!(
         r#"
-WITH unpivot_alias AS (
-    UNPIVOT da_lmp
-    ON {}
-    INTO
-        NAME component
-        VALUE price
-)
-SELECT 
-    component,
-    ptid,
-    hour_beginning::DATE AS day,
-    'ATC' AS bucket,
-    MEAN(price)::DECIMAL(9,4) AS price,
-FROM unpivot_alias
-WHERE hour_beginning >= '{}'
-AND hour_beginning < '{}'{}
-GROUP BY component, ptid, day
-ORDER BY component, ptid, day; 
-    "#,
+    WITH unpivot_alias AS (
+        UNPIVOT da_lmp
+        ON {}
+        INTO
+            NAME component
+            VALUE price
+    )
+    SELECT
+        component,
+        ptid,
+        hour_beginning::DATE AS day,
+        'ATC' AS bucket,
+        MEAN(price)::DECIMAL(9,4) AS price,
+    FROM unpivot_alias
+    WHERE hour_beginning >= '{}'
+    AND hour_beginning < '{}'{}
+    GROUP BY component, ptid, day
+    ORDER BY component, ptid, day;
+        "#,
         match components {
             Some(cs) => cs.iter().join(", ").to_string(),
             None => "lmp, mcc, mcl".to_string(),
         },
-        start.strftime("%Y-%m-%d 00:00:00.000"),
-        end.checked_add(1.day())
+        start
+            .in_tz("America/New_York")
+            .unwrap()
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        end.in_tz("America/New_York")
+            .unwrap()
+            .checked_add(1.day())
             .ok()
             .unwrap()
-            .strftime("%Y-%m-%d 00:00:00.000"),
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
         match ptids {
             Some(ids) => format!("\nAND ptid in ({}) ", ids.iter().join(", ")),
             None => "".to_string(),
         },
     );
-    println!("{}", query);
+    // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
     let prices_iter = stmt.query_map([], |row| {
         let n = 719528 + row.get::<usize, i32>(2).unwrap();
@@ -294,8 +299,8 @@ mod tests {
                 date: date(2025, 7, 1),
                 ptid: 4000,
                 component: LmpComponent::Lmp,
-                bucket: Bucket::Atc,    
-                value: dec!(49.65),
+                bucket: Bucket::Atc,
+                value: dec!(59.6663),
             }
         );
 
