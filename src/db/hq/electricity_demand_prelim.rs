@@ -49,7 +49,7 @@ impl HqPrelimTotalDemandArchive {
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS total_demand (
+CREATE TABLE IF NOT EXISTS total_demand_prelim (
     zoned TIMESTAMPTZ NOT NULL,
     value DECIMAL(9,2) NOT NULL,
 );
@@ -67,11 +67,11 @@ AS
     ORDER BY zoned
 ;
 
-INSERT INTO total_demand
+INSERT INTO total_demand_prelim
 (
     SELECT * FROM tmp t
     WHERE NOT EXISTS (
-        SELECT * FROM total_demand d
+        SELECT * FROM total_demand_prelim d
         WHERE
             d.zoned = t.zoned AND
             d.value = t.value

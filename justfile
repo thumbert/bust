@@ -1,6 +1,10 @@
 default:
     just --choose
 
+alerts_hq:
+    cargo build --bin alerts_hq --release
+    cp ./target/release/alerts_hq ~/Software
+
 release_server:
     cargo test
     cargo build --bin server_bust --release
@@ -15,9 +19,9 @@ update_hq_hydro_data:
     cargo build --bin update_hq_hydro_data --release 
     cp ./target/release/update_hq_hydro_data ~/Software
 
-update_hq_total_demand:
-    cargo build --bin update_hq_total_demand --release 
-    cp ./target/release/update_hq_total_demand ~/Software
+update_hq_total_demand_prelim:
+    cargo build --bin update_hq_total_demand_prelim --release
+    cp ./target/release/update_hq_total_demand_prelim ~/Software
 
 update_ieso_prices_da:
     cargo build --bin update_ieso_prices_da --release 
@@ -51,4 +55,9 @@ update_nyiso_prices_da:
     cargo build --bin email_nyiso_prices_da --release
     cp ./target/release/email_nyiso_prices_da ~/Software
     cp -r .env ~/Software
+
+string_speed:
+    cargo build --example string_speed --release 
+    ./target/release/examples/string_speed
+    hyperfine --warmup 3 --shell=none './target/release/examples/string_speed'
 

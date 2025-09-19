@@ -7,24 +7,24 @@ edition = "2021"
 
 [dependencies]
 actix-cors = "0.7.0"
-actix-web = "4"
-build_html = "2.6.0"
+actix-web = "4.11.0"
+build_html = "2.7.0"
 cargo-watch = "8.5.2"
 clap = { version = "4.5.4", features = ["derive"] }
 csv = "1.3"
 dotenvy = "0.15.7"
-duckdb = { version = "=1.3.2", features = ["r2d2", "json"] }
+duckdb = { version = "=1.4.0", features = ["r2d2", "json"] }
 env_logger = "0.11.3"
 flate2 = "1.0.35"
 futures = "0.3.28"
-itertools = "0.13.0"
-jiff = {version="0.2.14", features = ["serde"]}
+itertools = "0.14.0"
+jiff = {version="0.2.15", features = ["serde"]}
 json5 = "0.4.1"
 lazy_static = "1.4.0"
 log = "0.4"
-mongodb = "3.0.1"
+mongodb = "3.3.0"
 once_cell = "1.21.3"
-pest = "2.7.9"
+pest = "2.8.2"
 pest_derive = "2.7.9"
 plotly = "0.12.1"
 quick-xml = { version = "0.37", features = ["serialize"] }
@@ -33,14 +33,14 @@ r2d2 = "0.8.10"
 regex = "1.11.0"
 reqwest = {version="0.12", features = ["cookies",  "json", "blocking", "rustls-tls"]}
 reqwest_cookie_store = "0.8.0"
-rust_decimal = {version="1.36.0", features = ["serde-with-float", "serde"]}
-rust_decimal_macros = "1.36.0"
+rust_decimal = {version="1.38.0", features = ["serde-with-float", "serde"]}
+rust_decimal_macros = "1.38.0"
 serde = {version="1.0.210", features = ["derive"]}
 serde_json = "1.0.132"
 tabled = "0.19.0"
 time = "0.3.36"
 thiserror = "1.0.64"
-tokio = {version = "1.32.0", features = ["full"]}
+tokio = {version = "1.47.1", features = ["full"]}
 zip = "4.0.0"
 
 [[bin]]
@@ -88,3 +88,6 @@ path = "examples/duckdb/example_read_json.rs"
 name = "inheritance"
 path = "examples/learn/inheritance.rs"
 
+[[example]]
+name = "string_speed"
+path = "examples/string_speed.rs"

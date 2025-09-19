@@ -142,7 +142,7 @@ mod tests {
             .is_test(true)
             .try_init();
         let archive = ProdDb::hq_total_demand_final();
-        let term = "Feb19".parse::<Term>().unwrap();
+        let term = "Mar19-Dec23".parse::<Term>().unwrap();
         for month in term.months() {
             archive.update_duckdb(month)?;
         }
