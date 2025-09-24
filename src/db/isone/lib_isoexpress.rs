@@ -5,7 +5,7 @@ use std::{
     fs::{self, File},
     io,
     path::Path,
-    process::Command,
+    process::Command, time::Duration,
 };
 
 use reqwest::{
@@ -41,6 +41,7 @@ pub fn download_file(
     let client = Client::new();
     let mut builder = client
         .get(url)
+        .timeout(Duration::from_secs(60)) // set to 60 seconds, adjust as needed
         .header(USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
         .header(UPGRADE_INSECURE_REQUESTS, "1");
     if let Some(accept_header) = accept_header {

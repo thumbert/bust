@@ -20,6 +20,7 @@ impl DateExt for Date {
         DateTz::containing(&dt.to_zoned(tz.clone()).unwrap())
     }
 
+    /// Up to and including the end date
     fn up_to(&self, end: Self) -> Vec<Self> {
         let mut dates = Vec::new();
         let mut current = *self;

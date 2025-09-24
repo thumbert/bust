@@ -130,7 +130,7 @@ mod tests {
 
     use crate::{
         db::prod_db::ProdDb,
-        interval::{interval::DateExt, month::month},
+        interval::term::Term,
     };
 
     #[ignore]
@@ -143,12 +143,12 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        let days = date(2025, 3, 2).up_to(date(2025, 3, 31));
-        for day in &days {
+        let term = "Apr25-May25".parse::<Term>()?;
+        for day in &term.days() {
             println!("Processing {}", day);
             archive.download_file(day)?;
         }
-        let months = month(2025, 3).up_to(month(2025, 3))?;
+        let months = term.months();
         for month in &months {
             println!("Updating DuckDB for month {}", month);
             archive.update_duckdb(month)?;
@@ -161,7 +161,7 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_masked_daas_offers();
-        archive.download_file(&date(2025, 3, 1))?;
+        archive.download_file(&date(2025, 5, 26))?;
         Ok(())
     }
 }

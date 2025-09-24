@@ -1,6 +1,10 @@
 
 TODO:
 - Experiment writing a Rust UDF function in DuckDB
+- Implement FromSql for Date see src/types/from_sql.rs lines 191+ in duckdb-rs. 
+
+## 2025-09-24
+- Add NYISO scheduled_outages
 
 ## 2025-09-15
 - Add HQ total system demand data (30-min with gaps, preliminary)

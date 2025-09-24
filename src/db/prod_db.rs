@@ -1,7 +1,7 @@
 use crate::db::{
     hq::{
-        electricity_demand_prelim::HqPrelimTotalDemandArchive,
-        electricity_demand_final::HqFinalizedTotalDemandArchive, fuel_mix::HqFuelMixArchive,
+        electricity_demand_final::HqFinalizedTotalDemandArchive,
+        electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
     },
     ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
@@ -16,6 +16,10 @@ use crate::db::{
         },
         rtlmp_archive::IsoneRtLmpArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
+    },
+    nyiso::{
+        scheduled_outages::NyisoScheduledOutagesArchive,
+        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
     },
     statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
@@ -221,6 +225,24 @@ impl ProdDb {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn nyiso_scheduled_outages() -> NyisoScheduledOutagesArchive {
+        NyisoScheduledOutagesArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/TransmissionOutages/Scheduled"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/scheduled_outages.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn nyiso_transmission_outages_da() -> NyisoTransmissionOutagesDaArchive {
+        NyisoTransmissionOutagesDaArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/TransmissionOutages/DA".to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/nyiso/transmission_outages_da.duckdb"
+                    .to_string(),
         }
     }
 

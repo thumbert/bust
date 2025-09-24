@@ -1,11 +1,8 @@
 use jiff::civil::*;
-use log::{error, info};
 use std::error::Error;
 use std::path::Path;
-use std::process::Command;
 
 use crate::db::isone::lib_isoexpress;
-use crate::interval::month::Month;
 
 #[derive(Clone)]
 pub struct DaEnergyOffersArchive {
@@ -129,7 +126,7 @@ mod tests {
 
     use crate::{
         db::prod_db::ProdDb,
-        interval::{interval::DateExt, month::month},
+        interval::{interval::DateExt, term::Term},
     };
 
     #[ignore]
@@ -142,20 +139,17 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_da_energy_offers();
-        // let days = date(2025, 3, 2).up_to(date(2025, 3, 31));
-        // for day in &days {
-        //     println!("Processing {}", day);
-        //     archive.download_file(day)?;
-        // }
-        let months = month(2025, 2).up_to(month(2025, 3))?;
+        let term = "Apr25-May25".parse::<Term>()?;
+        for day in &term.days() {
+            println!("Processing {}", day);
+            archive.download_file(day)?;
+        }
+        let months = term.months();
         for month in &months {
-            for day in &month.days() {
-                println!("Processing {}", day);
-                archive.download_file(day)?;
-            }
             println!("Updating DuckDB for month {}", month);
             // archive.update_duckdb(month)?;
         }
+
         Ok(())
     }
 
@@ -164,7 +158,10 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_masked_da_energy_offers();
-        archive.download_file(&date(2025, 1, 28))?;
+        let days = date(2025, 5, 29).up_to(date(2025, 5, 31));
+        for day in days {
+            archive.download_file(&day)?;
+        }   
         Ok(())
     }
 }

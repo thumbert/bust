@@ -100,6 +100,7 @@ async fn main() -> std::io::Result<()> {
             // NYISO
             .service(nyiso::energy_offers::api_offers)
             .service(nyiso::energy_offers::api_stack)
+            .service(nyiso::scheduled_outages::api_scheduled_outages)
     })
     .bind(("127.0.0.1", port))?
     // .bind(("0.0.0.0", args.port))? // use this if you want to allow all connections

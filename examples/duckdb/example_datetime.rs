@@ -1,7 +1,7 @@
 use std::{error::Error, fmt};
 
 use duckdb::{Connection, Result};
-use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
+use jiff::{civil::{Date, Time}, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 
@@ -49,9 +49,10 @@ where
 #[derive(Debug, Serialize, Deserialize)]
 struct Row {
     date: Date,
-    version: Timestamp,
+    version: Option<Timestamp>,
     #[serde(serialize_with = "serialize_zoned_as_offset")]
     hour_beginning: Zoned,
+    time: Time,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,22 +73,28 @@ CREATE TABLE test (
     date DATE,
     version TIMESTAMP,
     hour_beginning TIMESTAMPTZ,
+    time TIME
 );
-INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T00:00:00-05:00');
-INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T01:00:00-05:00');
-INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T02:00:00-05:00');
+INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T00:00:00-05:00', '1:00:00');
+INSERT INTO test VALUES ('2025-01-01', '2025-01-03T05:25:00Z', '2025-01-01T01:00:00-05:00', '00:01:00');
+INSERT INTO test VALUES ('2025-01-01', NULL, '2025-01-01T02:00:00-05:00', '16:30:00');
     "#,
     )?;
     let mut stmt = conn.prepare("SELECT * FROM test")?;
     let res_iter = stmt.query_map([], |row| {
         let n = 719528 + row.get::<usize, i32>(0).unwrap();
-        let micro: i64 = row.get(1).unwrap();
+        let version = match row.get_ref_unwrap(1) {
+            duckdb::types::ValueRef::Timestamp(_, value) => Some(Timestamp::from_second(value / 1_000_000).unwrap()),
+            _ => None,
+        };
         let micro2: i64 = row.get(2).unwrap();
         let ts = Timestamp::from_second(micro2 / 1_000_000).unwrap();
+        let time = Time::midnight().saturating_add((row.get::<usize, i64>(3)? / 1_000_000).seconds());
         Ok(Row {
             date: Date::ZERO.checked_add(n.days()).unwrap(),
-            version: Timestamp::from_second(micro / 1_000_000).unwrap(),
+            version,
             hour_beginning: Zoned::new(ts, TimeZone::get("America/New_York").unwrap()),
+            time,
         })
     })?;
 
