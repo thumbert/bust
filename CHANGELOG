@@ -3,6 +3,9 @@ TODO:
 - Experiment writing a Rust UDF function in DuckDB
 - Implement FromSql for Date see src/types/from_sql.rs lines 191+ in duckdb-rs. 
 
+## 2025-09-26
+- Automate the Statistics Canada energy production job. 
+
 ## 2025-09-24
 - Add NYISO scheduled_outages
 

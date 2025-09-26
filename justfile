@@ -10,6 +10,10 @@ release_server:
     cargo build --bin server_bust --release
     cp -f ./target/release/server_bust ~/Software
 
+update_canadian_energy_production:
+    cargo build --bin update_canadian_energy_production --release
+    cp ./target/release/update_canadian_energy_production ~/Software
+
 update_hq_fuel_mix:
     cargo build --bin update_hq_fuel_mix --release
     cp ./target/release/update_hq_fuel_mix ~/Software

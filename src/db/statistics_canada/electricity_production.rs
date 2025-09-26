@@ -1,7 +1,11 @@
 use duckdb::Connection;
 use jiff::{civil::*, Timestamp, Zoned};
+use reqwest::blocking::get;
 use std::error::Error;
+use std::fs::File;
+use std::io::copy;
 use std::path::Path;
+use std::process::Command;
 
 use crate::db::isone::lib_isoexpress::download_file;
 
@@ -13,19 +17,47 @@ pub struct StatisticsCanadaGenerationArchive {
 
 impl StatisticsCanadaGenerationArchive {
     /// Return the CSV filename with all historical data from 2008 to present.
-    pub fn filename(&self, day: &Date) -> String {
-        self.base_dir.to_owned() + format!("/Raw/25100015-eng_{}/25100015.csv", day).as_str()
+    pub fn filename(&self) -> String {
+        self.base_dir.to_owned() + "/Raw/25100015-eng.zip"
+    }
+
+    pub fn update_duckdb(&self) -> Result<(), Box<dyn Error>> {
+        let config = duckdb::Config::default().access_mode(duckdb::AccessMode::ReadWrite)?;
+        let conn = Connection::open_with_flags(&self.duckdb_path, config)?;
+
+        conn.execute("DROP TABLE IF EXISTS electricity_production;", [])?;
+        let query = format!(
+            r#"
+        CREATE TABLE electricity_production AS (
+            SELECT *
+            FROM read_csv('{}/Raw/25100015.csv')
+        );
+        "#,
+            self.base_dir,
+        );
+        conn.execute(&query, [])?;
+
+        Ok(())
     }
 
     /// Data is published at the beginning of every month.
     pub fn download_file(&self) -> Result<(), Box<dyn Error>> {
-        download_file(
-            "https://www150.statcan.gc.ca/n1/tbl/csv/25100015-eng.zip".to_string(),
-            false,
-            None,
-            Path::new(&self.filename(&Zoned::now().date())),
-            true,
-        )
+        println!("{}", self.filename());
+        let url = "https://www150.statcan.gc.ca/n1/tbl/csv/25100015-eng.zip";
+        let mut resp = get(url)?;
+        let mut out = File::create(self.filename())?;
+        copy(&mut resp, &mut out)?;
+
+        Command::new("unzip")
+            .args([
+                "-o",
+                &self.filename(),
+                "-d",
+                &(self.base_dir.clone() + "/Raw/"),
+            ])
+            .spawn()?
+            .wait()?;
+        Ok(())
     }
 
     /// Get monthly data as a timeseries
@@ -76,7 +108,9 @@ mod tests {
     #[ignore]
     #[test]
     fn update_db() -> Result<(), Box<dyn Error>> {
-        // Update the database by hand, by executing the SQL
+        let archive = ProdDb::statistics_canada_generation();
+        archive.download_file()?;
+        archive.update_duckdb()?;
         Ok(())
     }
 
@@ -92,13 +126,10 @@ mod tests {
             "Total all classes of electricity producer",
             "Quebec",
         )?;
-        assert_eq!(rows[0], ("2008-01-01T00:00:00Z".parse().unwrap(), 18523856.0));
-        Ok(())
-    }
-
-    #[ignore]
-    #[test]
-    fn download_file() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            rows[0],
+            ("2008-01-01T00:00:00Z".parse().unwrap(), 18523856.0)
+        );
         Ok(())
     }
 }

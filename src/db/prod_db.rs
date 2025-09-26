@@ -248,7 +248,7 @@ impl ProdDb {
 
     pub fn statistics_canada_generation() -> StatisticsCanadaGenerationArchive {
         StatisticsCanadaGenerationArchive {
-            base_dir: "/home/adrian/Downloads/Archive/StatisticsCanada/ElectricityProduction"
+            base_dir: "/home/adrian/Downloads/Archive/Canada/StatisticsCanada/ElectricPowerGeneration"
                 .to_string(),
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/statistics_canada/energy_generation.duckdb"
