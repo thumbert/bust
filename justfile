@@ -43,6 +43,10 @@ update_isone_prices_rt:
     cargo build --bin update_isone_prices_rt --release 
     cp ./target/release/update_isone_prices_rt ~/Software
 
+update_isone_sevenday_capacity_report:
+    cargo build --bin update_isone_sevenday_capacity_report --release
+    cp ./target/release/update_isone_sevenday_capacity_report ~/Software
+
 update_isone_sevenday_solar_forecast_archive:
     cargo build --bin update_isone_sevenday_solar_forecast_archive --release 
     cp ./target/release/update_isone_sevenday_solar_forecast_archive ~/Software

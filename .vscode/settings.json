@@ -4,6 +4,8 @@
         "./Cargo.toml"
     ],
     "cSpell.words": [
-        "bidsoffers"
+        "bidsoffers",
+        "dayforecast",
+        "Sevendayforecast"
     ]
 }

@@ -15,6 +15,7 @@ use crate::db::{
             daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
         },
         rtlmp_archive::IsoneRtLmpArchive,
+        sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
     },
     nyiso::{
@@ -166,6 +167,15 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/7daySolarForecast".to_string(),
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_solar_forecast.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn isone_sevenday_capacity_forecast() -> SevendayCapacityForecastArchive {
+        SevendayCapacityForecastArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/7dayCapacityForecast".to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_capacity_forecast.duckdb"
                     .to_string(),
         }
     }
