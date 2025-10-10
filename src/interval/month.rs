@@ -3,6 +3,7 @@ use jiff::{
     ToSpan,
 };
 use pest::{iterators::Pair, Parser};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
 
 use std::{error::Error, fmt, str::FromStr};
@@ -156,6 +157,30 @@ impl IntervalLike for Month {
         self.start_date.saturating_add(1.month()).at(0, 0, 0, 0)
     }
 }
+
+
+impl Serialize for Month {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = self.start_date.strftime("%Y-%m").to_string();
+        serializer.serialize_str(&s)
+    }
+}
+
+// Custom deserializer using FromStr so that Actix path path can parse different formats, e.g. 
+// "2025-03", "Mar25", etc.
+impl<'de> Deserialize<'de> for Month {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Month::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 
 /// Parse various formats for a month:
 /// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"

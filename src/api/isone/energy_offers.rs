@@ -1,4 +1,7 @@
-use std::{fmt::{self}, str::FromStr};
+use std::{
+    fmt::{self},
+    str::FromStr,
+};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -7,8 +10,14 @@ use duckdb::{
     Connection, Result,
 };
 use itertools::Itertools;
-use jiff::{civil::Date, Timestamp, ToSpan};
-use serde::{Deserialize, Serialize};
+use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
+use serde::{Deserialize, Deserializer, Serialize};
+
+use crate::{
+    api::isone::daas_offers::deserialize_zoned_assume_ny,
+    api::isone::daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb, elec::iso::ISONE,
+};
+
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -24,8 +33,9 @@ async fn api_offers(
     path: web::Path<(String, String, String)>,
     query: web::Query<OffersQuery>,
 ) -> impl Responder {
+    let archive = ProdDb::isone_masked_da_energy_offers();
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -58,8 +68,9 @@ async fn api_offers(
 /// Get DA or RT stack for a list of timestamps (seconds from epoch)
 #[get("/isone/energy_offers/{market}/stack/timestamps/{timestamps}")]
 async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
+    let archive = ProdDb::isone_masked_da_energy_offers();
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -91,7 +102,7 @@ async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize)]
 pub enum Market {
     DA,
     RT,
@@ -106,7 +117,6 @@ impl fmt::Display for Market {
     }
 }
 
-
 impl FromStr for Market {
     type Err = String;
 
@@ -119,7 +129,19 @@ impl FromStr for Market {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
+// "da" and "Da", not only the canonical one "DA".
+impl<'de> Deserialize<'de> for Market {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Market::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum UnitStatus {
     Economic,
     Unavailable,
@@ -139,11 +161,15 @@ impl FromStr for UnitStatus {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EnergyOffer {
     masked_asset_id: u32,
     unit_status: UnitStatus,
-    timestamp_s: i64, // seconds since epoch of hour beginning
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
+    hour_beginning: Zoned,
     segment: u8,
     quantity: f32,
     price: f32,
@@ -208,7 +234,10 @@ ORDER BY "MaskedAssetId", "HourBeginning";
         Ok(EnergyOffer {
             masked_asset_id: row.get(0).unwrap(),
             unit_status: unit_status.parse::<UnitStatus>().unwrap(),
-            timestamp_s: micro / 1_000_000,
+            hour_beginning: Zoned::new(
+                Timestamp::from_microsecond(micro).unwrap(),
+                ISONE.tz.clone(),
+            ),
             segment: row.get(3)?,
             quantity: row.get(4)?,
             price: row.get(5)?,
@@ -284,7 +313,10 @@ ORDER BY HourBeginning, Price;
         Ok(EnergyOffer {
             masked_asset_id: row.get(0).unwrap(),
             unit_status: unit_status.parse::<UnitStatus>().unwrap(),
-            timestamp_s: micro / 1_000_000,
+            hour_beginning: Zoned::new(
+                Timestamp::from_microsecond(micro).unwrap(),
+                ISONE.tz.clone(),
+            ),
             segment: row.get(3)?,
             quantity: row.get(4)?,
             price: row.get(5)?,
@@ -293,10 +325,6 @@ ORDER BY HourBeginning, Price;
     let offers: Vec<EnergyOffer> = offers_iter.map(|e| e.unwrap()).collect();
 
     Ok(offers)
-}
-
-fn get_path() -> String {
-    "/home/adrian/Downloads/Archive/IsoExpress/energy_offers.duckdb".to_string()
 }
 
 #[cfg(test)]
@@ -311,8 +339,9 @@ mod tests {
 
     #[test]
     fn test_get_offers() -> Result<()> {
+        let archive = ProdDb::isone_masked_da_energy_offers();
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
         let xs = get_energy_offers(
             &conn,
             Market::DA,
@@ -329,7 +358,9 @@ mod tests {
             EnergyOffer {
                 masked_asset_id: 31662,
                 unit_status: UnitStatus::Economic,
-                timestamp_s: 1709269200,
+                hour_beginning: "2024-03-01 00:00:00-05:00[America/New_York]"
+                    .parse()
+                    .unwrap(),
                 segment: 0,
                 quantity: 283.0,
                 price: 37.61,
@@ -340,8 +371,9 @@ mod tests {
 
     #[test]
     fn test_get_stack() -> Result<()> {
+        let archive = ProdDb::isone_masked_da_energy_offers();
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
         let xs = get_stack(
             &conn,
             Market::DA,
@@ -349,14 +381,19 @@ mod tests {
         )
         .unwrap();
         conn.close().unwrap();
-        let x0 = xs.first().unwrap();
+        let x0 = xs
+            .iter()
+            .find(|e| e.masked_asset_id == 42103 && e.segment == 0)
+            .unwrap();
         // println!("{:?}", x0);
         assert_eq!(
             *x0,
             EnergyOffer {
                 masked_asset_id: 42103,
                 unit_status: UnitStatus::MustRun,
-                timestamp_s: 1709269200,
+                hour_beginning: "2024-03-01 00:00:00-05:00[America/New_York]"
+                    .parse()
+                    .unwrap(),
                 segment: 0,
                 quantity: 8.0,
                 price: -150.0,
@@ -368,8 +405,9 @@ mod tests {
 
     #[test]
     fn test_get_stack2() -> Result<()> {
+        let archive = ProdDb::isone_masked_da_energy_offers();
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
         let xs = get_stack(
             &conn,
             Market::DA,
@@ -387,7 +425,9 @@ mod tests {
             EnergyOffer {
                 masked_asset_id: 88805,
                 unit_status: UnitStatus::MustRun,
-                timestamp_s: 1706763600,
+                hour_beginning: "2024-02-01 00:00:00-05:00[America/New_York]"
+                    .parse()
+                    .unwrap(),
                 segment: 0,
                 quantity: 3.8,
                 price: -150.0,

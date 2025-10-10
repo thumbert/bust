@@ -1,28 +1,19 @@
 use crate::db::{
-    hq::{
+    calendar::buckets::BucketsArchive, hq::{
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    },
-    ieso::{
+    }, ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    },
-    isone::{
-        actual_interchange_archive::IsoneActualInterchangeArchive,
-        dalmp_archive::IsoneDalmpArchive,
-        masked_data::{
+    }, isone::{
+        actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
             da_energy_offers_archive::DaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
-        },
-        rtlmp_archive::IsoneRtLmpArchive,
-        sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
-        total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    },
-    nyiso::{
+        }, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
+    }, nyiso::{
         scheduled_outages::NyisoScheduledOutagesArchive,
         transmission_outages_da::NyisoTransmissionOutagesDaArchive,
-    },
-    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
 };
 
 use super::{
@@ -48,6 +39,15 @@ use super::{
 pub struct ProdDb {}
 
 impl ProdDb {
+    pub fn buckets() -> BucketsArchive {
+        BucketsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Calendars".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets.duckdb".to_string(),
+        }
+    }
+
+
+
     pub fn ieso_dalmp_area() -> IesoDaLmpAreaArchive {
         IesoDaLmpAreaArchive {
             base_dir: "/home/adrian/Downloads/Archive/Ieso/DaLmp/Area".to_string(),
@@ -122,6 +122,14 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn isone_fuel_mix() -> IsoneFuelMixArchive {
+        IsoneFuelMixArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/GridReports/FuelMix".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/fuelmix.duckdb"
+                .to_string(),
         }
     }
 

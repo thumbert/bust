@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let today = Zoned::now().date();
     let archive = ProdDb::isone_sevenday_capacity_forecast();   
-    for i in 1..5 {
+    for i in 0..5 {
         let date = today - i.days();
         let file = archive.filename(&date) + ".gz";
         if !Path::new(&file).exists() {

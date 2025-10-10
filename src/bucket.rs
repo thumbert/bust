@@ -1,3 +1,4 @@
+use core::fmt;
 use std::str::FromStr;
 
 use jiff::{civil::Weekday, Zoned};
@@ -16,11 +17,17 @@ pub trait BucketLike {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum Bucket {
+    #[serde(rename = "ATC")]
     Atc,
+    #[serde(rename = "5x16")]
     B5x16,
+    #[serde(rename = "2x16H")]
     B2x16H,
+    #[serde(rename = "7x8")]
     B7x8,
+    #[serde(rename = "7x16")]
     B7x16,
+    #[serde(rename = "Offpeak")]
     Offpeak,
 }
 
@@ -37,8 +44,13 @@ impl FromStr for Bucket {
     }
 }
 
+impl fmt::Display for Bucket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
 
-// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g. 
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
 // "ATC" and "atc", not only the canonical one "Atc".
 impl<'de> Deserialize<'de> for Bucket {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -128,7 +140,6 @@ fn contains_7x16(dt: &Zoned) -> bool {
     dt.hour() >= 7 && dt.hour() < 23
 }
 
-
 #[cfg(test)]
 mod tests {
     use jiff::civil::date;
@@ -157,8 +168,8 @@ mod tests {
         let hours: Vec<i32> = years
             .iter()
             .map(|term| Bucket::Atc.count_hours(term))
-            .collect();   
-        assert_eq!(hours, vec![8784, 8760, 8760, 8760]);     
+            .collect();
+        assert_eq!(hours, vec![8784, 8760, 8760, 8760]);
     }
 
     #[test]

@@ -306,7 +306,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
-    info!("Sending NYISO DALMP report for asof date: {}", asof);    
+    info!("Sending NYISO DALMP report for asof date: {}", asof);
     let html = make_report(asof)?;
 
     let response = send_email(
@@ -341,11 +341,12 @@ mod tests {
     #[test]
     fn calc_test() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let asof = date(2025, 6, 27);
+        let asof = date(2025, 10, 8);
         let ptids = get_ptids();
 
         let archive = ProdDb::nyiso_dalmp();
         let data = make_table(asof, LmpComponent::Lmp, &ptids, &archive)?;
+
         let nm1 = data
             .iter()
             .find(|row| row[0].location_name == "NM1")

@@ -4,7 +4,7 @@ use jiff::{civil::*, tz, Timestamp, Zoned};
 use log::{error, info};
 use reqwest::blocking::get;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::fs::{self, File};
@@ -14,7 +14,7 @@ use std::str::FromStr;
 
 use crate::interval::month::Month;
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Copy)]
+#[derive(Debug, Serialize, Clone, PartialEq, Copy)]
 pub enum LmpComponent {
     // locational marginal price
     Lmp,
@@ -53,6 +53,19 @@ impl FromStr for LmpComponent {
         }
     }
 }
+
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g. 
+// "lmp" and "LMP", not only the canonical one "Lmp".
+impl<'de> Deserialize<'de> for LmpComponent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        LmpComponent::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 
 pub enum NodeType {
     Gen,
@@ -218,34 +231,24 @@ impl NyisoDalmpArchive {
         CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM 'zip://{}/*.csv';
 
         CREATE TEMPORARY TABLE tmp AS
-        (SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
-        FROM (
-            SELECT 
-                strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
-                ptid::INTEGER AS ptid,
-                row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
-                "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-                "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-                "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-            FROM tmp1
-            )
-        ORDER BY hour_beginning, ptid
+        (SELECT 
+            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
+            ptid::INTEGER AS ptid,
+            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+        FROM tmp1
         )
         UNION 
-        (SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
-        FROM (SELECT 
-                strptime("Time Stamp"[0:10], '%m/%d/%Y')::TIMESTAMPTZ AS "day",
-                ptid::INTEGER AS ptid,
-                row_number() OVER (PARTITION BY ptid, strptime("Time Stamp"[0:10], '%m/%d/%Y')) - 1 AS idx, -- 0 to 23 for each day
-                "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-                "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-                "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-            FROM tmp2
-            )
-        ORDER BY hour_beginning, ptid
+        (SELECT 
+            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
+            ptid::INTEGER AS ptid,
+            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+        FROM tmp2
         )
         ORDER BY hour_beginning, ptid;
-
 
         INSERT INTO dalmp
         (SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
@@ -302,8 +305,9 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         archive.setup()?;
 
-        let months = month(2020, 1).up_to(month(2025, 6))?;
+        let months = month(2020, 1).up_to(month(2025, 10))?;
         for month in months {
+            println!("Processing month {}", month);
             archive.update_duckdb(month)?;
         }
         Ok(())

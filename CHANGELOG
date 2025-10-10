@@ -3,6 +3,9 @@ TODO:
 - Experiment writing a Rust UDF function in DuckDB
 - Implement FromSql for Date see src/types/from_sql.rs lines 191+ in duckdb-rs. 
 
+## 2025-10-10
+- Improve the ISONE energy offers API, return the hour_beginning and not the timestamp.
+
 ## 2025-09-29
 - Automate the ISONE 7 day capacity report.
 

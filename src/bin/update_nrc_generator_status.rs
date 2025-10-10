@@ -84,6 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
+    let notification_threshold_mw = 5;
 
     let archive = ProdDb::nrc_generator_status();
     let today = Zoned::now().date();
@@ -115,7 +116,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if change_groups.is_empty() {
         info!("No changes found for the groups of interest!");
         return Ok(());
-    } 
+    }
 
     // Get email groups
     let email_groups: Vec<EmailGroup> = serde_json::from_reader(fs::File::open(format!(
@@ -127,7 +128,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for email in email_groups {
         if change_groups.contains_key(email.group_name.as_str()) {
             let data = change_groups.get(&email.group_name).unwrap();
-            let table = html_table(data.to_vec()).to_html_string();
+            let filtered_data: Vec<_> = data
+                .iter()
+                .filter(|e| e.change.abs() >= notification_threshold_mw)
+                .cloned()
+                .collect();
+            if filtered_data.is_empty() {
+                info!(
+                    "No significant changes found for group: {}",
+                    email.group_name
+                );
+                continue;
+            }
+            let table = html_table(filtered_data.clone()).to_html_string();
             let html = format!(
                 r#"<html>
                 <head>
@@ -159,7 +172,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 ),
                 format!(
                     "Changes to generator status:\n{}",
-                    ascii_table(data.to_vec())
+                    ascii_table(filtered_data.clone())
                 ),
                 Some(html),
             )
