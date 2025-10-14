@@ -197,7 +197,7 @@ mod tests {
     use jiff::civil::date;
     use rust_decimal_macros::dec;
 
-    use crate::api::isone::daas_offers::*;
+    use crate::api::isone::masked_daas_offers::*;
 
     #[test]
     fn test_data() -> Result<(), Box<dyn Error>> {

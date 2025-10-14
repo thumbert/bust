@@ -1,0 +1,266 @@
+use std::{
+    fmt::{self},
+    str::FromStr,
+};
+
+use actix_web::{get, web, HttpResponse, Responder};
+
+use duckdb::{
+    arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef, AccessMode, Config,
+    Connection, Result,
+};
+use itertools::Itertools;
+use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
+use serde::{Deserialize, Deserializer, Serialize};
+
+use crate::{
+    api::isone::masked_daas_offers::deserialize_zoned_assume_ny,
+    api::isone::masked_daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb,
+    elec::iso::ISONE,
+};
+
+#[derive(Debug, Deserialize)]
+struct OffersQuery {
+    /// One or more masked asset ids, separated by commas
+    /// If asset_ids are not specified, return all of them.  Use carefully
+    /// because it's a lot of data...
+    masked_asset_ids: Option<String>,
+}
+
+/// Get DA demand bids + virtuals between a start/end date
+#[get("/isone/demand_bids/da/start/{start}/end/{end}")]
+async fn api_offers(
+    path: web::Path<(Date, Date)>,
+    query: web::Query<OffersQuery>,
+) -> impl Responder {
+    let archive = ProdDb::isone_masked_da_energy_offers();
+    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
+    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
+
+    let start_date = path.0;
+    let end_date = path.1;
+
+    let asset_ids: Option<Vec<i32>> = query
+        .masked_asset_ids
+        .as_ref()
+        .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
+
+    let offers = get_demand_bids(&conn, start_date, end_date, None, asset_ids, None).unwrap();
+    HttpResponse::Ok().json(offers)
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize)]
+pub enum BidType {
+    Inc,
+    Dec,
+    Fixed,
+    PriceSensitive,
+}
+
+impl fmt::Display for BidType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BidType::Inc => write!(f, "Inc"),
+            BidType::Dec => write!(f, "Dec"),
+            BidType::Fixed => write!(f, "Fixed"),
+            BidType::PriceSensitive => write!(f, "PriceSensitive"),
+        }
+    }
+}
+
+impl FromStr for BidType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_uppercase().as_str() {
+            "INC" => Ok(BidType::Inc),
+            "DEC" => Ok(BidType::Dec),
+            "FIXED" => Ok(BidType::Fixed),
+            "PRICE" => Ok(BidType::PriceSensitive),
+            _ => Err(format!("Can't parse bid type: {}", s)),
+        }
+    }
+}
+
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
+// "da" and "Da", not only the canonical one "DA".
+impl<'de> Deserialize<'de> for BidType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        BidType::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum LocationType {
+    Hub,
+    LoadZone,
+    NetworkNode,
+}
+
+impl FromStr for LocationType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "HUB" => Ok(LocationType::Hub),
+            "LOAD ZONE" => Ok(LocationType::LoadZone),
+            "NETWORK NODE" => Ok(LocationType::NetworkNode),
+            _ => Err(format!("Can't parse location type: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct DemandBid {
+    masked_participant_id: u32,
+    masked_asset_id: u32,
+    bid_type: BidType,
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
+    hour_beginning: Zoned,
+    segment: u8,
+    quantity: f32,
+    price: f32,
+}
+
+/// Get the demand bids between a [start, end] date for a list of units
+/// (or all units)
+pub fn get_demand_bids(
+    conn: &Connection,
+    start: Date,
+    end: Date,
+    masked_participant_ids: Option<Vec<i32>>,
+    masked_asset_ids: Option<Vec<i32>>,
+    bid_types: Option<Vec<BidType>>,
+) -> Result<Vec<DemandBid>> {
+    let query = format!(
+        r#"
+SELECT 
+    MaskedParticipantId,
+    MaskedAssetId, 
+    BidType,
+    HourBeginning,
+    Segment,
+    Price,
+    MW AS Quantity
+FROM da_bids
+WHERE HourBeginning >= '{}'
+AND HourBeginning < '{}'
+{}
+ORDER BY "MaskedAssetId", "HourBeginning";    
+    "#,
+        start
+            .in_tz("America/New_York")
+            .unwrap()
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        end.in_tz("America/New_York")
+            .unwrap()
+            .checked_add(1.day())
+            .ok()
+            .unwrap()
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        match masked_asset_ids {
+            Some(ids) => format!("AND \"MaskedAssetId\" in ({}) ", ids.iter().join(", ")),
+            None => "".to_string(),
+        }
+    );
+    // println!("{}", query);
+    let mut stmt = conn.prepare(&query).unwrap();
+    let offers_iter = stmt.query_map([], |row| {
+        let bid_type = match row.get_ref_unwrap(2) {
+            ValueRef::Enum(e, idx) => match e {
+                UInt8(v) => v
+                    .values()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .value(v.key(idx).unwrap()),
+                _ => panic!("Unknown unit status"),
+            },
+            _ => panic!("Oops, column should be an enum"),
+        };
+        let micro: i64 = row.get(3).unwrap();
+        Ok(DemandBid {
+            masked_participant_id: row.get(0).unwrap(),
+            masked_asset_id: row.get(1).unwrap(),
+            bid_type: bid_type.parse::<BidType>().unwrap(),
+            hour_beginning: Zoned::new(
+                Timestamp::from_microsecond(micro).unwrap(),
+                ISONE.tz.clone(),
+            ),
+            segment: row.get(4)?,
+            price: row.get(5)?,
+            quantity: row.get(6)?,
+        })
+    })?;
+    let offers: Vec<DemandBid> = offers_iter.map(|e| e.unwrap()).collect();
+
+    Ok(offers)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, path::Path};
+
+    use duckdb::{AccessMode, Config, Connection, Result};
+    use jiff::civil::date;
+    use serde_json::Value;
+
+    use crate::api::isone::masked_demand_bids::*;
+
+    #[test]
+    fn test_get_offers() -> Result<()> {
+        let archive = ProdDb::isone_masked_demand_bids();
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
+        let xs = get_demand_bids(
+            &conn,
+            date(2025, 6, 1),
+            date(2025, 6, 1),
+            Some(vec![77459, 86083, 31662]),
+            None,
+            None,
+        )
+        .unwrap();
+        conn.close().unwrap();
+        let x0 = xs.first().unwrap();
+        // println!("{:?}", x0);
+        assert_eq!(
+            *x0,
+            DemandBid {
+                masked_participant_id: 98805,
+                masked_asset_id: 31662,
+                bid_type: BidType::Inc,
+                hour_beginning: "2024-03-01 00:00:00-05:00[America/New_York]"
+                    .parse()
+                    .unwrap(),
+                segment: 0,
+                quantity: 283.0,
+                price: 37.61,
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn api_demand_bids() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let url = format!(
+            "{}/isone/demand_bids/da/start/2024-01-01/end/2024-01-02?masked_asset_ids=77459",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        let response = reqwest::blocking::get(url)?.text()?;
+        let v: Value = serde_json::from_str(&response).unwrap();
+        if let Value::Array(xs) = v {
+            assert_eq!(xs.len(), 192);
+            println!("{:?}", xs);
+        }
+        Ok(())
+    }
+}

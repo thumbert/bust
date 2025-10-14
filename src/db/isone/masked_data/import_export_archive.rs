@@ -4,7 +4,7 @@ use std::error::Error;
 use std::path::Path;
 use std::process::Command;
 
-use crate::api::isone::energy_offers::Market;
+use crate::api::isone::masked_energy_offers::Market;
 use crate::db::isone::lib_isoexpress;
 use crate::interval::month::Month;
 

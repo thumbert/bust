@@ -14,8 +14,8 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    api::isone::daas_offers::deserialize_zoned_assume_ny,
-    api::isone::daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb, elec::iso::ISONE,
+    api::isone::masked_daas_offers::deserialize_zoned_assume_ny,
+    api::isone::masked_daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb, elec::iso::ISONE,
 };
 
 
@@ -335,7 +335,7 @@ mod tests {
     use jiff::civil::date;
     use serde_json::Value;
 
-    use crate::api::isone::energy_offers::*;
+    use crate::api::isone::masked_energy_offers::*;
 
     #[test]
     fn test_get_offers() -> Result<()> {
@@ -448,6 +448,7 @@ mod tests {
         let v: Value = serde_json::from_str(&response).unwrap();
         if let Value::Array(xs) = v {
             assert_eq!(xs.len(), 192);
+            println!("{:?}", xs);
         }
         Ok(())
     }

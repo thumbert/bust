@@ -7,8 +7,7 @@ use crate::db::{
         vgforecast_summary::IesoVGForecastSummaryArchive,
     }, isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
-            da_energy_offers_archive::DaEnergyOffersArchive,
-            daas_offers_archive::DaasOffersArchive, import_export_archive::ImportExportArchive,
+            da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive
         }, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
     }, nyiso::{
         scheduled_outages::NyisoScheduledOutagesArchive,
@@ -137,7 +136,7 @@ impl ProdDb {
         DaEnergyOffersArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaEnergyOffer"
                 .to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/IsoExpress/energy_offers.duckdb"
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/masked_energy_offers.duckdb"
                 .to_string(),
         }
     }
@@ -150,6 +149,16 @@ impl ProdDb {
                 .to_string(),
         }
     }
+
+    pub fn isone_masked_demand_bids() -> DemandBidsArchive {
+        DemandBidsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaDemandBid"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/masked_demand_bids.duckdb"
+                .to_string(),
+        }
+    }
+
 
     pub fn isone_masked_import_export() -> ImportExportArchive {
         ImportExportArchive {

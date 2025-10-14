@@ -124,7 +124,6 @@ WHERE NOT EXISTS (
 
 #[cfg(test)]
 mod tests {
-
     use jiff::civil::date;
     use std::{error::Error, path::Path};
 

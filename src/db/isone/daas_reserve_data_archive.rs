@@ -254,7 +254,7 @@ mod tests {
     use jiff::civil::date;
     use std::{error::Error, path::Path};
 
-    use crate::{db::prod_db::ProdDb, interval::month::month};
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     #[ignore]
     #[test]
@@ -267,9 +267,11 @@ mod tests {
         let archive = ProdDb::isone_daas_reserve_data();
         // archive.setup()
 
-        let month = month(2025, 3);
-        archive.download_missing_days(month)?;
-        archive.update_duckdb(month)?;
+        let term: Term = "Jul25-Sep25".parse()?;
+        for month in term.months() {
+            archive.download_missing_days(month)?;
+            archive.update_duckdb(month)?;
+        }
         Ok(())
     }
 
