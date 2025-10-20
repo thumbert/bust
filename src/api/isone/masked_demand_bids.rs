@@ -25,6 +25,10 @@ struct OffersQuery {
     /// If asset_ids are not specified, return all of them.  Use carefully
     /// because it's a lot of data...
     masked_asset_ids: Option<String>,
+
+    masked_participant_ids: Option<i32>,
+
+    bid_types: Option<Vec<BidType>>,
 }
 
 /// Get DA demand bids + virtuals between a start/end date
@@ -39,13 +43,19 @@ async fn api_offers(
 
     let start_date = path.0;
     let end_date = path.1;
-
     let asset_ids: Option<Vec<i32>> = query
         .masked_asset_ids
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
-
-    let offers = get_demand_bids(&conn, start_date, end_date, None, asset_ids, None).unwrap();
+    let offers = get_demand_bids(
+        &conn,
+        start_date,
+        end_date,
+        query.masked_participant_ids,
+        asset_ids,
+        query.bid_types.clone(),
+    )
+    .unwrap();
     HttpResponse::Ok().json(offers)
 }
 
@@ -60,10 +70,10 @@ pub enum BidType {
 impl fmt::Display for BidType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BidType::Inc => write!(f, "Inc"),
-            BidType::Dec => write!(f, "Dec"),
-            BidType::Fixed => write!(f, "Fixed"),
-            BidType::PriceSensitive => write!(f, "PriceSensitive"),
+            BidType::Inc => write!(f, "INC"),
+            BidType::Dec => write!(f, "DEC"),
+            BidType::Fixed => write!(f, "FIXED"),
+            BidType::PriceSensitive => write!(f, "PRICE"),
         }
     }
 }
@@ -83,7 +93,7 @@ impl FromStr for BidType {
 }
 
 // Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
-// "da" and "Da", not only the canonical one "DA".
+// "fixed" and "Fixed", not only the canonical one "FIXED".
 impl<'de> Deserialize<'de> for BidType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -135,11 +145,11 @@ pub fn get_demand_bids(
     conn: &Connection,
     start: Date,
     end: Date,
-    masked_participant_ids: Option<Vec<i32>>,
+    masked_participant_ids: Option<i32>,
     masked_asset_ids: Option<Vec<i32>>,
     bid_types: Option<Vec<BidType>>,
 ) -> Result<Vec<DemandBid>> {
-    let query = format!(
+    let mut query = format!(
         r#"
 SELECT 
     MaskedParticipantId,
@@ -151,10 +161,7 @@ SELECT
     MW AS Quantity
 FROM da_bids
 WHERE HourBeginning >= '{}'
-AND HourBeginning < '{}'
-{}
-ORDER BY "MaskedAssetId", "HourBeginning";    
-    "#,
+AND HourBeginning < '{}'"#,
         start
             .in_tz("America/New_York")
             .unwrap()
@@ -165,12 +172,26 @@ ORDER BY "MaskedAssetId", "HourBeginning";
             .ok()
             .unwrap()
             .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
-        match masked_asset_ids {
-            Some(ids) => format!("AND \"MaskedAssetId\" in ({}) ", ids.iter().join(", ")),
-            None => "".to_string(),
-        }
     );
-    // println!("{}", query);
+    if let Some(ids) = masked_participant_ids {
+        query.push_str(&format!("\nAND \"MaskedParticipantId\" = {} ", ids));
+    }
+    if let Some(types) = bid_types {
+        let types: Vec<String> = types.iter().map(|e| format!("'{}'", e)).collect();
+        query.push_str(&format!(
+            "\nAND \"BidType\" in ({}) ",
+            types.iter().join(", ")
+        ));
+    }
+    if let Some(ids) = masked_asset_ids {
+        query.push_str(&format!(
+            "\nAND \"MaskedAssetId\" in ({}) ",
+            ids.iter().join(", ")
+        ));
+    }
+    query.push_str("\nORDER BY \"MaskedAssetId\", \"HourBeginning\";");
+    println!("{}", query);
+
     let mut stmt = conn.prepare(&query).unwrap();
     let offers_iter = stmt.query_map([], |row| {
         let bid_type = match row.get_ref_unwrap(2) {
@@ -223,26 +244,34 @@ mod tests {
             &conn,
             date(2025, 6, 1),
             date(2025, 6, 1),
-            Some(vec![77459, 86083, 31662]),
+            Some(504170),
             None,
-            None,
+            Some(vec![BidType::PriceSensitive, BidType::Fixed]),
         )
         .unwrap();
-        conn.close().unwrap();
-        let x0 = xs.first().unwrap();
+        println!("Found {:?}", xs.first().unwrap());
+        // conn.close().unwrap();
+        let x0 = xs
+            .iter()
+            .find(|&x| {
+                x.masked_asset_id == 28934
+                    && x.bid_type == BidType::PriceSensitive
+                    && x.segment == 0
+            })
+            .unwrap();
         // println!("{:?}", x0);
         assert_eq!(
             *x0,
             DemandBid {
-                masked_participant_id: 98805,
-                masked_asset_id: 31662,
-                bid_type: BidType::Inc,
-                hour_beginning: "2024-03-01 00:00:00-05:00[America/New_York]"
+                masked_participant_id: 504170,
+                masked_asset_id: 28934,
+                bid_type: BidType::PriceSensitive,
+                hour_beginning: "2024-06-01 00:00:00-04:00[America/New_York]"
                     .parse()
                     .unwrap(),
                 segment: 0,
-                quantity: 283.0,
-                price: 37.61,
+                quantity: 19.6,
+                price: 992.0,
             }
         );
         Ok(())

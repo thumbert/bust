@@ -10,8 +10,7 @@ use crate::db::{
             da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive
         }, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
     }, nyiso::{
-        scheduled_outages::NyisoScheduledOutagesArchive,
-        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
+        rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive
     }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
 };
 
@@ -252,6 +251,14 @@ impl ProdDb {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn nyiso_rtlmp() -> NyisoRtlmpArchive {
+        NyisoRtlmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/RtLmpHourly"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/rtlmp.duckdb".to_string(),
         }
     }
 

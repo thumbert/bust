@@ -30,9 +30,15 @@ struct LmpQuery {
     /// Valid values are: lmp, mcc, mlc.
     /// If not specified, return all of three.
     components: Option<String>,
+
+    /// Valid values are: default, compact.  The default value returns data in long format,
+    /// each row of containing {'hour_beginning', 'ptid', 'component', 'price'}.
+    /// The compact format returns data with following shape:
+    /// {'2025-01-01': {4000: <num>[...], 4001: <num>[...]}, '2025-01-02': {...}, ...}
+    format: Option<String>,
 }
 
-#[get("/isone/prices/{market}/hourly/start/{start}/end/{end}")]
+#[get("/nyiso/prices/{market}/hourly/start/{start}/end/{end}")]
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
@@ -44,13 +50,12 @@ async fn api_hourly_prices(
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
         Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
+            Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap()
         }
         Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
+            Connection::open_with_flags(ProdDb::nyiso_rtlmp().duckdb_path, config).unwrap()
         }
     };
-
     let ptids: Option<Vec<u32>> = query
         .ptids
         .as_ref()
@@ -62,8 +67,28 @@ async fn api_hourly_prices(
             .collect()
     });
 
-    let offers = get_hourly_prices(&conn, start_date, end_date, ptids, components).unwrap();
-    HttpResponse::Ok().json(offers)
+    let format = query.format.clone().unwrap_or("default".into());
+    match format.as_str() {
+        "compact" => {
+            let component = match &components {
+                Some(cs) if cs.len() == 1 => cs[0],
+                _ => {
+                    return HttpResponse::BadRequest()
+                        .body("Compact format requires exactly one component specified");
+                }
+            };
+            let prices =
+                get_hourly_prices_compact(&conn, start_date, end_date, ptids, component).unwrap();
+            use actix_web::http::header::HeaderName;
+            HttpResponse::Ok()
+                .insert_header((HeaderName::from_static("content-type"), "application/json"))
+                .body(prices)
+        }
+        _ => {
+            let offers = get_hourly_prices(&conn, start_date, end_date, ptids, components).unwrap();
+            HttpResponse::Ok().json(offers)
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -75,6 +100,7 @@ struct LmpQuery2 {
 
     /// One or more bucket names, separated by commas.
     /// Valid values are: 5x16, 2x16H, 7x8, atc, offpeak, etc.
+    /// Default value: actual
     buckets: Option<String>,
 
     /// Default value: lmp
@@ -84,7 +110,7 @@ struct LmpQuery2 {
     statistic: Option<String>,
 }
 
-#[get("/isone/prices/{market}/daily/start/{start}/end/{end}")]
+#[get("/nyiso/prices/{market}/daily/start/{start}/end/{end}")]
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery2>,
@@ -96,7 +122,7 @@ async fn api_daily_prices(
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
         Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
+            Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap()
         }
         Market::RT => {
             Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
@@ -129,7 +155,7 @@ async fn api_daily_prices(
     HttpResponse::Ok().json(prices)
 }
 
-#[get("/isone/prices/{market}/monthly/start/{start}/end/{end}")]
+#[get("/nyiso/prices/{market}/monthly/start/{start}/end/{end}")]
 async fn api_monthly_prices(
     path: web::Path<(Market, Month, Month)>,
     query: web::Query<LmpQuery2>,
@@ -206,7 +232,7 @@ pub fn get_hourly_prices(
     let query = format!(
         r#"
 WITH unpivot_alias AS (
-    UNPIVOT da_lmp
+    UNPIVOT dalmp
     ON {}
     INTO
         NAME component
@@ -223,8 +249,8 @@ AND hour_beginning < '{}'{}
 ORDER BY component, ptid, hour_beginning; 
     "#,
         match components {
-            Some(cs) => cs.iter().join(", ").to_string(),
-            None => "lmp, mcc, mcl".to_string(),
+            Some(cs) => cs.iter().join(", ").to_string().replace("mcl", "mlc"),
+            None => "lmp, mcc, mlc".to_string(),
         },
         start
             .in_tz("America/New_York")
@@ -261,6 +287,66 @@ ORDER BY component, ptid, hour_beginning;
     let offers: Vec<Row> = offers_iter.map(|e| e.unwrap()).collect();
 
     Ok(offers)
+}
+
+/// Get hourly prices between a [start, end] date for a list of ptids, only one component.
+/// Return only one row of data as a String in this format:  
+///   {"2025-07-01": {"4000":[...],"4001":[...]}, "2025-07-02":{...} ...}
+pub fn get_hourly_prices_compact(
+    conn: &Connection,
+    start: Date,
+    end: Date,
+    ptids: Option<Vec<u32>>,
+    component: LmpComponent,
+) -> Result<String> {
+    let mut c = component.to_string().to_lowercase();
+    if c == "mcl" {
+        c = "mlc".to_string();
+    }
+    conn.execute("LOAD icu;", [])?;
+    let query = format!(
+        r#"        
+SELECT '{{' || string_agg('"' || date || '":' || map_json, ',') || '}}' AS out
+FROM (
+    WITH per_ptid AS (
+    SELECT
+        strftime(hour_beginning, '%Y-%m-%d') AS date,
+        ptid,
+        list({} ORDER BY hour_beginning)::DECIMAL(9,4)[] AS prices
+    FROM dalmp
+    WHERE hour_beginning >= '{}'
+        AND hour_beginning <  '{}'{}
+    GROUP BY date, ptid
+    )
+    SELECT 
+        date,
+        '{{' || string_agg('"' || ptid || '":' || to_json(prices), ',') || '}}' AS map_json
+    FROM per_ptid
+    GROUP BY date
+    ORDER BY date
+);
+    "#,
+        c,
+        start
+            .in_tz("America/New_York")
+            .unwrap()
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        end.in_tz("America/New_York")
+            .unwrap()
+            .checked_add(1.day())
+            .ok()
+            .unwrap()
+            .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
+        match ptids {
+            Some(ids) => format!("\nAND ptid in ({}) ", ids.iter().join(", ")),
+            None => "".to_string(),
+        },
+    );
+    // println!("{}", query);
+    let mut stmt = conn.prepare(&query).unwrap();
+    let out = stmt.query_row([], |row| Ok(row.get::<usize, String>(0).unwrap()));
+
+    Ok(out.unwrap())
 }
 
 pub fn get_daily_prices(
@@ -307,13 +393,17 @@ fn get_daily_prices_bucket(
     component: LmpComponent,
     statistic: String,
 ) -> Result<Vec<RowD>> {
+    let mut c = component.to_string().to_lowercase();
+    if c == "mcl" {
+        c = "mlc".to_string();
+    }
     let query = format!(
         r#"
 SELECT
     ptid,
     hour_beginning::DATE AS day,
     {}({})::DECIMAL(9,4) AS price,
-FROM da_lmp
+FROM dalmp
 JOIN buckets.buckets 
     USING (hour_beginning)
 WHERE hour_beginning >= '{}'
@@ -323,7 +413,7 @@ HAVING buckets.buckets."{}" = TRUE
 ORDER BY ptid, day;
         "#,
         statistic,
-        component.to_string().to_lowercase(),
+        c,
         start
             .in_tz("America/New_York")
             .unwrap()
@@ -414,13 +504,17 @@ fn get_monthly_prices_bucket(
     bucket: Bucket,
     statistic: String,
 ) -> Result<Vec<RowM>> {
+    let mut c = component.to_string().to_lowercase();
+    if c == "mcl" {
+        c = "mlc".to_string();
+    }
     let query = format!(
         r#"
 SELECT
     ptid,
     date_trunc('month', hour_beginning) AS month_beginning,
     {}({})::DECIMAL(9,4) AS price,
-FROM da_lmp
+FROM dalmp
 JOIN buckets.buckets 
     USING (hour_beginning)
 WHERE hour_beginning >= '{}'
@@ -430,7 +524,7 @@ HAVING buckets.buckets."{}" = TRUE
 ORDER BY ptid, month_beginning;
         "#,
         statistic,
-        component.to_string().to_lowercase(),
+        c,
         start
             .start()
             .in_tz("America/New_York")
@@ -489,28 +583,28 @@ mod tests {
     use jiff::civil::date;
     use rust_decimal_macros::dec;
 
-    use crate::{api::isone::dalmp::*, db::prod_db::ProdDb, interval::month::month};
+    use crate::{api::nyiso::lmp::*, db::prod_db::ProdDb, interval::month::month};
 
     #[test]
     fn test_hourly_data() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_hourly_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
-            Some(vec![4000]),
+            date(2025, 10, 15),
+            date(2025, 10, 16),
+            Some(vec![61758]),
             Some(vec![LmpComponent::Lmp]),
         )
         .unwrap();
-        assert_eq!(data.len(), 24 * 14);
+        assert_eq!(data.len(), 24 * 2);
         assert_eq!(
             data[0],
             Row {
-                hour_beginning: "2025-07-01 00:00[America/New_York]".parse()?,
-                ptid: 4000,
+                hour_beginning: "2025-10-15 00:00-04:00[America/New_York]".parse()?,
+                ptid: 61758,
                 component: LmpComponent::Lmp,
-                price: dec!(49.65),
+                price: dec!(37.07),
             }
         );
 
@@ -518,14 +612,30 @@ mod tests {
     }
 
     #[test]
-    fn test_daily_prices() -> Result<(), Box<dyn Error>> {
+    fn test_hourly_prices_compact() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
-        let data = get_daily_prices(
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
+        let data = get_hourly_prices_compact(
             &conn,
             date(2025, 7, 1),
             date(2025, 7, 14),
-            Some(vec![4000]),
+            Some(vec![61758, 31759]),
+            LmpComponent::Mcc,
+        )
+        .unwrap();
+        assert!(data.contains("2025-07-01"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_daily_prices() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
+        let data = get_daily_prices(
+            &conn,
+            date(2025, 10, 15),
+            date(2025, 10, 16),
+            Some(vec![61758]),
             LmpComponent::Lmp,
             vec![
                 Bucket::Atc,
@@ -541,10 +651,10 @@ mod tests {
         assert_eq!(
             data[0],
             RowD {
-                date: date(2025, 7, 1),
-                ptid: 4000,
+                date: date(2025, 10, 15),
+                ptid: 61758,
                 bucket: Bucket::Atc,
-                value: dec!(59.6663),
+                value: dec!(43.7417),
             }
         );
 
@@ -554,25 +664,24 @@ mod tests {
     #[test]
     fn test_daily_prices_5x16() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
             date(2025, 7, 1),
             date(2025, 7, 14),
-            Some(vec![4000]),
+            Some(vec![61758]),
             LmpComponent::Lmp,
             vec![Bucket::B5x16],
             "mean".into(),
         )
         .unwrap();
-        assert_eq!(data.len(), 9); // only 9 onpeak days
         assert_eq!(
             data[0],
             RowD {
                 date: date(2025, 7, 1),
-                ptid: 4000,
+                ptid: 61758,
                 bucket: Bucket::B5x16,
-                value: dec!(67.4944),
+                value: dec!(68.1844),
             }
         );
         Ok(())
@@ -581,12 +690,12 @@ mod tests {
     #[test]
     fn test_daily_prices_2x16h() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
             date(2025, 7, 1),
             date(2025, 7, 14),
-            Some(vec![4000]),
+            Some(vec![61758]),
             LmpComponent::Lmp,
             vec![Bucket::B2x16H],
             "mean".into(),
@@ -597,9 +706,9 @@ mod tests {
             data[0],
             RowD {
                 date: date(2025, 7, 4),
-                ptid: 4000,
+                ptid: 61758,
                 bucket: Bucket::B2x16H,
-                value: dec!(39.1888),
+                value: dec!(45.3188),
             }
         );
         Ok(())
@@ -608,12 +717,12 @@ mod tests {
     #[test]
     fn test_monthly_prices() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_monthly_prices(
             &conn,
             month(2025, 1),
             month(2025, 7),
-            Some(vec![4000]),
+            Some(vec![61758]),
             LmpComponent::Lmp,
             vec![
                 Bucket::Atc,
@@ -629,9 +738,9 @@ mod tests {
             data[0],
             RowM {
                 month: month(2025, 1),
-                ptid: 4000,
+                ptid: 61758,
                 bucket: Bucket::Atc,
-                value: dec!(133.5564),
+                value: dec!(122.5181),
             }
         );
 
@@ -642,12 +751,12 @@ mod tests {
     fn api_hourly_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/dalmp/hourly/start/2025-01-01/end/2025-01-05?ptids=4000,4001",
+            "{}/nyiso/prices/da/hourly/start/2025-01-01/end/2025-01-02?ptids=61758",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<Row> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 24);
+        assert_eq!(vs.len(), 24 * 2 * 3); // 24 hours, 2 days, 3 components
         Ok(())
     }
 
@@ -655,13 +764,12 @@ mod tests {
     fn api_daily_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/dalmp/daily/bucket/atc/start/2025-01-01/end/2025-01-05?ptids=4000,4001",
+            "{}/nyiso/prices/da/daily/start/2025-01-01/end/2025-01-05?ptids=61758&buckets=5x16,2x16H&component=mcc",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowD> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 5);
+        assert_eq!(vs.len(), 5); // 5 days, 1 component
         Ok(())
     }
 }

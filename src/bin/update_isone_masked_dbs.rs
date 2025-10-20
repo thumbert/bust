@@ -1,9 +1,9 @@
-use std::{error::Error, path::Path, vec};
+use std::{error::Error, path::Path};
 
 use bust::{db::prod_db::ProdDb, interval::month::month};
 use clap::Parser;
-use jiff::{civil::date, Zoned};
-use log::{error, info};
+use jiff::Zoned;
+use log::info;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -26,9 +26,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let month = month(today.year(), today.month()).add(-4)?;
     info!("Processing month {}", month);
 
-    let days = month.days();
+    // let days = month.days();
     // let days = vec![date(2025, 6, 29), date(2025, 6, 30)];
-    let archive = ProdDb::isone_masked_da_energy_offers();
+    // let archive = ProdDb::isone_masked_da_energy_offers();
     let archive = ProdDb::isone_masked_daas_offers();
     // for day in &days {
     //     println!("Processing {}", day);
