@@ -64,6 +64,16 @@ update_nyiso_prices_da:
     cp ./target/release/email_nyiso_prices_da ~/Software
     cp -r .env ~/Software
 
+update_nyiso_scheduled_outages:
+    cargo test --package bust --lib -- db::nyiso::scheduled_outages::tests --show-output
+    cargo build --bin update_nyiso_scheduled_outages --release
+    cp ./target/release/update_nyiso_scheduled_outages ~/Software
+
+update_nyiso_transmission_outages_da:
+    cargo test --package bust --lib -- db::nyiso::transmission_outages::tests --show-output
+    cargo build --bin update_nyiso_transmission_outages_da --release
+    cp ./target/release/update_nyiso_transmission_outages_da ~/Software
+
 string_speed:
     cargo build --example string_speed --release 
     ./target/release/examples/string_speed

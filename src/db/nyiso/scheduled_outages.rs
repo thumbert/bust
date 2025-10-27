@@ -12,8 +12,8 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::db::isone::lib_isoexpress::download_file;
-use crate::interval::month::Month;
 
+#[derive(Clone)]
 pub struct NyisoScheduledOutagesArchive {
     pub base_dir: String,
     pub duckdb_path: String,
@@ -37,18 +37,99 @@ pub struct Row {
     pub arr: Option<i64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct QueryOutages {
-    ptid: Option<i64>,
-    outage_id: Option<String>,
-    as_of_gte: Option<Date>,
-    as_of_lte: Option<Date>,
-    outage_start_date_gte: Option<Date>,
-    outage_start_date_lte: Option<Date>,
-    outage_end_date_gte: Option<Date>,
-    outage_end_date_lte: Option<Date>,
-    equipment_name: Option<String>,
-    equipment_type: Option<String>,
+    pub ptid: Option<i64>,
+    pub outage_id: Option<String>,
+    pub as_of: Option<Date>,
+    pub as_of_gte: Option<Date>,
+    pub as_of_lte: Option<Date>,
+    pub outage_start_date_gte: Option<Date>,
+    pub outage_start_date_lte: Option<Date>,
+    pub outage_end_date_gte: Option<Date>,
+    pub outage_end_date_lte: Option<Date>,
+    pub equipment_name: Option<String>,
+    pub equipment_type: Option<String>,
+    // incomplete name
+    pub equipment_name_like: Option<String>,
+}
+
+
+#[derive(Default)]
+pub struct QueryOutagesBuilder {
+    inner: QueryOutages,
+}
+
+impl QueryOutagesBuilder {
+    pub fn new() -> Self {
+        Self {
+            inner: QueryOutages::default(),
+        }
+    }
+
+    pub fn ptid(mut self, ptid: i64) -> Self {
+        self.inner.ptid = Some(ptid);
+        self
+    }
+
+    pub fn outage_id<S: Into<String>>(mut self, outage_id: S) -> Self {
+        self.inner.outage_id = Some(outage_id.into());
+        self
+    }
+
+    pub fn as_of(mut self, date: Date) -> Self {
+        self.inner.as_of = Some(date);
+        self
+    }
+
+    pub fn as_of_gte(mut self, date: Date) -> Self {
+        self.inner.as_of_gte = Some(date);
+        self
+    }
+
+    pub fn as_of_lte(mut self, date: Date) -> Self {
+        self.inner.as_of_lte = Some(date);
+        self
+    }
+
+    pub fn outage_start_date_gte(mut self, date: Date) -> Self {
+        self.inner.outage_start_date_gte = Some(date);
+        self
+    }
+
+    pub fn outage_start_date_lte(mut self, date: Date) -> Self {
+        self.inner.outage_start_date_lte = Some(date);
+        self
+    }
+
+    pub fn outage_end_date_gte(mut self, date: Date) -> Self {
+        self.inner.outage_end_date_gte = Some(date);
+        self
+    }
+
+    pub fn outage_end_date_lte(mut self, date: Date) -> Self {
+        self.inner.outage_end_date_lte = Some(date);
+        self
+    }
+
+    pub fn equipment_name<S: Into<String>>(mut self, name: S) -> Self {
+        self.inner.equipment_name = Some(name.into());
+        self
+    }
+
+    pub fn equipment_type<S: Into<String>>(mut self, typ: S) -> Self {
+        self.inner.equipment_type = Some(typ.into());
+        self
+    }
+
+    pub fn equipment_name_like<S: Into<String>>(mut self, name: S) -> Self {
+        self.inner.equipment_name_like = Some(name.into());
+        self
+    }
+
+    pub fn build(self) -> QueryOutages {
+        self.inner
+    }
 }
 
 
@@ -66,7 +147,7 @@ impl NyisoScheduledOutagesArchive {
     pub fn get_data(
         &self,
         conn: &Connection,
-        query_outages: QueryOutages
+        query_outages: QueryOutages,
     ) -> Result<Vec<Row>, Box<dyn Error>> {
         let mut query = String::from("SELECT * FROM scheduled_outages WHERE 1=1");
         if let Some(ptid) = query_outages.ptid {
@@ -151,59 +232,73 @@ impl NyisoScheduledOutagesArchive {
 
     /// Upload each individual day to DuckDB.
     /// Assumes a json.gz file exists.  Skips the day if it doesn't exist.   
-    pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        info!(
-            "inserting NYISO outage schedule files for month {} ...",
-            month
-        );
+    ///
+    pub fn update_duckdb(&self, day: Date) -> Result<(), Box<dyn Error>> {
+        info!("inserting NYISO outage schedule files for day {} ...", day);
 
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS nyiso_da_outages (
-    day DATE,
-    ptid INT,
-    equipment_name VARCHAR,
-    outage_start TIMESTAMPTZ,
-    outage_end TIMESTAMPTZ
+CREATE TABLE IF NOT EXISTS scheduled_outages (
+    as_of DATE NOT NULL,
+    ptid INT64 NOT NULL,
+    outage_id VARCHAR NOT NULL,
+    equipment_name VARCHAR NOT NULL,
+    equipment_type VARCHAR NOT NULL,
+    outage_start_date DATE NOT NULL,
+    outage_time_out TIME NOT NULL,
+    outage_end_date DATE NOT NULL,
+    outage_time_in TIME NOT NULL,
+    called_in_by VARCHAR NOT NULL,
+    status VARCHAR,
+    last_update TIMESTAMP,
+    message VARCHAR,
+    arr INT64
 );
 
-
-CREATE TEMPORARY TABLE tmp AS
+CREATE TEMPORARY TABLE tmp
+AS (
     SELECT 
-        "Timestamp"::DATE as day,
-        "PTID" as ptid,
-        "Equipment Name" as equipment_name,
-        "Scheduled Out Date/Time":: TIMESTAMPTZ as outage_start,
-        "Scheduled In Date/Time":: TIMESTAMPTZ as outage_end
-    FROM read_csv(
-        '{}/Raw/{}/{}*outSched.csv.gz', 
-        header = true, 
-        timestampformat = '%m/%d/%Y %H:%M:%S', 
-        columns = {{
-            'Timestamp': 'TIMESTAMP',
-            'PTID': 'INT32',
-            'Equipment Name': 'VARCHAR',
-            'Scheduled Out Date/Time': 'TIMESTAMP',
-            'Scheduled In Date/Time': 'TIMESTAMP',
-        }});
+        CURRENT_DATE AS as_of,
+        "PTID"::int64 AS ptid,
+        "Outage ID"::VARCHAR AS outage_id,
+        "Equipment Name"::VARCHAR AS equipment_name,
+        "Equipment Type"::VARCHAR AS equipment_type,
+        "Date Out"::DATE AS outage_start_date,
+        "Time Out"::TIME AS outage_time_out,
+        "Date In"::DATE AS outage_end_date,
+        "Time In"::TIME AS outage_time_in,
+        "Called In"::VARCHAR AS called_in_by,
+        "Status"::VARCHAR AS status,
+        strptime("Status Date", '%m-%d-%Y %H:%M') AS last_update,
+        "Message"::VARCHAR AS message,
+        "ARR"::int64 AS arr,
+    FROM read_csv('{}/Raw/{}/outage_schedule_{}.csv.gz')
+);
 
-INSERT INTO nyiso_da_outages
+INSERT INTO scheduled_outages
 (
-    SELECT * FROM tmp
+    SELECT * FROM tmp t
     WHERE NOT EXISTS (
-        SELECT 1 FROM nyiso_da_outages AS existing
-        WHERE existing.day = tmp.day
-          AND existing.ptid = tmp.ptid
-          AND existing.equipment_name = tmp.equipment_name
-          AND existing.outage_start = tmp.outage_start
-          AND existing.outage_end = tmp.outage_end
+        SELECT * FROM scheduled_outages d
+        WHERE
+            d.as_of = t.as_of AND
+            d.ptid = t.ptid AND
+            d.outage_id = t.outage_id AND
+            d.equipment_name = t.equipment_name AND
+            d.equipment_type = t.equipment_type AND
+            d.outage_start_date = t.outage_start_date AND
+            d.outage_time_out = t.outage_time_out AND
+            d.outage_end_date = t.outage_end_date AND
+            d.outage_time_in = t.outage_time_in AND
+            d.called_in_by = t.called_in_by AND
+            d.status = t.status AND
+            d.last_update = t.last_update
     )
 );
-
             "#,
             self.base_dir,
-            month.start_date().year(),
-            month.strftime("%Y%m")
+            day.year(),
+            day
         );
         // println!("{}", sql);
 
@@ -220,7 +315,7 @@ INSERT INTO nyiso_da_outages
             info!("{}", stdout);
             info!("done");
         } else {
-            error!("Failed to update duckdb for month {}: {}", month, stderr);
+            error!("Failed to update duckdb for day {}: {}", day, stderr);
         }
 
         Ok(())
@@ -247,7 +342,10 @@ mod tests {
 
     use duckdb::Connection;
 
-    use crate::{db::{nyiso::scheduled_outages::QueryOutages, prod_db::ProdDb}, interval::term::Term};
+    use crate::db::{
+        nyiso::scheduled_outages::QueryOutagesBuilder,
+        prod_db::ProdDb,
+    };
 
     // #[ignore]
     // #[test]
@@ -270,19 +368,8 @@ mod tests {
     fn get_data_test() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::nyiso_scheduled_outages();
         let conn = Connection::open(&archive.duckdb_path).unwrap();
-        let query_outages = QueryOutages {
-            ptid: Some(25858),
-            outage_id: None,
-            as_of_gte: None,
-            as_of_lte: None,
-            outage_start_date_gte: None,
-            outage_start_date_lte: None,
-            outage_end_date_gte: None,
-            outage_end_date_lte: None,
-            equipment_name: None,
-            equipment_type: None,
-        };
-        let data = archive.get_data(&conn, query_outages).unwrap();      
+        let query_outages = QueryOutagesBuilder::new().ptid(25858).build();
+        let data = archive.get_data(&conn, query_outages).unwrap();
         // println!("{:?}", data);
         assert_eq!(data.len(), 1);
         Ok(())

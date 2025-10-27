@@ -1,10 +1,17 @@
 
 TODO:
 - Experiment writing a Rust UDF function in DuckDB
-- Implement FromSql for Date see src/types/from_sql.rs lines 191+ in duckdb-rs. 
+- Experiment connecting Dart to Rust via FFI 
+- Pass the ProdDb instance via app_data to the endpoints to make them reusable from other deployments <---
+
+## 2025-10-27
+- Work on NYISO transmission outages.  Good example of fluid API with a builder for the query, etc.
+- Add ISONE participant_list API and archive.  First time making use of the Rust generating code.  
+- Start using app_data in server_bust to make the code more generic and reusable from other places. 
 
 ## 2025-10-20
 - Expose API for DA NYISO prices.  Some file renaming, etc.   
+- Add an endpoint with a compact view of prices.  To use in MCC surfer.   
 
 ## 2025-10-10
 - Improve the ISONE energy offers API, return the hour_beginning and not the timestamp.

@@ -57,10 +57,13 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
+            .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
+            .app_data(Data::new(ProdDb::isone_participants_archive()))
             .app_data(Data::new(sd_daasdt.clone()))
             .app_data(Data::new(sd_rtload.clone()))
             .app_data(Data::new(sr_rsvcharge2.clone()))
             .app_data(Data::new(sr_rsvstl2.clone()))
+            .app_data(Data::new(ProdDb::nyiso_transmission_outages_da()))
             .service(hello)
             // Admin
             .service(admin::jobs::api_get_job_names)
@@ -94,6 +97,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::mis::sr_rsvcharge2::api_tab_data)
             .service(isone::mis::sr_rsvstl2::api_daily_credits)
             .service(isone::mis::sr_rsvstl2::api_tab_data)
+            .service(isone::participant_list::participants)
             .service(isone::ttc::api_ttc_data)
             // NRC
             .service(nrc::generator_status::api_get_names)
@@ -105,6 +109,7 @@ async fn main() -> std::io::Result<()> {
             .service(nyiso::energy_offers::api_offers)
             .service(nyiso::energy_offers::api_stack)
             .service(nyiso::scheduled_outages::api_scheduled_outages)
+            .service(nyiso::transmission_outages::api_transmission_outages_da)
     })
     .bind(("127.0.0.1", port))?
     // .bind(("0.0.0.0", args.port))? // use this if you want to allow all connections

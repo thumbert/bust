@@ -1,6 +1,7 @@
 use duckdb::{
-    // arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef, 
-    Connection, Result,
+    // arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef,
+    Connection,
+    Result,
 };
 
 #[derive(Debug)]
@@ -35,26 +36,6 @@ INSERT INTO enum_test VALUES (3, 'BB');
         })
     })?;
 
-    // ---->  THIS GOT FIXED IN 1.2.1  <----
-    // // To get the correct enum value, you need to do this gymnastics
-    // let person_iter = stmt.query_map([], |row| {
-    //     let name = match row.get_ref_unwrap(1) {
-    //         ValueRef::Enum(e, idx) => match e {
-    //             UInt8(v) => v
-    //                 .values()
-    //                 .as_any()
-    //                 .downcast_ref::<StringArray>()
-    //                 .unwrap()
-    //                 .value(v.key(idx).unwrap()),
-    //             _ => panic!("Unknown name"),
-    //         },
-    //         _ => panic!("Oops, column should be an enum"),
-    //     };
-    //     Ok(Person {
-    //         id: row.get(0)?,
-    //         name: name.to_string(),
-    //     })
-    // })?;
     for person in person_iter {
         println!("Found person {:?}", person.unwrap());
     }

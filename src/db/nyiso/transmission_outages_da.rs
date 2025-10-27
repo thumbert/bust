@@ -15,9 +15,11 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
+use crate::db::nyiso::scheduled_outages::QueryOutages;
 use crate::elec::iso::ISONE;
 use crate::interval::month::Month;
 
+#[derive(Clone)]
 pub struct NyisoTransmissionOutagesDaArchive {
     pub base_dir: String,
     pub duckdb_path: String,
@@ -28,13 +30,9 @@ pub struct Row {
     pub as_of_date: Date,
     pub ptid: i32,
     pub equipment_name: String,
-    #[serde(
-        serialize_with = "serialize_zoned_as_offset", 
-    )]
+    #[serde(serialize_with = "serialize_zoned_as_offset")]
     pub outage_start: Zoned,
-    #[serde(
-        serialize_with = "serialize_zoned_as_offset",
-    )]
+    #[serde(serialize_with = "serialize_zoned_as_offset")]
     pub outage_end: Zoned,
 }
 
@@ -44,35 +42,6 @@ where
 {
     serializer.serialize_str(&z.strftime("%Y-%m-%d %H:%M:%S%:z").to_string())
 }
-
-
-// Custom deserialization function for the Zoned field
-// fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
-// where
-//     D: Deserializer<'de>,
-// {
-//     struct ZonedVisitor;
-
-//     impl Visitor<'_> for ZonedVisitor {
-//         type Value = Zoned;
-
-//         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//             formatter.write_str("a timestamp string with or without a zone name")
-//         }
-
-//         fn visit_str<E>(self, v: &str) -> Result<Zoned, E>
-//         where
-//             E: de::Error,
-//         {
-//             // Otherwise, append the assumed zone
-//             let s = format!("{v}[America/New_York]");
-//             Zoned::strptime("%F %T%:z[%Q]", &s).map_err(E::custom)
-//         }
-//     }
-
-//     deserializer.deserialize_str(ZonedVisitor)
-// }
-
 
 impl NyisoTransmissionOutagesDaArchive {
     /// Return the csv filename for the day.  Does not check if the file exists.  
@@ -88,26 +57,59 @@ impl NyisoTransmissionOutagesDaArchive {
     pub fn get_data(
         &self,
         conn: &Connection,
-        start_date: &Date,
-        end_date: &Date,
-        equipment_name: Option<String>,
+        query_outages: &QueryOutages,
     ) -> Result<Vec<Row>, Box<dyn Error>> {
-        let query = format!(
-            r#"
-SELECT *
-FROM nyiso_da_outages
-WHERE day >= '{}'
-AND day <= '{}'{}
-ORDER BY day, ptid; 
-    "#,
-            start_date,
-            end_date,
-            match equipment_name {
-                Some(name) => format!(" AND equipment_name = '{}'", name),
-                None => "".to_string(),
-            }
-        );
-        // println!("{}", query);
+        let mut query = String::from("SELECT * FROM nyiso_da_outages WHERE 1=1");
+        if let Some(ptid) = query_outages.ptid {
+            query.push_str(&format!(" AND ptid = {}", ptid));
+        }
+        if let Some(as_of) = query_outages.as_of {
+            query.push_str(&format!(" AND \"day\" = '{}'", as_of));
+        }
+        if let Some(as_of_gte) = query_outages.as_of_gte {
+            query.push_str(&format!(" AND \"day\" >= '{}'", as_of_gte));
+        }
+        if let Some(as_of_lte) = query_outages.as_of_lte {
+            query.push_str(&format!(" AND \"day\" <= '{}'", as_of_lte));
+        }
+        if let Some(outage_start_date_gte) = query_outages.outage_start_date_gte {
+            query.push_str(&format!(
+                " AND outage_start >= '{}'",
+                outage_start_date_gte.in_tz("America/New_York")?
+            ));
+        }
+        if let Some(outage_start_date_lte) = query_outages.outage_start_date_lte {
+            query.push_str(&format!(
+                " AND outage_start < '{}'",
+                outage_start_date_lte
+                    .tomorrow()?
+                    .in_tz("America/New_York")?
+            ));
+        }
+        if let Some(outage_end_date_gte) = query_outages.outage_end_date_gte {
+            query.push_str(&format!(
+                " AND outage_end >= '{}'",
+                outage_end_date_gte.in_tz("America/New_York")?
+            ));
+        }
+        if let Some(outage_end_date_lte) = query_outages.outage_end_date_lte {
+            query.push_str(&format!(
+                " AND outage_end < '{}'",
+                outage_end_date_lte.tomorrow()?.in_tz("America/New_York")?
+            ));
+        }
+        if let Some(equipment_name) = &query_outages.equipment_name {
+            query.push_str(&format!(" AND equipment_name = '{}'", equipment_name));
+        }
+        if let Some(equipment_name_like) = &query_outages.equipment_name_like {
+            query.push_str(&format!(
+                " AND equipment_name LIKE '{}'",
+                equipment_name_like
+            ));
+        }
+        query.push(';');
+
+        println!("{}", query);
         let mut stmt = conn.prepare(&query).unwrap();
         let prices_iter = stmt.query_map([], |row| {
             let n = 719528 + row.get::<usize, i32>(0).unwrap();
@@ -231,6 +233,7 @@ INSERT INTO nyiso_da_outages
             match entry {
                 Ok(path) => {
                     Command::new("gzip")
+                        .arg("-f")
                         .arg(path.file_name().unwrap()) // just the filename, since current_dir is set
                         .current_dir(dir)
                         .spawn()
@@ -262,7 +265,10 @@ mod tests {
     use duckdb::Connection;
     use jiff::civil::date;
 
-    use crate::{db::prod_db::ProdDb, interval::term::Term};
+    use crate::{
+        db::{nyiso::scheduled_outages::QueryOutagesBuilder, prod_db::ProdDb},
+        interval::term::Term,
+    };
 
     #[ignore]
     #[test]
@@ -285,11 +291,13 @@ mod tests {
     fn get_data_test() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::nyiso_transmission_outages_da();
         let conn = Connection::open(&archive.duckdb_path).unwrap();
-        let start_date = date(2006, 1, 1);
-        let end_date = date(2006, 1, 3);
-        let data = archive.get_data(&conn, &start_date, &end_date, None)?;
+        let query = QueryOutagesBuilder::new()
+            .as_of(date(2025, 10, 21))
+            .equipment_name_like("CLAY%")
+            .build();
+        let data = archive.get_data(&conn, &query)?;
         println!("{:?}", data);
-        assert_eq!(data.len(), 97);
+        assert_eq!(data.len(), 9);
         Ok(())
     }
 

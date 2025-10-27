@@ -66,16 +66,16 @@ name = "duckdb"
 path = "examples/duckdb/main.rs"
 
 [[example]]
-name = "bug_enum"
-path = "examples/duckdb/bug_enum.rs"
-
-[[example]]
 name = "example_datetime"
 path = "examples/duckdb/example_datetime.rs"
 
 [[example]]
 name = "example_decimal"
 path = "examples/duckdb/example_decimal.rs"
+
+[[example]]
+name = "example_enum"
+path = "examples/duckdb/example_enum.rs"
 
 [[example]]
 name = "example_list"

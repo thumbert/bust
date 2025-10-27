@@ -1,17 +1,25 @@
 use crate::db::{
-    calendar::buckets::BucketsArchive, hq::{
+    calendar::buckets::BucketsArchive,
+    hq::{
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    }, ieso::{
+    },
+    ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    }, isone::{
+    },
+    isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
-            da_energy_offers_archive::DaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive
-        }, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
-    }, nyiso::{
-        rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive
-    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
+            da_energy_offers_archive::DaEnergyOffersArchive,
+            daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
+            import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
+        }, participants_archive::IsoneParticipantsArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
+    },
+    nyiso::{
+        rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive,
+        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
+    },
+    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
 
 use super::{
@@ -40,11 +48,10 @@ impl ProdDb {
     pub fn buckets() -> BucketsArchive {
         BucketsArchive {
             base_dir: "/home/adrian/Downloads/Archive/Calendars".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets.duckdb".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets.duckdb"
+                .to_string(),
         }
     }
-
-
 
     pub fn ieso_dalmp_area() -> IesoDaLmpAreaArchive {
         IesoDaLmpAreaArchive {
@@ -126,8 +133,7 @@ impl ProdDb {
     pub fn isone_fuel_mix() -> IsoneFuelMixArchive {
         IsoneFuelMixArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/GridReports/FuelMix".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/fuelmix.duckdb"
-                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/fuelmix.duckdb".to_string(),
         }
     }
 
@@ -158,12 +164,19 @@ impl ProdDb {
         }
     }
 
-
     pub fn isone_masked_import_export() -> ImportExportArchive {
         ImportExportArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/ImportExport"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/masked_import_export.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_participants_archive() -> IsoneParticipantsArchive {
+        IsoneParticipantsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Isone/Participants".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/participants.duckdb"
                 .to_string(),
         }
     }
@@ -193,6 +206,14 @@ impl ProdDb {
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/isone/sevenday_capacity_forecast.duckdb"
                     .to_string(),
+        }
+    }
+
+    pub fn isone_mra_bids_offers() -> IsoneMraBidsOffersArchive {
+        IsoneMraBidsOffersArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/mra.duckdb".to_string(),
         }
     }
 
@@ -256,8 +277,7 @@ impl ProdDb {
 
     pub fn nyiso_rtlmp() -> NyisoRtlmpArchive {
         NyisoRtlmpArchive {
-            base_dir: "/home/adrian/Downloads/Archive/Nyiso/RtLmpHourly"
-                .to_string(),
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/RtLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/rtlmp.duckdb".to_string(),
         }
     }
@@ -282,8 +302,9 @@ impl ProdDb {
 
     pub fn statistics_canada_generation() -> StatisticsCanadaGenerationArchive {
         StatisticsCanadaGenerationArchive {
-            base_dir: "/home/adrian/Downloads/Archive/Canada/StatisticsCanada/ElectricPowerGeneration"
-                .to_string(),
+            base_dir:
+                "/home/adrian/Downloads/Archive/Canada/StatisticsCanada/ElectricPowerGeneration"
+                    .to_string(),
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/statistics_canada/energy_generation.duckdb"
                     .to_string(),

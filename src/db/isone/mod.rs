@@ -8,6 +8,7 @@ pub mod mis;
 pub mod daas_reserve_data_archive;
 pub mod daas_strike_prices_archive;
 pub mod monthly_capacity_auction_archive;
+pub mod participants_archive;
 pub mod rtlmp_archive;
 pub mod sevenday_capacity_forecast_archive;
 pub mod sevenday_solar_forecast_archive;

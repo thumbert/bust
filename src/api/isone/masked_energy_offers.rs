@@ -1,7 +1,3 @@
-use std::{
-    fmt::{self},
-    str::FromStr,
-};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -11,11 +7,11 @@ use duckdb::{
 };
 use itertools::Itertools;
 use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::isone::masked_daas_offers::deserialize_zoned_assume_ny,
-    api::isone::masked_daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb, elec::iso::ISONE,
+    api::isone::{_api_isone_core::{Market, UnitStatus}, masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset}},
+    db::prod_db::ProdDb, elec::iso::ISONE,
 };
 
 
@@ -102,64 +98,6 @@ async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize)]
-pub enum Market {
-    DA,
-    RT,
-}
-
-impl fmt::Display for Market {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Market::DA => write!(f, "DA"),
-            Market::RT => write!(f, "RT"),
-        }
-    }
-}
-
-impl FromStr for Market {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_uppercase().as_str() {
-            "DA" => Ok(Market::DA),
-            "RT" => Ok(Market::RT),
-            _ => Err(format!("Can't parse market: {}", s)),
-        }
-    }
-}
-
-// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
-// "da" and "Da", not only the canonical one "DA".
-impl<'de> Deserialize<'de> for Market {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Market::from_str(&s).map_err(serde::de::Error::custom)
-    }
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum UnitStatus {
-    Economic,
-    Unavailable,
-    MustRun,
-}
-
-impl FromStr for UnitStatus {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "ECONOMIC" => Ok(UnitStatus::Economic),
-            "UNAVAILABLE" => Ok(UnitStatus::Unavailable),
-            "MUST_RUN" => Ok(UnitStatus::MustRun),
-            _ => Err(format!("Can't parse unit status: {}", s)),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EnergyOffer {
