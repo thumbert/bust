@@ -33,8 +33,12 @@ async fn hello() -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
-
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    match args.env.as_str() {
+        "prod" => env_logger::init_from_env(Env::default().default_filter_or("info")),
+        "test" => env_logger::init_from_env(Env::default().default_filter_or("debug")),
+        _ => panic!("Invalid environment"),
+    }
+    
     // See https://actix.rs/docs/databases/  Not working well with DuckDb (yet)
     // let manager = DuckDBConnectionManager::file("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb");
     // let pool = r2d2::Pool::builder().build(manager).unwrap();

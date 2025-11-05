@@ -531,9 +531,6 @@ ORDER BY ptid, month_beginning;
         end.end()
             .in_tz("America/New_York")
             .unwrap()
-            .checked_add(1.day())
-            .ok()
-            .unwrap()
             .strftime("%Y-%m-%d %H:%M:%S.000%:z"),
         match ptids {
             Some(ids) => format!("\nAND ptid in ({}) ", ids.iter().join(", ")),
@@ -783,4 +780,19 @@ mod tests {
         assert_eq!(vs.len(), 5);
         Ok(())
     }
+
+    #[test]
+    fn api_monthly_test() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let url = format!(
+            "{}/isone/prices/da/monthly/start/2024-01/end/2024-12?ptids=4000,4001&buckets=5x16,offpeak",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        println!("{}", url);
+        let response = reqwest::blocking::get(url)?.text()?;
+        let vs: Vec<RowM> = serde_json::from_str(&response).unwrap();
+        assert_eq!(vs.len(), 48);  // 2 locations x 2 buckets x 12 months = 48
+        Ok(())
+    }
+
 }
