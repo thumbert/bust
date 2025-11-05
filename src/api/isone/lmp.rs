@@ -8,7 +8,7 @@ use crate::{
     bucket::{Bucket, BucketLike},
     db::{
         calendar::buckets::BucketsArchive,
-        isone::{dalmp_archive::IsoneDalmpArchive, rtlmp_archive::IsoneRtLmpArchive},
+        isone::{dalmp_archive::IsoneDaLmpArchive, rtlmp_archive::IsoneRtLmpArchive},
     },
     interval::{
         month::{month, Month},
@@ -47,7 +47,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
+    db: web::Data<(IsoneDaLmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -117,7 +117,7 @@ struct LmpQuery2 {
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery2>,
-    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
+    db: web::Data<(IsoneDaLmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -168,7 +168,7 @@ async fn api_daily_prices(
 async fn api_monthly_prices(
     path: web::Path<(Market, Month, Month)>,
     query: web::Query<LmpQuery2>,
-    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
+    db: web::Data<(IsoneDaLmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_month = path.1;

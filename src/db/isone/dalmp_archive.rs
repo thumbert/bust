@@ -18,12 +18,12 @@ pub struct Row {
 }
 
 #[derive(Clone)]
-pub struct IsoneDalmpArchive {
+pub struct IsoneDaLmpArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl IsoneDalmpArchive {
+impl IsoneDaLmpArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
@@ -105,7 +105,6 @@ ORDER BY hour_beginning, ptid;
         Ok(())
     }
 
-
     /// Data is usually published before 13:30 every day
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
@@ -140,7 +139,6 @@ ORDER BY hour_beginning, ptid;
         }
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -162,7 +160,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_dalmp();
 
-        let months = month(2022, 1).up_to(month(2022,2));
+        let months = month(2022, 1).up_to(month(2022, 2));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month)?;
@@ -180,7 +178,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-
-

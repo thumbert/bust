@@ -9,11 +9,18 @@ use crate::db::{
         vgforecast_summary::IesoVGForecastSummaryArchive,
     },
     isone::{
-        actual_interchange_archive::IsoneActualInterchangeArchive, dalmp_archive::IsoneDalmpArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
+        actual_interchange_archive::IsoneActualInterchangeArchive,
+        dalmp_archive::IsoneDaLmpArchive,
+        fuelmix_archive::IsoneFuelMixArchive,
+        masked_data::{
             da_energy_offers_archive::DaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
             import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
-        }, participants_archive::IsoneParticipantsArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
+        },
+        participants_archive::IsoneParticipantsArchive,
+        rtlmp_archive::IsoneRtLmpArchive,
+        sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
+        total_transfer_capability_archive::TotalTransferCapabilityArchive,
     },
     nyiso::{
         rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive,
@@ -122,8 +129,8 @@ impl ProdDb {
         }
     }
 
-    pub fn isone_dalmp() -> IsoneDalmpArchive {
-        IsoneDalmpArchive {
+    pub fn isone_dalmp() -> IsoneDaLmpArchive {
+        IsoneDaLmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaLmpHourly"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/dalmp.duckdb".to_string(),
