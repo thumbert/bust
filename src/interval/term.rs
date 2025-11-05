@@ -29,8 +29,8 @@ pub struct ParseError(pub String);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq)]
 pub struct Term {
-    start: Date,
-    end: Date,
+    pub start: Date,
+    pub end: Date,
 }
 
 impl Term {

@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
-            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::isone_rtlmp())))
+            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::isone_rtlmp(), ProdDb::buckets())))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
             .app_data(Data::new(ProdDb::isone_participants_archive()))
             .app_data(Data::new(sd_daasdt.clone()))

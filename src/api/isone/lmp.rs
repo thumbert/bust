@@ -6,10 +6,14 @@ use crate::{
         masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
     },
     bucket::{Bucket, BucketLike},
-    db::isone::{dalmp_archive::IsoneDalmpArchive, rtlmp_archive::IsoneRtLmpArchive},
+    db::{
+        calendar::buckets::BucketsArchive,
+        isone::{dalmp_archive::IsoneDalmpArchive, rtlmp_archive::IsoneRtLmpArchive},
+    },
     interval::{
         month::{month, Month},
         month_tz::MonthTz,
+        term::Term,
     },
 };
 use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
@@ -18,7 +22,7 @@ use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::db::{nyiso::dalmp::LmpComponent, prod_db::ProdDb};
+use crate::db::nyiso::dalmp::LmpComponent;
 
 #[derive(Debug, Deserialize)]
 struct LmpQuery {
@@ -43,7 +47,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive)>,
+    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -84,7 +88,8 @@ async fn api_hourly_prices(
                 .body(prices)
         }
         _ => {
-            let offers = get_hourly_prices(&conn, start_date, end_date, market, ptids, components).unwrap();
+            let offers =
+                get_hourly_prices(&conn, start_date, end_date, market, ptids, components).unwrap();
             HttpResponse::Ok().json(offers)
         }
     }
@@ -112,6 +117,7 @@ struct LmpQuery2 {
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery2>,
+    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -119,12 +125,8 @@ async fn api_daily_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
@@ -147,7 +149,16 @@ async fn api_daily_prices(
     let statistic = query.statistic.clone().unwrap_or("mean".into());
 
     let prices = get_daily_prices(
-        &conn, start_date, end_date, ptids, component, buckets, statistic,
+        &conn,
+        Term {
+            start: start_date,
+            end: end_date,
+        },
+        ptids,
+        component,
+        buckets,
+        statistic,
+        &db.2.duckdb_path,
     )
     .unwrap();
     HttpResponse::Ok().json(prices)
@@ -157,6 +168,7 @@ async fn api_daily_prices(
 async fn api_monthly_prices(
     path: web::Path<(Market, Month, Month)>,
     query: web::Query<LmpQuery2>,
+    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_month = path.1;
@@ -164,12 +176,8 @@ async fn api_monthly_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
@@ -200,6 +208,7 @@ async fn api_monthly_prices(
         component,
         buckets,
         statistic,
+        &db.2.duckdb_path,
     )
     .unwrap();
     HttpResponse::Ok().json(prices)
@@ -347,18 +356,18 @@ FROM (
 
 pub fn get_daily_prices(
     conn: &Connection,
-    start: Date,
-    end: Date,
+    term: Term,
     ptids: Option<Vec<i32>>,
     component: LmpComponent,
     buckets: Vec<Bucket>,
     statistic: String,
+    buckets_db_path: &str,
 ) -> Result<Vec<RowD>> {
     conn.execute_batch(
         format!(
             r"LOAD icu;
               ATTACH '{}' AS buckets;",
-            ProdDb::buckets().duckdb_path
+            buckets_db_path
         )
         .as_str(),
     )?;
@@ -367,8 +376,8 @@ pub fn get_daily_prices(
     for bucket in buckets {
         let mut ps = get_daily_prices_bucket(
             conn,
-            start,
-            end,
+            term.start,
+            term.end,
             ptids.clone(),
             bucket,
             component,
@@ -460,12 +469,13 @@ pub fn get_monthly_prices(
     component: LmpComponent,
     buckets: Vec<Bucket>,
     statistic: String,
+    buckets_db_path: &str,
 ) -> Result<Vec<RowM>> {
     conn.execute_batch(
         format!(
             r"LOAD icu;
               ATTACH '{}' AS buckets;",
-            ProdDb::buckets().duckdb_path
+            buckets_db_path
         )
         .as_str(),
     )?;
@@ -622,8 +632,10 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
+            Term {
+                start: date(2025, 7, 1),
+                end: date(2025, 7, 14),
+            },
             Some(vec![4000]),
             LmpComponent::Lmp,
             vec![
@@ -634,6 +646,7 @@ mod tests {
                 Bucket::Offpeak,
             ],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         // println!("{:?}", data);
@@ -656,12 +669,15 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
+            Term {
+                start: date(2025, 7, 1),
+                end: date(2025, 7, 14),
+            },
             Some(vec![4000]),
             LmpComponent::Lmp,
             vec![Bucket::B5x16],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(data.len(), 9); // only 9 onpeak days
@@ -683,12 +699,15 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
+            Term {
+                start: date(2025, 7, 1),
+                end: date(2025, 7, 14),
+            },
             Some(vec![4000]),
             LmpComponent::Lmp,
             vec![Bucket::B2x16H],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(data.len(), 5); // only 2x16H days
@@ -722,6 +741,7 @@ mod tests {
                 Bucket::Offpeak,
             ],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(
