@@ -4,6 +4,13 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Pass the ProdDb instance via app_data to the endpoints to make them reusable from other deployments <---
 
+## 2025-11-05
+- Inject the isone da and rt lmp dbs into the server.
+
+## 2025-10-31
+- Started the update_isone_daas_strike_prices too.  Good example on how to load json into DuckDB when 
+  some row may be missing some columns.  
+
 ## 2025-10-27
 - Work on NYISO transmission outages.  Good example of fluid API with a builder for the query, etc.
 - Add ISONE participant_list API and archive.  First time making use of the Rust generating code.  

@@ -2,9 +2,11 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     api::isone::{
-        _api_isone_core::Market, masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset}
+        _api_isone_core::Market,
+        masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
     },
     bucket::{Bucket, BucketLike},
+    db::isone::{dalmp_archive::IsoneDalmpArchive, rtlmp_archive::IsoneRtLmpArchive},
     interval::{
         month::{month, Month},
         month_tz::MonthTz,
@@ -30,10 +32,10 @@ struct LmpQuery {
     /// If not specified, return all of three.
     components: Option<String>,
 
-    /// Valid values are: default, compact.  The default value returns data in long format, 
-    /// each row of containing {'hour_beginning', 'ptid', 'component', 'price'}. 
-    /// The compact format returns data with following shape: 
-    /// {'2025-01-01': {4000: <num>[...], 4001: <num>[...]}, '2025-01-02': {...}, ...} 
+    /// Valid values are: default, compact.  The default value returns data in long format,
+    /// each row of containing {'hour_beginning', 'ptid', 'component', 'price'}.
+    /// The compact format returns data with following shape:
+    /// {'2025-01-01': {4000: <num>[...], 4001: <num>[...]}, '2025-01-02': {...}, ...}
     format: Option<String>,
 }
 
@@ -41,6 +43,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
+    db: web::Data<(IsoneDalmpArchive, IsoneRtLmpArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -48,12 +51,8 @@ async fn api_hourly_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
 
     let ptids: Option<Vec<u32>> = query
@@ -77,21 +76,18 @@ async fn api_hourly_prices(
                         .body("Compact format requires exactly one component specified");
                 }
             };
-            let prices = get_hourly_prices_compact(&conn, start_date, end_date, ptids, component).unwrap();
+            let prices =
+                get_hourly_prices_compact(&conn, start_date, end_date, ptids, component).unwrap();
             use actix_web::http::header::HeaderName;
             HttpResponse::Ok()
-                .insert_header((
-                    HeaderName::from_static("content-type"),
-                    "application/json",
-                ))
+                .insert_header((HeaderName::from_static("content-type"), "application/json"))
                 .body(prices)
         }
         _ => {
-            let offers = get_hourly_prices(&conn, start_date, end_date, ptids, components).unwrap();
+            let offers = get_hourly_prices(&conn, start_date, end_date, market, ptids, components).unwrap();
             HttpResponse::Ok().json(offers)
         }
     }
-
 }
 
 #[derive(Debug, Deserialize)]
@@ -228,13 +224,14 @@ pub fn get_hourly_prices(
     conn: &Connection,
     start: Date,
     end: Date,
+    market: Market,
     ptids: Option<Vec<u32>>,
     components: Option<Vec<LmpComponent>>,
 ) -> Result<Vec<Row>> {
     let query = format!(
         r#"
 WITH unpivot_alias AS (
-    UNPIVOT da_lmp
+    UNPIVOT {}_lmp
     ON {}
     INTO
         NAME component
@@ -250,6 +247,7 @@ WHERE hour_beginning >= '{}'
 AND hour_beginning < '{}'{}
 ORDER BY component, ptid, hour_beginning; 
     "#,
+        market.to_string().to_lowercase(),
         match components {
             Some(cs) => cs.iter().join(", ").to_string(),
             None => "lmp, mcc, mcl".to_string(),
@@ -291,7 +289,7 @@ ORDER BY component, ptid, hour_beginning;
     Ok(offers)
 }
 
-/// Get hourly prices between a [start, end] date for a list of ptids, only one component. 
+/// Get hourly prices between a [start, end] date for a list of ptids, only one component.
 /// Return only one row of data as a String in this format:  
 ///   {"2025-07-01": {"4000":[...],"4001":[...]}, "2025-07-02":{...} ...}
 pub fn get_hourly_prices_compact(
@@ -342,9 +340,7 @@ FROM (
     );
     // println!("{}", query);
     let mut stmt = conn.prepare(&query).unwrap();
-    let out = stmt.query_row([], |row| {
-        Ok(row.get::<usize, String>(0).unwrap())
-    });
+    let out = stmt.query_row([], |row| Ok(row.get::<usize, String>(0).unwrap()));
 
     Ok(out.unwrap())
 }
@@ -585,6 +581,7 @@ mod tests {
             &conn,
             date(2025, 7, 1),
             date(2025, 7, 14),
+            Market::DA,
             Some(vec![4000]),
             Some(vec![LmpComponent::Lmp]),
         )

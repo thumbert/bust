@@ -147,6 +147,7 @@ ORDER BY hour_beginning, ptid;
 mod tests {
 
     use jiff::civil::date;
+    use log::info;
     use std::{error::Error, path::Path};
 
     use crate::{db::prod_db::ProdDb, interval::month::month};
@@ -161,9 +162,12 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_dalmp();
 
-        let month = month(2025, 7);
-        archive.download_missing_days(month)?;
-        archive.update_duckdb(&month)?;
+        let months = month(2022, 1).up_to(month(2022,2));
+        for month in months.unwrap() {
+            info!("Working on month {}", month);
+            archive.download_missing_days(month)?;
+            archive.update_duckdb(&month)?;
+        }
         Ok(())
     }
 

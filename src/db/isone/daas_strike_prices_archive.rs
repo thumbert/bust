@@ -1,12 +1,13 @@
 use flate2::read::GzDecoder;
 use jiff::{civil::*, Timestamp, Zoned};
-use log::info;
+use log::{error, info};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::process::Command;
 use std::str::FromStr;
 
 use crate::interval::month::Month;
@@ -75,6 +76,82 @@ impl DaasStrikePricesArchive {
                 info!("  downloaded file for {}", day);
             }
         }
+        Ok(())
+    }
+
+    /// Update duckdb with published data for the month.  No checks are made to see
+    /// if there are missing files.
+    ///  
+    pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
+        info!("loading all json.gz files for month {} ...", month);
+        let sql = format!(
+            r#"
+CREATE TABLE IF NOT EXISTS strike_prices (
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    strike_price DECIMAL(9,2) NOT NULL,
+    strike_price_timestamp TIMESTAMPTZ NOT NULL,
+    spc_load_forecast_mw DECIMAL(9,2) NOT NULL,
+    percentile_10_rt_hub_lmp DECIMAL(9,2) NOT NULL,
+    percentile_25_rt_hub_lmp DECIMAL(9,2) NOT NULL,
+    percentile_75_rt_hub_lmp DECIMAL(9,2) NOT NULL,
+    percentile_90_rt_hub_lmp DECIMAL(9,2) NOT NULL, 
+    expected_rt_hub_lmp DECIMAL(9,2) NOT NULL,
+    expected_rt_hub_lmp_override DECIMAL(9,2),
+    expected_closeout_charge DECIMAL(9,2) NOT NULL,
+    expected_closeout_charge_override DECIMAL(9,2)
+);
+
+CREATE TEMPORARY TABLE tmp
+AS
+    SELECT 
+        json_extract(aux, '$.market_hour.local_day')::TIMESTAMPTZ as hour_beginning,
+        json_extract(aux, '$.strike_price')::DECIMAL(9,2) as strike_price,
+        json_extract(aux, '$.strike_price_timestamp')::TIMESTAMPTZ as strike_price_timestamp,
+        json_extract(aux, '$.spc_load_forecast_mw')::DECIMAL(9,2) as spc_load_forecast_mw,  
+        json_extract(aux, '$.percentile_10_rt_hub_lmp')::DECIMAL(9,2) as percentile_10_rt_hub_lmp,
+        json_extract(aux, '$.percentile_25_rt_hub_lmp')::DECIMAL(9,2) as percentile_25_rt_hub_lmp,
+        json_extract(aux, '$.percentile_75_rt_hub_lmp')::DECIMAL(9,2) as percentile_75_rt_hub_lmp,
+        json_extract(aux, '$.percentile_90_rt_hub_lmp')::DECIMAL(9,2) as percentile_90_rt_hub_lmp,
+        json_extract(aux, '$.expected_rt_hub_lmp')::DECIMAL(9,2) as expected_rt_hub_lmp,
+        json_extract(aux, '$.expected_rt_hub_lmp_override')::DECIMAL(9,2) as expected_rt_hub_lmp_override,
+        json_extract(aux, '$.expected_closeout_charge')::DECIMAL(9,2) as expected_closeout_charge,
+        json_extract(aux, '$.expected_closeout_charge_override')::DECIMAL(9,2) as expected_closeout_charge_override
+    FROM (
+        SELECT  unnest(isone_web_services.day_ahead_strike_prices.day_ahead_strike_price)::JSON as aux
+        FROM read_json('{}/Raw/{}/daas_strike_prices_{}-*.json.gz')
+    )
+    ORDER BY hour_beginning
+;
+
+INSERT INTO strike_prices
+    SELECT *
+    FROM tmp t
+WHERE NOT EXISTS (
+    SELECT * FROM strike_prices s
+    WHERE
+        s.hour_beginning = t.hour_beginning
+) ORDER BY hour_beginning;
+        "#,
+            self.base_dir,
+            month.start().year(),
+            month
+        );
+        let output = Command::new("duckdb")
+            .arg("-c")
+            .arg(&sql)
+            .arg(&self.duckdb_path)
+            .output()
+            .expect("Failed to invoke duckdb command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if output.status.success() {
+            info!("{}", stdout);
+            info!("done");
+        } else {
+            error!("Failed to update duckdb for month {}: {}", month, stderr);
+        }
+
         Ok(())
     }
 
@@ -152,6 +229,7 @@ impl DaasStrikePricesArchive {
 mod tests {
 
     use jiff::civil::date;
+    use log::info;
     use std::{error::Error, path::Path};
 
     use crate::{db::prod_db::ProdDb, interval::month::month};
@@ -167,9 +245,12 @@ mod tests {
         let archive = ProdDb::isone_daas_strike_prices();
         // archive.setup()
 
-        let month = month(2025, 3);
-        archive.download_missing_days(month)?;
-        // archive.update_duckdb(month)?;
+        let months = month(2025, 5).up_to(month(2025, 9)).unwrap();
+        for month in months {     
+            info!("Working on month {}", month);
+            archive.download_missing_days(month)?;
+            archive.update_duckdb(month)?;
+        }
         Ok(())
     }
 

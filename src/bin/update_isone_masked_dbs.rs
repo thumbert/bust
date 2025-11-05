@@ -13,7 +13,6 @@ use log::info;
 )]
 struct Args {}
 
-/// Run this job every day after the DAM is published
 fn main() -> Result<(), Box<dyn Error>> {
     let _ = Args::parse();
 
@@ -26,14 +25,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let month = month(today.year(), today.month()).add(-4)?;
     info!("Processing month {}", month);
 
-    // let days = month.days();
+    let days = month.days();
     // let days = vec![date(2025, 6, 29), date(2025, 6, 30)];
     // let archive = ProdDb::isone_masked_da_energy_offers();
     let archive = ProdDb::isone_masked_daas_offers();
-    // for day in &days {
-    //     println!("Processing {}", day);
-    //     archive.download_file(day)?;
-    // }
+    for day in &days {
+        println!("Processing {}", day);
+        archive.download_file(day)?;
+    }
     archive.update_duckdb(&month)?;
 
 

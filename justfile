@@ -35,6 +35,14 @@ update_isone_actual_interchange:
     cargo build --bin update_isone_actual_interchange --release 
     cp ./target/release/update_isone_actual_interchange ~/Software
 
+update_isone_daas_data:
+    cargo build --bin update_isone_daas_data --release
+    cp ./target/release/update_isone_daas_data ~/Software
+
+update_isone_daas_strike_prices:
+    cargo build --bin update_isone_daas_strike_prices --release
+    cp ./target/release/update_isone_daas_strike_prices ~/Software
+
 update_isone_prices_da:
     cargo build --bin update_isone_prices_da --release 
     cp ./target/release/update_isone_prices_da ~/Software
