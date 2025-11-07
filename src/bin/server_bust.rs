@@ -93,6 +93,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::lmp::api_daily_prices)
             .service(isone::lmp::api_hourly_prices)
             .service(isone::lmp::api_monthly_prices)
+            .service(isone::lmp::api_term_prices)
             .service(isone::masked_energy_offers::api_offers)
             .service(isone::masked_energy_offers::api_stack)
             .service(isone::mis::sd_daasdt::api_daily_charges)

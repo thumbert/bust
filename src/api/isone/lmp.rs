@@ -24,25 +24,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::nyiso::dalmp::LmpComponent;
 
-#[derive(Debug, Deserialize)]
-struct LmpQuery {
-    /// One or more ptids, separated by commas.
-    /// If not specified, return all ptids.  Use carefully
-    /// because it's a lot of data...
-    ptids: Option<String>,
-
-    /// One or more LMP components, separated by commas.
-    /// Valid values are: lmp, mcc, mlc.
-    /// If not specified, return all of three.
-    components: Option<String>,
-
-    /// Valid values are: default, compact.  The default value returns data in long format,
-    /// each row of containing {'hour_beginning', 'ptid', 'component', 'price'}.
-    /// The compact format returns data with following shape:
-    /// {'2025-01-01': {4000: <num>[...], 4001: <num>[...]}, '2025-01-02': {...}, ...}
-    format: Option<String>,
-}
-
 #[get("/isone/prices/{market}/hourly/start/{start}/end/{end}")]
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
@@ -95,24 +76,6 @@ async fn api_hourly_prices(
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct LmpQuery2 {
-    /// One or more ptids, separated by commas.
-    /// If not specified, return all ptids.  Use carefully
-    /// because it's a lot of data...
-    ptids: Option<String>,
-
-    /// One or more bucket names, separated by commas.
-    /// Valid values are: 5x16, 2x16H, 7x8, atc, offpeak, etc.
-    buckets: Option<String>,
-
-    /// Default value: lmp
-    component: Option<LmpComponent>,
-
-    /// Statistic: mean, min, max, median, etc.  Default: mean
-    statistic: Option<String>,
-}
-
 #[get("/isone/prices/{market}/daily/start/{start}/end/{end}")]
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
@@ -146,7 +109,7 @@ async fn api_daily_prices(
         .unwrap_or(vec![Bucket::Atc]);
 
     let component = query.component.unwrap_or(LmpComponent::Lmp);
-    let statistic = query.statistic.clone().unwrap_or("mean".into());
+    let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_daily_prices(
         &conn,
@@ -198,12 +161,11 @@ async fn api_monthly_prices(
 
     let component = query.component.unwrap_or(LmpComponent::Lmp);
 
-    let statistic = query.statistic.clone().unwrap_or("mean".into());
+    let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_monthly_prices(
         &conn,
-        start_month,
-        end_month,
+        (start_month, end_month),
         ptids,
         component,
         buckets,
@@ -212,6 +174,121 @@ async fn api_monthly_prices(
     )
     .unwrap();
     HttpResponse::Ok().json(prices)
+}
+
+#[get("/isone/prices/{market}")]
+async fn api_term_prices(
+    path: web::Path<Market>,
+    query: web::Query<LmpQuery3>,
+    db: web::Data<(IsoneDaLmpArchive, IsoneRtLmpArchive, BucketsArchive)>,
+) -> impl Responder {
+    let market = path.into_inner();
+
+    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
+    let conn = match market {
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
+    };
+
+    let terms: Option<Vec<Term>> = query.terms.as_ref().map(|ids| {
+        ids.split(';')
+            .map(|e| e.trim().parse::<Term>().unwrap())
+            .collect()
+    });
+    if terms.is_none() {
+        return HttpResponse::BadRequest().body("terms parameter is required");
+    }
+
+    let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
+        ids.split(',')
+            .map(|e| e.trim().parse::<i32>().unwrap())
+            .collect()
+    });
+
+    let buckets: Vec<Bucket> = query
+        .buckets
+        .as_ref()
+        .map(|ids| {
+            ids.split(',')
+                .map(|e| e.parse::<Bucket>().unwrap())
+                .collect()
+        })
+        .unwrap_or(vec![Bucket::Atc]);
+
+    let component = query.component.unwrap_or(LmpComponent::Lmp);
+
+    let statistic = query.statistic.clone().unwrap_or("avg".into());
+
+    let prices = get_term_prices(
+        &conn,
+        &terms.unwrap(),
+        ptids,
+        component,
+        buckets,
+        statistic,
+        &db.2.duckdb_path,
+    )
+    .unwrap();
+    HttpResponse::Ok().json(prices)
+}
+
+#[derive(Debug, Deserialize)]
+struct LmpQuery {
+    /// One or more ptids, separated by commas.
+    /// If not specified, return all ptids.  Use carefully
+    /// because it's a lot of data...
+    ptids: Option<String>,
+
+    /// One or more LMP components, separated by commas.
+    /// Valid values are: lmp, mcc, mlc.
+    /// If not specified, return all of three.
+    components: Option<String>,
+
+    /// Valid values are: default, compact.  The default value returns data in long format,
+    /// each row of containing {'hour_beginning', 'ptid', 'component', 'price'}.
+    /// The compact format returns data with following shape:
+    /// {'2025-01-01': {4000: <num>[...], 4001: <num>[...]}, '2025-01-02': {...}, ...}
+    format: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LmpQuery2 {
+    /// One or more ptids, separated by commas.
+    /// If not specified, return all ptids.  Use carefully
+    /// because it's a lot of data...
+    ptids: Option<String>,
+
+    /// One or more bucket names, separated by commas.
+    /// Valid values are: 5x16, 2x16H, 7x8, atc, offpeak, etc.
+    buckets: Option<String>,
+
+    /// Default value: lmp
+    component: Option<LmpComponent>,
+
+    /// Statistic: avg, min, max, median, etc.  Default: avg
+    statistic: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LmpQuery3 {
+    /// One or more ptids, separated by commas.
+    /// If not specified, return all ptids.  Use carefully
+    /// because it's a lot of data...
+    ptids: Option<String>,
+
+    /// One or more bucket names, separated by commas.
+    /// Valid values are: 5x16, 2x16H, 7x8, atc, offpeak, etc.
+    buckets: Option<String>,
+
+    /// One or more terms, separated by semicolons.
+    /// Valid values are: Cal24;3Sep22-15Oc23;Jul24-Aug25, etc.
+    terms: Option<String>,
+
+    /// Default value: lmp
+    component: Option<LmpComponent>,
+
+    /// Statistic: avg, min, max, median, etc.  Default: avg
+    statistic: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -463,14 +540,14 @@ pub struct RowD {
 
 pub fn get_monthly_prices(
     conn: &Connection,
-    start: Month,
-    end: Month,
+    start_end: (Month, Month),
     ptids: Option<Vec<i32>>,
     component: LmpComponent,
     buckets: Vec<Bucket>,
     statistic: String,
     buckets_db_path: &str,
 ) -> Result<Vec<RowM>> {
+    let (start, end) = start_end;
     conn.execute_batch(
         format!(
             r"LOAD icu;
@@ -560,10 +637,125 @@ ORDER BY ptid, month_beginning;
     Ok(prices)
 }
 
+/// Get prices for custom terms.
+pub fn get_term_prices(
+    conn: &Connection,
+    terms: &Vec<Term>,
+    ptids: Option<Vec<i32>>,
+    component: LmpComponent,
+    buckets: Vec<Bucket>,
+    statistic: String,
+    buckets_db_path: &str,
+) -> Result<Vec<RowT>> {
+    conn.execute_batch(
+        format!(
+            r#"
+LOAD icu;
+ATTACH '{}' AS buckets;
+CREATE TEMPORARY TABLE terms (
+    term VARCHAR NOT NULL,
+    term_start TIMESTAMPTZ NOT NULL,
+    term_end TIMESTAMPTZ NOT NULL
+);"#,
+            buckets_db_path
+        )
+        .as_str(),
+    )?;
+    for term in terms {
+        conn.execute(
+            "INSERT INTO terms (term, term_start, term_end) VALUES (?, ?, ?);",
+            [
+                format!("{}", term),
+                term.start
+                    .in_tz("America/New_York")
+                    .unwrap()
+                    .strftime("%Y-%m-%d %H:%M:%S.000%:z")
+                    .to_string(),
+                term.end
+                    .in_tz("America/New_York")
+                    .unwrap()
+                    .checked_add(1.day())
+                    .ok()
+                    .unwrap()
+                    .strftime("%Y-%m-%d %H:%M:%S.000%:z")
+                    .to_string(),
+            ],
+        )?;
+    }
+
+    let mut prices: Vec<RowT> = Vec::new();
+    for bucket in buckets {
+        let mut ps =
+            get_term_prices_bucket(conn, ptids.clone(), component, bucket, statistic.clone())?;
+        prices.append(&mut ps);
+    }
+
+    Ok(prices)
+}
+
+fn get_term_prices_bucket(
+    conn: &Connection,
+    ptids: Option<Vec<i32>>,
+    component: LmpComponent,
+    bucket: Bucket,
+    statistic: String,
+) -> Result<Vec<RowT>> {
+    let query = format!(
+        r#"
+SELECT
+    t.term,
+    d.ptid,
+    {}(d.{})::DECIMAL(9,4) AS price,
+FROM da_lmp d
+JOIN terms t
+    ON d.hour_beginning >= t.term_start
+    AND d.hour_beginning < t.term_end
+JOIN buckets.buckets b
+    ON d.hour_beginning = b.hour_beginning
+WHERE b."{}" = TRUE{}    
+GROUP BY t.term, d.ptid
+ORDER BY t.term, d.ptid;
+        "#,
+        statistic,
+        component.to_string().to_lowercase(),
+        bucket.name().to_lowercase(),
+        match ptids {
+            Some(ids) => format!("\nAND ptid in ({}) ", ids.iter().join(", ")),
+            None => "".to_string(),
+        },
+    );
+    // println!("{}", query);
+    let mut stmt = conn.prepare(&query).unwrap();
+    let prices_iter = stmt.query_map([], |row| {
+        Ok(RowT {
+            term: row.get(0).unwrap(),
+            ptid: row.get(1).unwrap(),
+            bucket,
+            value: match row.get_ref_unwrap(2) {
+                ValueRef::Decimal(v) => v,
+                _ => Decimal::MIN,
+            },
+        })
+    })?;
+    let prices: Vec<RowT> = prices_iter.map(|e| e.unwrap()).collect();
+
+    Ok(prices)
+}
+
 // for monthly data
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RowM {
     month: Month,
+    ptid: i32,
+    bucket: Bucket,
+    #[serde(with = "rust_decimal::serde::float")]
+    value: Decimal,
+}
+
+// for term data
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct RowT {
+    term: String,
     ptid: i32,
     bucket: Bucket,
     #[serde(with = "rust_decimal::serde::float")]
@@ -726,8 +918,7 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let data = get_monthly_prices(
             &conn,
-            month(2025, 1),
-            month(2025, 7),
+            (month(2025, 1), month(2025, 7)),
             Some(vec![4000]),
             LmpComponent::Lmp,
             vec![
@@ -755,6 +946,39 @@ mod tests {
     }
 
     #[test]
+    fn test_term_prices() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let terms: Vec<Term> = vec!["Cal24", "Jul24", "Jul24-Aug24"]
+            .into_iter()
+            .map(|s| s.parse::<Term>().unwrap())
+            .collect();
+
+        let data = get_term_prices(
+            &conn,
+            &terms,
+            Some(vec![4000, 4001]),
+            LmpComponent::Lmp,
+            vec![Bucket::B5x16, Bucket::Offpeak],
+            "avg".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
+        )
+        .unwrap();
+        // println!("{:?}", data);
+        assert_eq!(
+            data[0],
+            RowT {
+                term: "Cal24".into(),
+                ptid: 4000,
+                bucket: Bucket::B5x16,
+                value: dec!(46.6208),
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn api_hourly_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
@@ -763,7 +987,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<Row> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 24);
+        assert_eq!(vs.len(), 720); // 2 locations x 3 components x 5 days x 24 hours = 720
         Ok(())
     }
 
@@ -774,10 +998,10 @@ mod tests {
             "{}/isone/prices/da/daily/start/2025-01-01/end/2025-01-05?ptids=4000,4001&buckets=5x16,2x16H",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
+        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowD> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 5);
+        assert_eq!(vs.len(), 10); // 2 locations x 2 buckets x 5 days = 10
         Ok(())
     }
 
@@ -788,11 +1012,34 @@ mod tests {
             "{}/isone/prices/da/monthly/start/2024-01/end/2024-12?ptids=4000,4001&buckets=5x16,offpeak",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
+        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowM> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 48);  // 2 locations x 2 buckets x 12 months = 48
+        assert_eq!(vs.len(), 48); // 2 locations x 2 buckets x 12 months = 48
         Ok(())
     }
 
+    #[test]
+    fn api_term_test() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let url = format!(
+            "{}/isone/prices/da?ptids=4000&buckets=5x16,offpeak&terms=Cal24;Jul24;Jul24-Aug25",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        // println!("{}", url);
+        let response = reqwest::blocking::get(url)?.text()?;
+        let vs: Vec<RowT> = serde_json::from_str(&response).unwrap();
+        assert_eq!(vs.len(), 6); // 1 location x 2 buckets x 3 terms = 6
+        assert_eq!(
+            vs[0],
+            RowT {
+                term: "Cal24".into(),
+                ptid: 4000,
+                bucket: Bucket::B5x16,
+                value: dec!(46.6208),
+            }
+        );
+
+        Ok(())
+    }
 }

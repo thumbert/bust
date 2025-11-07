@@ -4,6 +4,10 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Pass the ProdDb instance via app_data to the endpoints to make them reusable from other deployments <---
 
+## 2025-11-07
+- Add end point for LMP calculation for custom terms in isone.  Yay.  Should probably abstract it for 
+  NYISO and PJM markets too.  
+
 ## 2025-11-05
 - Inject the isone da and rt lmp dbs into the server.
 

@@ -1,5 +1,6 @@
 use duckdb::{Connection, Result};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Person {
     id: i32,
@@ -7,7 +8,6 @@ struct Person {
 }
 
 /// IMPORT DATABASE '/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/Duck';
-
 fn main() -> Result<()> {
     let conn = Connection::open_in_memory()?;
 

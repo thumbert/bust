@@ -11,6 +11,7 @@ use jiff::{
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::interval::{
@@ -27,7 +28,7 @@ pub struct TermParser;
 #[error("{0}")]
 pub struct ParseError(pub String);
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Serialize, Deserialize)]
 pub struct Term {
     pub start: Date,
     pub end: Date,
