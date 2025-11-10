@@ -185,7 +185,7 @@ async fn api_term_prices(
     let market = path.into_inner();
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = match market {
+    let mut conn = match market {
         Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
         Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
@@ -220,7 +220,7 @@ async fn api_term_prices(
     let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_term_prices(
-        &conn,
+        &mut conn,
         &terms.unwrap(),
         ptids,
         component,
@@ -639,7 +639,7 @@ ORDER BY ptid, month_beginning;
 
 /// Get prices for custom terms.
 pub fn get_term_prices(
-    conn: &Connection,
+    conn: &mut Connection,
     terms: &Vec<Term>,
     ptids: Option<Vec<i32>>,
     component: LmpComponent,
@@ -661,27 +661,28 @@ CREATE TEMPORARY TABLE terms (
         )
         .as_str(),
     )?;
+
+    let tx = conn.transaction()?;
+    let mut stmt = tx.prepare("INSERT INTO terms (term, term_start, term_end) VALUES (?, ?, ?)")?;
     for term in terms {
-        conn.execute(
-            "INSERT INTO terms (term, term_start, term_end) VALUES (?, ?, ?);",
-            [
-                format!("{}", term),
-                term.start
-                    .in_tz("America/New_York")
-                    .unwrap()
-                    .strftime("%Y-%m-%d %H:%M:%S.000%:z")
-                    .to_string(),
-                term.end
-                    .in_tz("America/New_York")
-                    .unwrap()
-                    .checked_add(1.day())
-                    .ok()
-                    .unwrap()
-                    .strftime("%Y-%m-%d %H:%M:%S.000%:z")
-                    .to_string(),
-            ],
-        )?;
+        stmt.execute([
+            format!("{}", term),
+            term.start
+                .in_tz("America/New_York")
+                .unwrap()
+                .strftime("%Y-%m-%d %H:%M:%S.000%:z")
+                .to_string(),
+            term.end
+                .in_tz("America/New_York")
+                .unwrap()
+                .checked_add(1.day())
+                .ok()
+                .unwrap()
+                .strftime("%Y-%m-%d %H:%M:%S.000%:z")
+                .to_string(),
+        ])?;
     }
+    tx.commit()?;
 
     let mut prices: Vec<RowT> = Vec::new();
     for bucket in buckets {
@@ -948,14 +949,14 @@ mod tests {
     #[test]
     fn test_term_prices() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let mut conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let terms: Vec<Term> = vec!["Cal24", "Jul24", "Jul24-Aug24"]
             .into_iter()
             .map(|s| s.parse::<Term>().unwrap())
             .collect();
 
         let data = get_term_prices(
-            &conn,
+            &mut conn,
             &terms,
             Some(vec![4000, 4001]),
             LmpComponent::Lmp,

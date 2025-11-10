@@ -38,7 +38,7 @@ async fn main() -> std::io::Result<()> {
         "test" => env_logger::init_from_env(Env::default().default_filter_or("debug")),
         _ => panic!("Invalid environment"),
     }
-    
+
     // See https://actix.rs/docs/databases/  Not working well with DuckDb (yet)
     // let manager = DuckDBConnectionManager::file("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb");
     // let pool = r2d2::Pool::builder().build(manager).unwrap();
@@ -61,7 +61,12 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
-            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::isone_rtlmp(), ProdDb::buckets())))
+            .app_data(Data::new((
+                ProdDb::isone_dalmp(),
+                ProdDb::isone_rtlmp(),
+                ProdDb::buckets(),
+            )))
+            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets())))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
             .app_data(Data::new(ProdDb::isone_participants_archive()))
             .app_data(Data::new(sd_daasdt.clone()))
@@ -89,11 +94,12 @@ async fn main() -> std::io::Result<()> {
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)
             .service(isone::capacity::monthly_capacity_bidsoffers::bids_offers)
-            .service(isone::masked_daas_offers::api_offers)
+            .service(isone::ftr::api_monthly_settle_prices)
             .service(isone::lmp::api_daily_prices)
             .service(isone::lmp::api_hourly_prices)
             .service(isone::lmp::api_monthly_prices)
             .service(isone::lmp::api_term_prices)
+            .service(isone::masked_daas_offers::api_offers)
             .service(isone::masked_energy_offers::api_offers)
             .service(isone::masked_energy_offers::api_stack)
             .service(isone::mis::sd_daasdt::api_daily_charges)

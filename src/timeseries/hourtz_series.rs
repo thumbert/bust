@@ -1,5 +1,5 @@
 use crate::{
-    interval::{hour_tz::HourTz, interval::IntervalTzLike},
+    interval::{hour_tz::HourTz, interval_base::IntervalTzLike},
     timeseries::series_tz::SeriesTz,
 };
 

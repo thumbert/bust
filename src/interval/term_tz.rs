@@ -1,15 +1,22 @@
-// use std::str::FromStr;
-
-use std::str::FromStr;
 
 use jiff::{
-    civil::{date, Date},
+    civil::date,
     ToSpan, Zoned,
 };
 
 use crate::interval::{
-    date_tz::DateTz, hour_tz::HourTz, interval::{DateExt, IntervalTzLike}, month_tz::MonthTz, term::{Term, TermType}
+    date_tz::DateTz, hour_tz::HourTz, interval_base::{DateExt, IntervalTzLike}, month_tz::MonthTz, term::{Term, TermType}
 };
+
+// use pest::Parser;
+// use pest_derive::Parser;
+
+
+// #[derive(Parser)]
+// #[grammar = "grammars/term.pest"]
+// pub struct TermParser2;
+
+
 
 #[derive(Clone,PartialEq)]
 pub struct TermTz {

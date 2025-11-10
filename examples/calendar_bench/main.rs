@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use bust::{holiday::{HolidayTrait, NercCalendar}, interval::interval::DateExt};
+use bust::{holiday::{HolidayTrait, NercCalendar}, interval::interval_base::DateExt};
 use jiff::civil::date;
 
 fn main() {

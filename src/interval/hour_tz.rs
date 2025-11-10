@@ -5,7 +5,7 @@ use std::fmt::{self, Formatter};
 
 use jiff::{civil::DateTime, ToSpan, Unit, Zoned};
 
-use crate::interval::interval::IntervalTzLike;
+use crate::interval::interval_base::IntervalTzLike;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Hour {
@@ -60,7 +60,7 @@ mod tests {
 
     use crate::interval::{
         hour_tz::{Hour, HourTz},
-        interval::IntervalLike,
+        interval_base::IntervalLike,
     };
 
     #[test]

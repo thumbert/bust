@@ -126,7 +126,7 @@ mod tests {
 
     use crate::{
         db::prod_db::ProdDb,
-        interval::{interval::DateExt, term::Term},
+        interval::{interval_base::DateExt, term::Term},
     };
 
     #[ignore]

@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Pass the ProdDb instance via app_data to the endpoints to make them reusable from other deployments <---
 
+## 2025-11-10
+- Add end point for calculation of FTR monthly settle prices
+
 ## 2025-11-07
 - Add end point for LMP calculation for custom terms in isone.  Yay.  Should probably abstract it for 
   NYISO and PJM markets too.  

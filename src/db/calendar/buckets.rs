@@ -3,9 +3,7 @@ use std::{path::Path, process::Command};
 use jiff::Zoned;
 
 use crate::{
-    bucket::{Bucket, BucketLike},
-    elec::iso::ISONE,
-    interval::{interval::IntervalTzLike, term::Term},
+    bucket::{Bucket, BucketLike}, db::prod_db::ProdDb, elec::iso::ISONE, interval::{interval_base::IntervalTzLike, term::Term}
 };
 
 #[derive(Clone)]
@@ -24,6 +22,7 @@ struct Row {
     atc: bool,
 }
 
+/// Generate a CSV file with the bucket mask for each hour of the given term.
 pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let term_tz = term.with_tz(&ISONE.tz);
 
@@ -71,10 +70,48 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+/// Make a file with the count of hours by month
+pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let term_tz = term.with_tz(&ISONE.tz);
+    let mut counts: Vec<(String, Bucket, i32)> = Vec::new();
+    for bucket in [
+        Bucket::Atc,
+        Bucket::B5x16,
+        Bucket::B2x16H,
+        Bucket::B7x8,
+        Bucket::Offpeak,
+    ] {
+        for month in term_tz.months() {
+            let hours = bucket.count_hours(&month);
+            counts.push((month.start().strftime("%Y-%m").to_string(), bucket, hours));
+        }
+    }
+
+    // Write to CSV
+    let file = std::fs::File::create(file_path).expect("Unable to create file");
+    let mut wtr = csv::Writer::from_writer(file);
+    wtr.write_record(["month", "bucket", "hour_count"]).unwrap();
+    for e in &counts {
+        wtr.write_record(&[e.0.clone(), e.1.name(), e.2.to_string()])
+            .unwrap();
+    }
+    wtr.flush().unwrap();
+
+    Command::new("gzip")
+        .args(["-f", file_path])
+        .current_dir(ProdDb::buckets().base_dir.as_str())
+        .spawn()
+        .unwrap()
+        .wait()
+        .expect("gzip failed");
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
-        db::{calendar::buckets::generate_csv, prod_db::ProdDb},
+        db::{calendar::buckets::*, prod_db::ProdDb},
         interval::term::Term,
     };
     use std::error::Error;
@@ -85,6 +122,18 @@ mod tests {
         let archive = ProdDb::buckets();
         let term = "Cal10-Cal34".parse::<Term>().unwrap();
         generate_csv(term, format!("{}/buckets.csv", archive.base_dir).as_str())?;
+        Ok(())
+    }
+
+    #[ignore]
+    #[test]
+    fn make_hour_count_file() -> Result<(), Box<dyn Error>> {
+        let archive = ProdDb::buckets();
+        let term = "Cal10-Cal34".parse::<Term>().unwrap();
+        count_hour_by_month(
+            term,
+            format!("{}/hour_count.csv", archive.base_dir).as_str(),
+        )?;
         Ok(())
     }
 }

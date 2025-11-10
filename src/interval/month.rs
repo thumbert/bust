@@ -8,7 +8,7 @@ use std::fmt::Formatter;
 
 use std::{error::Error, fmt, str::FromStr};
 
-use crate::interval::{interval::IntervalLike, month_tz::MonthTz, term::Term};
+use crate::interval::{interval_base::IntervalLike, month_tz::MonthTz, term::Term};
 
 use super::term::{ParseError, Rule, TermParser};
 

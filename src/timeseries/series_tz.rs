@@ -8,7 +8,7 @@ use std::vec::IntoIter;
 use crate::interval::{
     date_tz::DateTz,
     hour_tz::HourTz,
-    interval::{IntervalLike, IntervalTzLike},
+    interval_base::{IntervalLike, IntervalTzLike},
     month_tz::MonthTz,
 };
 
@@ -461,7 +461,7 @@ pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);
 mod tests {
     use crate::{
         elec::iso::ISONE,
-        interval::{interval::DateExt, term::Term, term_tz::TermTz},
+        interval::{interval_base::DateExt, term::Term, term_tz::TermTz},
     };
 
     use super::*;

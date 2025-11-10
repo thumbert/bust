@@ -1,14 +1,10 @@
-// use std::fmt;
-// use std::fmt::{Debug, Formatter};
-
-// use super::interval::IntervalLike;
 
 use jiff::{
-    civil::{date, Date},
+    civil::date,
     ToSpan, Zoned,
 };
 
-use crate::interval::{date_tz::DateTz, interval::{DateExt, IntervalTzLike}};
+use crate::interval::{date_tz::DateTz, interval_base::IntervalTzLike};
 
 #[derive(PartialEq, Debug, Clone, Hash, Eq, PartialOrd, Ord)]
 pub struct MonthTz(Zoned);
@@ -35,14 +31,6 @@ impl MonthTz {
     pub fn end_date(&self) -> DateTz {
         DateTz::containing(&self.end().checked_sub(1.day()).unwrap())    
     }
-
-    // pub fn days(&self) -> Vec<DateTz> {
-    //     let end = self.end_date();
-    //     self.start_date()
-    //         .series(1.day())
-    //         .take_while(|e| e <= &end)
-    //         .collect()
-    // }
 
     pub fn next(&self) -> MonthTz {
         MonthTz(self.start().saturating_add(1.month()))
@@ -105,15 +93,15 @@ impl IntervalTzLike for MonthTz {
 //         .unwrap()
 //     }
 
-//     pub fn hour_count(&self) -> usize {
-//         usize::try_from(
-//             self.next()
-//                 .start
-//                 .signed_duration_since(self.start)
-//                 .num_hours(),
-//         )
-//         .unwrap()
-//     }
+    // pub fn hour_count(&self) -> usize {
+    //     usize::try_from(
+    //         self.next()
+    //             .start
+    //             .signed_duration_since(self.start)
+    //             .num_hours(),
+    //     )
+    //     .unwrap()
+    // }
 // }
 
 // impl IntervalLike for MonthTz {

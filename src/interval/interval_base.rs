@@ -228,7 +228,7 @@ impl From<TermTz> for IntervalTz {
 mod tests {
 
     use crate::interval::{
-        interval::{IntervalTz, IntervalTzLike},
+        interval_base::{IntervalTz, IntervalTzLike},
         month_tz::MonthTz,
     };
 

@@ -8,14 +8,14 @@ use jiff::{
 };
 // use super::interval::Interval;
 // use pest::error::Error;
-use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use pest::iterators::Pair;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::interval::{
-    interval::{DateExt, IntervalLike},
+    interval_base::{DateExt, IntervalLike},
     month::{month, process_month, process_month_abb, process_month_txt, process_month_us, Month},
     term_tz::TermTz,
 };

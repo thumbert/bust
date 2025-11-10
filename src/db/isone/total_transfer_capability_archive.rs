@@ -192,7 +192,7 @@ mod tests {
 
     use crate::{
         db::prod_db::ProdDb,
-        interval::{interval::DateExt, month::month},
+        interval::{interval_base::DateExt, month::month},
     };
 
     use super::*;

@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     holiday::*,
-    interval::{hour_tz::HourTz, interval::IntervalTzLike},
+    interval::{hour_tz::HourTz, interval_base::IntervalTzLike},
 };
 
 pub trait BucketLike {

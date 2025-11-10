@@ -2,7 +2,7 @@ use std::error::Error;
 
 use jiff::{civil::Date, ToSpan, Zoned};
 
-use crate::interval::interval::IntervalTzLike;
+use crate::interval::interval_base::IntervalTzLike;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DateTz(Zoned);
@@ -67,7 +67,7 @@ impl IntervalTzLike for DateTz {
 mod tests {
     use jiff::{civil::{date, Time}, tz::TimeZone};
 
-    use crate::interval::interval::*;
+    use crate::interval::interval_base::*;
 
     #[test]
     fn test_date() {
