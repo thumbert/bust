@@ -8,18 +8,20 @@ use duckdb::{
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
 
+use crate::db::isone::masked_data::mra_archive::IsoneMraBidsOffersArchive;
+
 #[get("/isone/capacity/mra/bids_offers/participant_ids")]
-async fn participant_ids() -> impl Responder {
+async fn participant_ids(db: web::Data<IsoneMraBidsOffersArchive>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let ids = get_participant_ids(conn);
     HttpResponse::Ok().json(ids)
 }
 
 #[get("/isone/capacity/mra/results/interface/start/{start}/end/{end}")]
-async fn results_interface(path: web::Path<(String, String)>) -> impl Responder {
+async fn results_interface(path: web::Path<(String, String)>, db: web::Data<IsoneMraBidsOffersArchive>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start = match path.0.replace('-', "").parse::<u32>() {
         Ok(v) => v,
         Err(e) => return HttpResponse::BadRequest().body(format!("Invalid start month. {}", e)),
@@ -33,9 +35,9 @@ async fn results_interface(path: web::Path<(String, String)>) -> impl Responder 
 }
 
 #[get("/isone/capacity/mra/results/zone/start/{start}/end/{end}")]
-async fn results_zone(path: web::Path<(String, String)>) -> impl Responder {
+async fn results_zone(path: web::Path<(String, String)>, db: web::Data<IsoneMraBidsOffersArchive>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start = match path.0.replace('-', "").parse::<u32>() {
         Ok(v) => v,
         Err(e) => return HttpResponse::BadRequest().body(format!("Invalid start month. {}", e)),
@@ -49,14 +51,14 @@ async fn results_zone(path: web::Path<(String, String)>) -> impl Responder {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-enum CapacityZoneType {
+pub enum CapacityZoneType {
     Rop,
     Export,
     Import,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-struct ZoneResult {
+pub struct ZoneResult {
     month: u32,
     capacity_zone_id: u32,
     capacity_zone_type: CapacityZoneType,
@@ -70,7 +72,7 @@ struct ZoneResult {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-struct InterfaceResult {
+pub struct InterfaceResult {
     month: u32,
     external_interface_id: u32,
     external_interface_name: String,
@@ -196,20 +198,16 @@ fn get_participant_ids(conn: Connection) -> Vec<i64> {
     ids
 }
 
-fn get_path() -> String {
-    "/home/adrian/Downloads/Archive/IsoExpress/Capacity/mra.duckdb".to_string()
-}
-
 #[cfg(test)]
 mod tests {
 
-    use crate::api::isone::capacity::monthly_capacity_results::*;
+    use crate::{api::isone::capacity::monthly_capacity_results::*, db::prod_db::ProdDb};
     use duckdb::{AccessMode, Config, Connection, Result};
 
     #[test]
     fn test_get_results_zone() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config).unwrap();
         let data = get_results_zone(conn, 202401, 202403).unwrap();
         assert!(data.len() >= 12);
         Ok(())
@@ -218,7 +216,7 @@ mod tests {
     #[test]
     fn test_get_results_interface() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path , config).unwrap();
         let data = get_results_interface(conn, 202401, 202403).unwrap();
         let sene = data
             .iter()
@@ -232,7 +230,7 @@ mod tests {
     #[test]
     fn test_participant_ids() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config).unwrap();
         let ids = get_participant_ids(conn);
         assert!(ids.len() >= 107);
         Ok(())

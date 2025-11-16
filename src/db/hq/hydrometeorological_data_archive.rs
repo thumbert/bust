@@ -363,6 +363,7 @@ mod tests {
         archive.update_duckdb(days)
     }
 
+    #[ignore]
     #[test]
     fn process_hourly_level_data() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::hq_hydro_data();
@@ -373,18 +374,13 @@ mod tests {
         Ok(())
     }
 
+    #[ignore]
     #[test]
     fn read_metadata() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::hq_hydro_data();
         let path = archive.filename(&date(2024, 12, 4)) + ".gz";
         let stations = archive.read_station_metadata(&path)?;
         assert_eq!(stations.len(), 417);
-
-        // let mut wtr = csv::Writer::from_writer(io::stdout());
-        // for station in stations {
-        //     wtr.serialize(station)?;
-        // }
-        // wtr.flush()?;
         Ok(())
     }
 

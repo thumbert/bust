@@ -43,11 +43,6 @@ async fn main() -> std::io::Result<()> {
     // let manager = DuckDBConnectionManager::file("/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/MonthlyAuction/mra.duckdb");
     // let pool = r2d2::Pool::builder().build(manager).unwrap();
 
-    let sd_daasdt = ProdDb::sd_daasdt();
-    let sd_rtload = ProdDb::sd_rtload();
-    let sr_rsvcharge2 = ProdDb::sr_rsvcharge2();
-    let sr_rsvstl2 = ProdDb::sr_rsvstl2();
-
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
     let port = match args.env.as_str() {
         "prod" => 8111,
@@ -66,13 +61,22 @@ async fn main() -> std::io::Result<()> {
                 ProdDb::isone_rtlmp(),
                 ProdDb::buckets(),
             )))
-            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets())))
+            .app_data(Data::new(ProdDb::hq_hydro_data()))
+            .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
+            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices())))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
+            .app_data(Data::new(ProdDb::isone_masked_daas_offers()))
+            .app_data(Data::new(ProdDb::isone_masked_demand_bids()))
+            .app_data(Data::new(ProdDb::isone_masked_da_energy_offers()))
             .app_data(Data::new(ProdDb::isone_participants_archive()))
-            .app_data(Data::new(sd_daasdt.clone()))
-            .app_data(Data::new(sd_rtload.clone()))
-            .app_data(Data::new(sr_rsvcharge2.clone()))
-            .app_data(Data::new(sr_rsvstl2.clone()))
+            .app_data(Data::new(ProdDb::nrc_generator_status()))
+            .app_data(Data::new(ProdDb::sd_daasdt()))
+            .app_data(Data::new(ProdDb::sd_rtload()))
+            .app_data(Data::new(ProdDb::sr_rsvcharge2()))
+            .app_data(Data::new(ProdDb::sr_rsvstl2()))
+            .app_data(Data::new((ProdDb::nyiso_dalmp(), ProdDb::nyiso_rtlmp())))
+            .app_data(Data::new(ProdDb::nyiso_energy_offers()))
+            .app_data(Data::new(ProdDb::nyiso_scheduled_outages()))
             .app_data(Data::new(ProdDb::nyiso_transmission_outages_da()))
             .service(hello)
             // Admin
@@ -91,6 +95,7 @@ async fn main() -> std::io::Result<()> {
             .service(ieso::dalmp::api_daily_prices)
             // ISONE
             .service(isone::actual_interchange::api_actual_flows)
+            .service(isone::capacity::monthly_capacity_results::participant_ids)
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)
             .service(isone::capacity::monthly_capacity_bidsoffers::bids_offers)
@@ -100,6 +105,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::lmp::api_monthly_prices)
             .service(isone::lmp::api_term_prices)
             .service(isone::masked_daas_offers::api_offers)
+            .service(isone::masked_demand_bids::api_offers)
             .service(isone::masked_energy_offers::api_offers)
             .service(isone::masked_energy_offers::api_stack)
             .service(isone::mis::sd_daasdt::api_daily_charges)

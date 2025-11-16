@@ -1,10 +1,9 @@
+use std::time::Duration;
+
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    api::isone::{
-        _api_isone_core::Market,
-        masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
-    },
+    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market},
     bucket::{Bucket, BucketLike},
     db::{
         calendar::buckets::BucketsArchive,
@@ -15,8 +14,9 @@ use crate::{
         month_tz::MonthTz,
         term::Term,
     },
+    utils::lib_duckdb::open_with_retry,
 };
-use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
+use duckdb::{types::ValueRef, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
@@ -34,11 +34,16 @@ async fn api_hourly_prices(
     let start_date = path.1;
     let end_date = path.2;
 
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
-        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
+        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25)),
+        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25)),
     };
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database: {}",
+            conn.err().unwrap()
+        ));
+    }
 
     let ptids: Option<Vec<u32>> = query
         .ptids
@@ -62,15 +67,23 @@ async fn api_hourly_prices(
                 }
             };
             let prices =
-                get_hourly_prices_compact(&conn, start_date, end_date, ptids, component).unwrap();
+                get_hourly_prices_compact(&conn.unwrap(), start_date, end_date, ptids, component)
+                    .unwrap();
             use actix_web::http::header::HeaderName;
             HttpResponse::Ok()
                 .insert_header((HeaderName::from_static("content-type"), "application/json"))
                 .body(prices)
         }
         _ => {
-            let offers =
-                get_hourly_prices(&conn, start_date, end_date, market, ptids, components).unwrap();
+            let offers = get_hourly_prices(
+                &conn.unwrap(),
+                start_date,
+                end_date,
+                market,
+                ptids,
+                components,
+            )
+            .unwrap();
             HttpResponse::Ok().json(offers)
         }
     }
@@ -86,11 +99,16 @@ async fn api_daily_prices(
     let start_date = path.1;
     let end_date = path.2;
 
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
-        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
+        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25)),
+        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25)),
     };
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database: {}",
+            conn.err().unwrap()
+        ));
+    }
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
         ids.split(',')
@@ -112,7 +130,7 @@ async fn api_daily_prices(
     let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_daily_prices(
-        &conn,
+        &conn.unwrap(),
         Term {
             start: start_date,
             end: end_date,
@@ -137,11 +155,16 @@ async fn api_monthly_prices(
     let start_month = path.1;
     let end_month = path.2;
 
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
-        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
+        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25)),
+        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25)),
     };
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database: {}",
+            conn.err().unwrap()
+        ));
+    }
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
         ids.split(',')
@@ -164,7 +187,7 @@ async fn api_monthly_prices(
     let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_monthly_prices(
-        &conn,
+        &conn.unwrap(),
         (start_month, end_month),
         ptids,
         component,
@@ -184,11 +207,16 @@ async fn api_term_prices(
 ) -> impl Responder {
     let market = path.into_inner();
 
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let mut conn = match market {
-        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
-        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
+    let conn = match market {
+        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25)),
+        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25)),
     };
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database: {}",
+            conn.err().unwrap()
+        ));
+    }
 
     let terms: Option<Vec<Term>> = query.terms.as_ref().map(|ids| {
         ids.split(';')
@@ -220,7 +248,7 @@ async fn api_term_prices(
     let statistic = query.statistic.clone().unwrap_or("avg".into());
 
     let prices = get_term_prices(
-        &mut conn,
+        &mut conn.unwrap(),
         &terms.unwrap(),
         ptids,
         component,
@@ -775,8 +803,12 @@ mod tests {
 
     #[test]
     fn test_hourly_data() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
         let data = get_hourly_prices(
             &conn,
             date(2025, 7, 1),
@@ -802,8 +834,12 @@ mod tests {
 
     #[test]
     fn test_hourly_prices_compact() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
         let data = get_hourly_prices_compact(
             &conn,
             date(2025, 7, 1),
@@ -818,8 +854,12 @@ mod tests {
 
     #[test]
     fn test_daily_prices() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
         let data = get_daily_prices(
             &conn,
             Term {
@@ -855,8 +895,13 @@ mod tests {
 
     #[test]
     fn test_daily_prices_5x16() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
+
         let data = get_daily_prices(
             &conn,
             Term {
@@ -885,8 +930,13 @@ mod tests {
 
     #[test]
     fn test_daily_prices_2x16h() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
+
         let data = get_daily_prices(
             &conn,
             Term {
@@ -915,8 +965,12 @@ mod tests {
 
     #[test]
     fn test_monthly_prices() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::isone_dalmp().duckdb_path,
+            8,
+            std::time::Duration::from_millis(25),
+        )
+        .unwrap();
         let data = get_monthly_prices(
             &conn,
             (month(2025, 1), month(2025, 7)),
@@ -949,7 +1003,8 @@ mod tests {
     #[test]
     fn test_term_prices() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let mut conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        let mut conn =
+            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         let terms: Vec<Term> = vec!["Cal24", "Jul24", "Jul24-Aug24"]
             .into_iter()
             .map(|s| s.parse::<Term>().unwrap())

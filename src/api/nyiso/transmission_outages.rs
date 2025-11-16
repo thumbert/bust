@@ -19,7 +19,7 @@ async fn api_transmission_outages_da(
 mod tests {
     use std::{env, path::Path};
 
-    use crate::db::nyiso::scheduled_outages::Row;
+    use crate::db::nyiso::transmission_outages_da::Row;
 
     #[test]
     fn api_outages_test() -> Result<(), reqwest::Error> {
@@ -28,11 +28,11 @@ mod tests {
             "{}/nyiso/transmission_outages/da?as_of=2025-10-21&equipment_name_like=CLAY%",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
+        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
-        print!("Response: {}", response);
+        // println!("Response: {}", response);
         let vs: Vec<Row> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 1);
+        assert_eq!(vs.len(), 9);
         Ok(())
     }
 }

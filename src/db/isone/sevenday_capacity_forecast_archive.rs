@@ -3,11 +3,11 @@
 
 use log::{error, info};
 use std::error::Error;
-use std::process::Command;
 use std::path::Path;
+use std::process::Command;
 
-use serde::{Serialize, Deserialize};
 use duckdb::Connection;
+use serde::{Deserialize, Serialize};
 
 use jiff::{civil::Date, ToSpan};
 
@@ -17,7 +17,6 @@ pub struct SevendayCapacityForecastArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
-
 
 impl SevendayCapacityForecastArchive {
     pub fn filename(&self, date: &Date) -> String {
@@ -263,7 +262,6 @@ ORDER BY for_day, day_index;
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Record {
     pub for_day: Date,
@@ -293,8 +291,12 @@ pub struct Record {
     pub hartford_dew_point_f: Option<i8>,
 }
 
-pub fn get_data(conn: &Connection, query_filter: &QueryFilter) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
-   let mut query = String::from(r#"
+pub fn get_data(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
 SELECT
     for_day,
     day_index,
@@ -322,7 +324,8 @@ SELECT
     hartford_high_temp_f,
     hartford_dew_point_f
 FROM capacity_forecast WHERE 1=1
-   "#);
+   "#,
+    );
     if let Some(for_day) = query_filter.for_day {
         query.push_str(&format!("AND for_day = '{}'", for_day));
     }
@@ -339,43 +342,74 @@ FROM capacity_forecast WHERE 1=1
         query.push_str(&format!("AND cso_mw = '{}'", cso_mw));
     }
     if let Some(cold_weather_outages_mw) = query_filter.cold_weather_outages_mw {
-        query.push_str(&format!("AND cold_weather_outages_mw = '{}'", cold_weather_outages_mw));
+        query.push_str(&format!(
+            "AND cold_weather_outages_mw = '{}'",
+            cold_weather_outages_mw
+        ));
     }
     if let Some(other_gen_outages_mw) = query_filter.other_gen_outages_mw {
-        query.push_str(&format!("AND other_gen_outages_mw = '{}'", other_gen_outages_mw));
+        query.push_str(&format!(
+            "AND other_gen_outages_mw = '{}'",
+            other_gen_outages_mw
+        ));
     }
     if let Some(delist_mw) = query_filter.delist_mw {
         query.push_str(&format!("AND delist_mw = '{}'", delist_mw));
     }
     if let Some(total_available_gen_mw) = query_filter.total_available_gen_mw {
-        query.push_str(&format!("AND total_available_gen_mw = '{}'", total_available_gen_mw));
+        query.push_str(&format!(
+            "AND total_available_gen_mw = '{}'",
+            total_available_gen_mw
+        ));
     }
     if let Some(peak_import_mw) = query_filter.peak_import_mw {
         query.push_str(&format!("AND peak_import_mw = '{}'", peak_import_mw));
     }
     if let Some(total_available_gen_import_mw) = query_filter.total_available_gen_import_mw {
-        query.push_str(&format!("AND total_available_gen_import_mw = '{}'", total_available_gen_import_mw));
+        query.push_str(&format!(
+            "AND total_available_gen_import_mw = '{}'",
+            total_available_gen_import_mw
+        ));
     }
     if let Some(peak_load_mw) = query_filter.peak_load_mw {
         query.push_str(&format!("AND peak_load_mw = '{}'", peak_load_mw));
     }
     if let Some(replacement_reserve_req_mw) = query_filter.replacement_reserve_req_mw {
-        query.push_str(&format!("AND replacement_reserve_req_mw = '{}'", replacement_reserve_req_mw));
+        query.push_str(&format!(
+            "AND replacement_reserve_req_mw = '{}'",
+            replacement_reserve_req_mw
+        ));
     }
     if let Some(required_reserve_mw) = query_filter.required_reserve_mw {
-        query.push_str(&format!("AND required_reserve_mw = '{}'", required_reserve_mw));
+        query.push_str(&format!(
+            "AND required_reserve_mw = '{}'",
+            required_reserve_mw
+        ));
     }
-    if let Some(required_reserve_incl_replacement_mw) = query_filter.required_reserve_incl_replacement_mw {
-        query.push_str(&format!("AND required_reserve_incl_replacement_mw = '{}'", required_reserve_incl_replacement_mw));
+    if let Some(required_reserve_incl_replacement_mw) =
+        query_filter.required_reserve_incl_replacement_mw
+    {
+        query.push_str(&format!(
+            "AND required_reserve_incl_replacement_mw = '{}'",
+            required_reserve_incl_replacement_mw
+        ));
     }
-    if let Some(total_load_plus_required_reserve_mw) = query_filter.total_load_plus_required_reserve_mw {
-        query.push_str(&format!("AND total_load_plus_required_reserve_mw = '{}'", total_load_plus_required_reserve_mw));
+    if let Some(total_load_plus_required_reserve_mw) =
+        query_filter.total_load_plus_required_reserve_mw
+    {
+        query.push_str(&format!(
+            "AND total_load_plus_required_reserve_mw = '{}'",
+            total_load_plus_required_reserve_mw
+        ));
     }
     if let Some(drr_mw) = query_filter.drr_mw {
         query.push_str(&format!("AND drr_mw = '{}'", drr_mw));
     }
     if let Some(surplus_deficiency_mw) = query_filter.surplus_deficiency_mw {
-        query.push_str(&format!("AND surplus_deficiency_mw = '{}'", surplus_deficiency_mw));
+        query.push_str(&format!(
+            "AND surplus_deficiency_mw = '{}'",
+            surplus_deficiency_mw
+        ));
     }
     if let Some(is_power_watch) = query_filter.is_power_watch {
         query.push_str(&format!("AND is_power_watch = '{}'", is_power_watch));
@@ -384,25 +418,46 @@ FROM capacity_forecast WHERE 1=1
         query.push_str(&format!("AND is_power_warn = '{}'", is_power_warn));
     }
     if let Some(is_cold_weather_watch) = query_filter.is_cold_weather_watch {
-        query.push_str(&format!("AND is_cold_weather_watch = '{}'", is_cold_weather_watch));
+        query.push_str(&format!(
+            "AND is_cold_weather_watch = '{}'",
+            is_cold_weather_watch
+        ));
     }
     if let Some(is_cold_weather_warn) = query_filter.is_cold_weather_warn {
-        query.push_str(&format!("AND is_cold_weather_warn = '{}'", is_cold_weather_warn));
+        query.push_str(&format!(
+            "AND is_cold_weather_warn = '{}'",
+            is_cold_weather_warn
+        ));
     }
     if let Some(is_cold_weather_event) = query_filter.is_cold_weather_event {
-        query.push_str(&format!("AND is_cold_weather_event = '{}'", is_cold_weather_event));
+        query.push_str(&format!(
+            "AND is_cold_weather_event = '{}'",
+            is_cold_weather_event
+        ));
     }
     if let Some(boston_high_temp_f) = query_filter.boston_high_temp_f {
-        query.push_str(&format!("AND boston_high_temp_f = '{}'", boston_high_temp_f));
+        query.push_str(&format!(
+            "AND boston_high_temp_f = '{}'",
+            boston_high_temp_f
+        ));
     }
     if let Some(boston_dew_point_f) = query_filter.boston_dew_point_f {
-        query.push_str(&format!("AND boston_dew_point_f = '{}'", boston_dew_point_f));
+        query.push_str(&format!(
+            "AND boston_dew_point_f = '{}'",
+            boston_dew_point_f
+        ));
     }
     if let Some(hartford_high_temp_f) = query_filter.hartford_high_temp_f {
-        query.push_str(&format!("AND hartford_high_temp_f = '{}'", hartford_high_temp_f));
+        query.push_str(&format!(
+            "AND hartford_high_temp_f = '{}'",
+            hartford_high_temp_f
+        ));
     }
     if let Some(hartford_dew_point_f) = query_filter.hartford_dew_point_f {
-        query.push_str(&format!("AND hartford_dew_point_f = '{}'", hartford_dew_point_f));
+        query.push_str(&format!(
+            "AND hartford_dew_point_f = '{}'",
+            hartford_dew_point_f
+        ));
     }
     query.push(';');
     let mut stmt = conn.prepare(&query)?;
@@ -420,7 +475,8 @@ FROM capacity_forecast WHERE 1=1
         let peak_load_mw: Option<i32> = row.get::<usize, Option<i32>>(9)?;
         let replacement_reserve_req_mw: Option<i32> = row.get::<usize, Option<i32>>(10)?;
         let required_reserve_mw: Option<i32> = row.get::<usize, Option<i32>>(11)?;
-        let required_reserve_incl_replacement_mw: Option<i32> = row.get::<usize, Option<i32>>(12)?;
+        let required_reserve_incl_replacement_mw: Option<i32> =
+            row.get::<usize, Option<i32>>(12)?;
         let total_load_plus_required_reserve_mw: Option<i32> = row.get::<usize, Option<i32>>(13)?;
         let drr_mw: Option<i32> = row.get::<usize, Option<i32>>(14)?;
         let surplus_deficiency_mw: Option<i32> = row.get::<usize, Option<i32>>(15)?;
@@ -650,23 +706,28 @@ impl QueryFilterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-    use duckdb::{AccessMode, Config, Connection};
-    use crate::{db::prod_db::ProdDb, interval::term::Term};
     use super::*;
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
+    use duckdb::{AccessMode, Config, Connection};
+    use jiff::civil::date;
+    use std::error::Error;
 
     #[test]
     fn test_get_data() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_sevenday_capacity_forecast().duckdb_path, config).unwrap();
-        let filter = QueryFilterBuilder::new().build();
+        let conn = Connection::open_with_flags(
+            ProdDb::isone_sevenday_capacity_forecast().duckdb_path,
+            config,
+        )
+        .unwrap();
+        let filter = QueryFilterBuilder::new().for_day(date(2025, 10, 1)).build();
         let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
         conn.close().unwrap();
-        assert_eq!(xs.len(), 0);
+        assert_eq!(xs.len(), 6);
         Ok(())
     }
 
-        #[ignore]
+    #[ignore]
     #[test]
     fn update_db() -> Result<(), Box<dyn Error>> {
         let _ = env_logger::builder()
@@ -695,6 +756,4 @@ mod tests {
         }
         Ok(())
     }
-
-
 }

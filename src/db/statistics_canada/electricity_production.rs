@@ -1,13 +1,11 @@
 use duckdb::Connection;
-use jiff::{civil::*, Timestamp, Zoned};
+use jiff::Timestamp;
 use reqwest::blocking::get;
 use std::error::Error;
 use std::fs::File;
 use std::io::copy;
-use std::path::Path;
 use std::process::Command;
 
-use crate::db::isone::lib_isoexpress::download_file;
 
 #[derive(Clone)]
 pub struct StatisticsCanadaGenerationArchive {

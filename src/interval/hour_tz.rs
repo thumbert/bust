@@ -1,9 +1,6 @@
-// use std::fmt::{Debug, Formatter};
-// use std::{fmt, panic};
-
 use std::fmt::{self, Formatter};
 
-use jiff::{civil::DateTime, ToSpan, Unit, Zoned};
+use jiff::{civil::DateTime, ToSpan, Zoned};
 
 use crate::interval::interval_base::IntervalTzLike;
 
@@ -58,10 +55,9 @@ mod tests {
 
     use jiff::Zoned;
 
-    use crate::interval::{
-        hour_tz::{Hour, HourTz},
-        interval_base::IntervalLike,
-    };
+    use crate::interval::
+        hour_tz::HourTz
+    ;
 
     #[test]
     fn test_hourtz() {

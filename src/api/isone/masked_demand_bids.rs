@@ -14,8 +14,8 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    api::isone::masked_daas_offers::deserialize_zoned_assume_ny,
-    api::isone::masked_daas_offers::serialize_zoned_as_offset, db::prod_db::ProdDb,
+    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
+    db::isone::masked_data::demand_bids_archive::DemandBidsArchive,
     elec::iso::ISONE,
 };
 
@@ -28,7 +28,9 @@ struct OffersQuery {
 
     masked_participant_ids: Option<i32>,
 
-    bid_types: Option<Vec<BidType>>,
+    /// One or more bid types, separated by commas
+    /// Valid types are: INC, DEC, FIXED, PRICE.  If not specified, return all.
+    bid_types: Option<String>,
 }
 
 /// Get DA demand bids + virtuals between a start/end date
@@ -36,10 +38,10 @@ struct OffersQuery {
 async fn api_offers(
     path: web::Path<(Date, Date)>,
     query: web::Query<OffersQuery>,
+    db: web::Data<DemandBidsArchive>,
 ) -> impl Responder {
-    let archive = ProdDb::isone_masked_da_energy_offers();
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let start_date = path.0;
     let end_date = path.1;
@@ -47,13 +49,23 @@ async fn api_offers(
         .masked_asset_ids
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
+
+    let bid_types: Option<Vec<BidType>> = query
+        .bid_types
+        .as_ref()
+        .map(|ids| {
+            ids.split(',')
+                .map(|e| e.parse::<BidType>().unwrap())
+                .collect()
+        });
+
     let offers = get_demand_bids(
         &conn,
         start_date,
         end_date,
         query.masked_participant_ids,
         asset_ids,
-        query.bid_types.clone(),
+        bid_types,
     )
     .unwrap();
     HttpResponse::Ok().json(offers)
@@ -86,7 +98,7 @@ impl FromStr for BidType {
             "INC" => Ok(BidType::Inc),
             "DEC" => Ok(BidType::Dec),
             "FIXED" => Ok(BidType::Fixed),
-            "PRICE" => Ok(BidType::PriceSensitive),
+            "PRICE" | "PRICESENSITIVE" => Ok(BidType::PriceSensitive),
             _ => Err(format!("Can't parse bid type: {}", s)),
         }
     }
@@ -190,7 +202,7 @@ AND HourBeginning < '{}'"#,
         ));
     }
     query.push_str("\nORDER BY \"MaskedAssetId\", \"HourBeginning\";");
-    println!("{}", query);
+    // println!("{}", query);
 
     let mut stmt = conn.prepare(&query).unwrap();
     let offers_iter = stmt.query_map([], |row| {
@@ -231,9 +243,8 @@ mod tests {
 
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
-    use serde_json::Value;
 
-    use crate::api::isone::masked_demand_bids::*;
+    use crate::{api::isone::masked_demand_bids::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_get_offers() -> Result<()> {
@@ -266,7 +277,7 @@ mod tests {
                 masked_participant_id: 504170,
                 masked_asset_id: 28934,
                 bid_type: BidType::PriceSensitive,
-                hour_beginning: "2024-06-01 00:00:00-04:00[America/New_York]"
+                hour_beginning: "2025-06-01 00:00:00-04:00[America/New_York]"
                     .parse()
                     .unwrap(),
                 segment: 0,
@@ -281,15 +292,14 @@ mod tests {
     fn api_demand_bids() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/demand_bids/da/start/2024-01-01/end/2024-01-02?masked_asset_ids=77459",
+            "{}/isone/demand_bids/da/start/2025-06-01/end/2025-06-01?masked_asset_ids=28934&masked_participant_ids=504170",
             env::var("RUST_SERVER").unwrap(),
         );
+        // println!("URL: {}", url);
         let response = reqwest::blocking::get(url)?.text()?;
-        let v: Value = serde_json::from_str(&response).unwrap();
-        if let Value::Array(xs) = v {
-            assert_eq!(xs.len(), 192);
-            println!("{:?}", xs);
-        }
+        let xs: Vec<DemandBid> = serde_json::from_str(&response).unwrap();
+        assert_eq!(xs.len(), 360);
+
         Ok(())
     }
 }

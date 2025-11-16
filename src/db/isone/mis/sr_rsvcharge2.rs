@@ -289,7 +289,7 @@ mod tests {
         let archive = ProdDb::sr_rsvcharge2();
         let months = archive.get_months();
         if Zoned::now().date() > date(2025, 3, 1) {
-            assert!(months.is_empty())
+            assert!(!months.is_empty())
         }
         Ok(())
     }

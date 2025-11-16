@@ -2,9 +2,9 @@ use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, ToSpan};
 
+use crate::db::hq::hydrometeorological_data_archive::HqHydroDataArchive;
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
-use crate::db::prod_db::ProdDb;
 
 // #[get("/hq/water_level/mra/bids_offers/participant_ids")]
 // async fn participant_ids() -> impl Responder {
@@ -20,9 +20,10 @@ use crate::db::prod_db::ProdDb;
 async fn api_daily_level(
     path: web::Path<(Date, Date)>,
     query: web::Query<DataQuery>,
+    db: web::Data<HqHydroDataArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start_date = path.0;
     let end_date = path.1;
     let station_ids: Option<Vec<String>> = query
@@ -106,10 +107,6 @@ ORDER BY date;
     Ok(res)
 }
 
-fn get_path() -> String {
-    ProdDb::hq_hydro_data().duckdb_path.to_string()
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -119,12 +116,13 @@ mod tests {
     use jiff::civil::date;
     use serde_json::Value;
 
-    use crate::api::hq::hq_water_level::*;
+    use crate::{api::hq::hq_water_level::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_avg_level() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::hq_hydro_data().duckdb_path, config).unwrap();
 
         // for all facilities
         let data = get_water_level(&conn, date(2024, 12, 4), date(2024, 12, 8), None).unwrap();
@@ -150,8 +148,7 @@ mod tests {
         )
         .unwrap();
         assert!(data.len() == 10); // 5 days * 2 facilities
-        // println!("{:?}", data);
-
+                                   // println!("{:?}", data);
 
         Ok(())
     }
@@ -170,6 +167,4 @@ mod tests {
         }
         Ok(())
     }
-
-
 }

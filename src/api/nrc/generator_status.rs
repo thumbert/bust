@@ -2,14 +2,14 @@ use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, ToSpan};
 
-use crate::db::prod_db::ProdDb;
+use crate::db::nrc::generator_status_archive::GeneratorStatusArchive;
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
 #[get("/nrc/generator_status/unit_names")]
-async fn api_get_names() -> impl Responder {
+async fn api_get_names(db: web::Data<GeneratorStatusArchive>) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let ids = get_names(&conn);
     match ids {
         Ok(vs) => HttpResponse::Ok().json(vs),
@@ -23,9 +23,10 @@ async fn api_get_names() -> impl Responder {
 async fn api_status(
     path: web::Path<(Date, Date)>,
     query: web::Query<DataQuery>,
+    db: web::Data<GeneratorStatusArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start_date = path.0;
     let end_date = path.1;
     let names: Option<Vec<String>> = query
@@ -100,9 +101,6 @@ fn get_names(conn: &Connection) -> Result<Vec<String>> {
     Ok(res)
 }
 
-fn get_path() -> String {
-    ProdDb::nrc_generator_status().duckdb_path.to_string()
-}
 
 #[cfg(test)]
 mod tests {
@@ -112,12 +110,12 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::api::nrc::generator_status::*;
+    use crate::{api::nrc::generator_status::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_names() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config).unwrap();
         // get all facilities
         let names = get_names(&conn).unwrap();
         assert!(names.len() >= 110);
@@ -127,7 +125,7 @@ mod tests {
     #[test]
     fn test_status() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config).unwrap();
 
         // for all facilities
         let data = get_status(&conn, date(2024, 12, 4), date(2024, 12, 8), None).unwrap();

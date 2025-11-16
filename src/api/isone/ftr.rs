@@ -2,10 +2,11 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     bucket::{Bucket, BucketLike},
-    db::{calendar::buckets::BucketsArchive, isone::dalmp_archive::IsoneDaLmpArchive},
+    db::{calendar::buckets::BucketsArchive, isone::{dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive}},
     interval::month::Month,
+    utils::lib_duckdb::{WithRetry, open_with_retry},
 };
-use duckdb::{types::ValueRef, Connection, Result};
+use duckdb::{Result, types::ValueRef};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 async fn api_monthly_settle_prices(
     path: web::Path<(Month, Month)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<(IsoneDaLmpArchive, BucketsArchive)>,
+    db: web::Data<(IsoneDaLmpArchive, BucketsArchive, IsoneFtrPricesArchive)>,
 ) -> impl Responder {
     let start_month = path.0;
     let end_month = path.1;
@@ -86,15 +87,13 @@ struct LmpQuery {
 
 /// Get monthly FTR settle prices for many paths.
 pub fn get_monthly_settle_prices(
-    dbs: (IsoneDaLmpArchive, BucketsArchive),
+    dbs: (IsoneDaLmpArchive, BucketsArchive, IsoneFtrPricesArchive),
     from_to: (Month, Month),
     paths: Vec<Path0>,
     buckets: Vec<Bucket>,
 ) -> Result<Vec<Row>> {
-    // let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let mut conn = Connection::open_in_memory().unwrap();
-
-    conn.execute_batch(
+    let mut conn = open_with_retry(&dbs.2.duckdb_path, 8, std::time::Duration::from_millis(25)).unwrap();  
+    conn.execute_batch_with_retry(
         format!(
             r#"
 LOAD icu;
@@ -107,6 +106,8 @@ CREATE TEMPORARY TABLE paths (
             dbs.0.duckdb_path, dbs.1.duckdb_path
         )
         .as_str(),
+        8,
+        std::time::Duration::from_millis(25),
     )?;
 
     let tx = conn.transaction()?;
@@ -212,7 +213,7 @@ mod tests {
     #[test]
     fn test_monthly_settle_prices() -> Result<(), Box<dyn Error>> {
         let data = get_monthly_settle_prices(
-            (ProdDb::isone_dalmp(), ProdDb::buckets()),
+            (ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices()),
             (month(2025, 1), month(2025, 7)),
             vec![
                 Path0 {
@@ -244,8 +245,7 @@ mod tests {
         Ok(())
     }
 
-
-        #[test]
+    #[test]
     fn api_monthly_settle_prices() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
@@ -255,9 +255,7 @@ mod tests {
         // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<Row> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 2 * 7 * 2 ); // 2 locations x 2 buckets x 7 months
+        assert_eq!(vs.len(), 2 * 7 * 2); // 2 locations x 2 buckets x 7 months
         Ok(())
     }
-
-
 }

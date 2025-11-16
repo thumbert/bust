@@ -288,7 +288,7 @@ mod tests {
     //     }
 
     //     // #[test]
-    //     // fn visiblity_hour() {
+    //     // fn visibility_hour() {
     //     //     let hour = Hour::new(2024, 7, 1, 16, New_York);
     //     //     // let hour = Hour {start: New_York.with_ymd_and_hms(2024, 7, 14, 16, 0, 0).unwrap()};
 

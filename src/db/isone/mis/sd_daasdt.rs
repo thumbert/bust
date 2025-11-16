@@ -764,7 +764,7 @@ mod tests {
         let archive = ProdDb::sd_daasdt();
         let months = archive.get_months();
         if Zoned::now().date() > date(2025, 3, 1) {
-            assert!(months.is_empty())
+            assert!(!months.is_empty());
         }
         Ok(())
     }

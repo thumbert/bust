@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
     bucket::Bucket,
-    db::{nyiso::dalmp::LmpComponent, prod_db::ProdDb},
+    db::{ieso::da_lmp_nodes::IesoDaLmpNodalArchive, nyiso::dalmp::LmpComponent},
 };
 
 #[derive(Debug, Deserialize)]
@@ -31,9 +31,10 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Date, Date)>,
     query: web::Query<LmpQuery>,
+    db: web::Data<IesoDaLmpNodalArchive>
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(ProdDb::ieso_dalmp_zonal().duckdb_path, config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let start_date = path.0;
     let end_date = path.1;
@@ -58,9 +59,10 @@ async fn api_hourly_prices(
 async fn api_daily_prices(
     path: web::Path<(Bucket, Date, Date)>,
     query: web::Query<LmpQuery>,
+    db: web::Data<IesoDaLmpNodalArchive>
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(ProdDb::ieso_dalmp_zonal().duckdb_path, config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let bucket = path.0;
     let start_date = path.1;

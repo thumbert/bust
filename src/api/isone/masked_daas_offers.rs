@@ -1,17 +1,13 @@
-use std::fmt;
-
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
-};
+use serde::{Deserialize, Serialize};
 
-use crate::db::prod_db::ProdDb;
+use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
+use crate::db::isone::masked_data::daas_offers_archive::DaasOffersArchive;
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -30,10 +26,10 @@ struct OffersQuery {
 async fn api_offers(
     path: web::Path<(Date, Date)>,
     query: web::Query<OffersQuery>,
+    db: web::Data<DaasOffersArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(ProdDb::isone_masked_daas_offers().duckdb_path, config)
-        .unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let start_date = path.0;
     let end_date = path.1;
@@ -52,43 +48,12 @@ async fn api_offers(
     HttpResponse::Ok().json(offers)
 }
 
-pub fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&z.strftime("%Y-%m-%d %H:%M:%S%:z").to_string())
-}
-
-// Custom deserialization function for the Zoned field
-pub fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct ZonedVisitor;
-
-    impl Visitor<'_> for ZonedVisitor {
-        type Value = Zoned;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a timestamp string with or without a zone name")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Zoned, E>
-        where
-            E: de::Error,
-        {
-            // Otherwise, append the assumed zone
-            let s = format!("{v}[America/New_York]");
-            Zoned::strptime("%F %T%:z[%Q]", &s).map_err(E::custom)
-        }
-    }
-
-    deserializer.deserialize_str(ZonedVisitor)
-}
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct DaasOffer {
-    #[serde(serialize_with = "serialize_zoned_as_offset", deserialize_with = "deserialize_zoned_assume_ny")]
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
     hour_beginning: Zoned,
     masked_participant_id: i32,
     masked_asset_id: i32,
@@ -197,7 +162,7 @@ mod tests {
     use jiff::civil::date;
     use rust_decimal_macros::dec;
 
-    use crate::api::isone::masked_daas_offers::*;
+    use crate::{api::isone::masked_daas_offers::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_data() -> Result<(), Box<dyn Error>> {

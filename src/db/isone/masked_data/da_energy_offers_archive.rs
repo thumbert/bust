@@ -5,12 +5,12 @@ use std::path::Path;
 use crate::db::isone::lib_isoexpress;
 
 #[derive(Clone)]
-pub struct DaEnergyOffersArchive {
+pub struct IsoneDaEnergyOffersArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-impl DaEnergyOffersArchive {
+impl IsoneDaEnergyOffersArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
     pub fn filename(&self, date: &Date) -> String {
         self.base_dir.to_owned()
@@ -161,7 +161,7 @@ mod tests {
         let days = date(2025, 5, 29).up_to(date(2025, 5, 31));
         for day in days {
             archive.download_file(&day)?;
-        }   
+        }
         Ok(())
     }
 }

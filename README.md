@@ -39,8 +39,3 @@ To release a bin file
 cargo build --bin update_hq_hydro_data --release 
 cp ./target/release/update_hq_hydro_data ~/Software
 
-
-To release a bin file
-* cargo run --package bust --bin rebuild_duckdbs
-* RUST_LOG=debug ./target/debug/rebuild_duckdbs
-

@@ -1,15 +1,10 @@
-use std::slice::Iter;
 use std::{cmp, ops::Add};
 
-use jiff::{civil::DateTime, Zoned};
 use serde::{Deserialize, Serialize};
-use std::vec::IntoIter;
 
 use crate::interval::{
     date_tz::DateTz,
-    hour_tz::HourTz,
     interval_base::{IntervalLike, IntervalTzLike},
-    month_tz::MonthTz,
 };
 
 pub enum JoinType {
@@ -378,7 +373,7 @@ impl<I: IntervalTzLike, V: Clone> Default for SeriesTz<I, V> {
 
 
 pub struct DateTzSeries<V: Clone>(pub SeriesTz<DateTz, V>);
-pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);
+// pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);
 // pub struct MonthTzSeries<V: Clone>(pub SeriesTz<MonthTz, V>);
 
 // #[derive(Display)]
@@ -461,12 +456,10 @@ pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);
 mod tests {
     use crate::{
         elec::iso::ISONE,
-        interval::{interval_base::DateExt, term::Term, term_tz::TermTz},
+        interval::{hour_tz::HourTz, interval_base::DateExt, term::Term},
     };
 
     use super::*;
-    // use crate::interval::{hour::Hour, interval::Interval, month_tz::MonthTz};
-    use itertools::Itertools;
     use jiff::civil::date;
 
     #[test]

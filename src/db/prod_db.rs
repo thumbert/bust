@@ -11,9 +11,10 @@ use crate::db::{
     isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         dalmp_archive::IsoneDaLmpArchive,
+        ftr_prices_archive::IsoneFtrPricesArchive,
         fuelmix_archive::IsoneFuelMixArchive,
         masked_data::{
-            da_energy_offers_archive::DaEnergyOffersArchive,
+            da_energy_offers_archive::IsoneDaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
             import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
         },
@@ -23,8 +24,7 @@ use crate::db::{
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
     },
     nyiso::{
-        rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive,
-        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
+        energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive
     },
     statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
@@ -137,6 +137,14 @@ impl ProdDb {
         }
     }
 
+    pub fn isone_ftr_cleared_prices() -> IsoneFtrPricesArchive {
+        IsoneFtrPricesArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/FTR/ClearedPrices".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/ftr_prices.duckdb"
+                .to_string(),
+        }
+    }
+
     pub fn isone_fuel_mix() -> IsoneFuelMixArchive {
         IsoneFuelMixArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/GridReports/FuelMix".to_string(),
@@ -144,8 +152,8 @@ impl ProdDb {
         }
     }
 
-    pub fn isone_masked_da_energy_offers() -> DaEnergyOffersArchive {
-        DaEnergyOffersArchive {
+    pub fn isone_masked_da_energy_offers() -> IsoneDaEnergyOffersArchive {
+        IsoneDaEnergyOffersArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/PricingReports/DaEnergyOffer"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/masked_energy_offers.duckdb"
@@ -279,6 +287,13 @@ impl ProdDb {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn nyiso_energy_offers() -> NyisoEnergyOffersArchive {
+        NyisoEnergyOffersArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/EnergyOffers".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/nyiso_energy_offers.duckdb".to_string(),
         }
     }
 

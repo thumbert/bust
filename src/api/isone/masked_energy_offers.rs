@@ -1,4 +1,3 @@
-
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{
@@ -10,10 +9,12 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::isone::{_api_isone_core::{Market, UnitStatus}, masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset}},
-    db::prod_db::ProdDb, elec::iso::ISONE,
+    api::isone::_api_isone_core::{
+        deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market, UnitStatus,
+    },
+    db::isone::masked_data::da_energy_offers_archive::IsoneDaEnergyOffersArchive,
+    elec::iso::ISONE,
 };
-
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -28,10 +29,10 @@ struct OffersQuery {
 async fn api_offers(
     path: web::Path<(String, String, String)>,
     query: web::Query<OffersQuery>,
+    db: web::Data<IsoneDaEnergyOffersArchive>,
 ) -> impl Responder {
-    let archive = ProdDb::isone_masked_da_energy_offers();
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -63,10 +64,12 @@ async fn api_offers(
 
 /// Get DA or RT stack for a list of timestamps (seconds from epoch)
 #[get("/isone/energy_offers/{market}/stack/timestamps/{timestamps}")]
-async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
-    let archive = ProdDb::isone_masked_da_energy_offers();
+async fn api_stack(
+    path: web::Path<(String, String)>,
+    db: web::Data<IsoneDaEnergyOffersArchive>,
+) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -97,7 +100,6 @@ async fn api_stack(path: web::Path<(String, String)>) -> impl Responder {
         Err(_) => HttpResponse::BadRequest().body("Error executing the query"),
     }
 }
-
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EnergyOffer {
@@ -271,9 +273,8 @@ mod tests {
 
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
-    use serde_json::Value;
 
-    use crate::api::isone::masked_energy_offers::*;
+    use crate::{api::isone::masked_energy_offers::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_get_offers() -> Result<()> {
@@ -356,7 +357,17 @@ mod tests {
         )
         .unwrap();
         conn.close().unwrap();
-        let x0 = xs.first().unwrap();
+        let x0 = xs
+            .iter()
+            .find(|&x| {
+                x.masked_asset_id == 88805
+                    && x.segment == 0
+                    && x.hour_beginning
+                        == "2024-02-01 00:00:00-05:00[America/New_York]"
+                            .parse()
+                            .unwrap()
+            })
+            .unwrap();
         // println!("{:?}", x0);
         assert_eq!(
             *x0,
@@ -383,11 +394,9 @@ mod tests {
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
-        let v: Value = serde_json::from_str(&response).unwrap();
-        if let Value::Array(xs) = v {
-            assert_eq!(xs.len(), 192);
-            println!("{:?}", xs);
-        }
+        let xs: Vec<EnergyOffer> = serde_json::from_str(&response).unwrap();
+        assert_eq!(xs.len(), 192);
+        // println!("{:?}", xs);
         Ok(())
     }
 
@@ -399,10 +408,8 @@ mod tests {
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
-        let v: Value = serde_json::from_str(&response).unwrap();
-        if let Value::Array(xs) = v {
-            assert_eq!(xs.len(), 780);
-        }
+        let xs: Vec<EnergyOffer> = serde_json::from_str(&response).unwrap();
+        assert_eq!(xs.len(), 780);
         Ok(())
     }
 }

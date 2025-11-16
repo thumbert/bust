@@ -2,7 +2,16 @@
 TODO:
 - Experiment writing a Rust UDF function in DuckDB
 - Experiment connecting Dart to Rust via FFI 
-- Pass the ProdDb instance via app_data to the endpoints to make them reusable from other deployments <---
+- Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
+
+
+## 2025-11-16 (version 0.2.0)
+- Make all test pass by working around DuckDB's one connection a time limitation.  I introduced 
+  `execute_batch_with_retry` and `open_with_retry` that allow for an exponential backoff 
+  when trying to open/use an existing DB.  This way, when the server or a client needs to use 
+  the same database, there is greater resiliency by building in some wait time.
+- Cleaning of various lints to bring the project Problems to 0.     
+- Rewired `server_bust` so it uses `app_data` for all end points.
 
 ## 2025-11-10
 - Add end point for calculation of FTR monthly settle prices

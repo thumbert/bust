@@ -318,7 +318,7 @@ mod tests {
     #[ignore]
     #[test]
     fn nth_settlement_test() -> Result<(), Box<dyn Error>> {
-        let rows = vec![
+        let rows = [
             Row {
                 hour_beginning: "2024-01-01 00:00:00-05:00[America/New_York]".parse()?,
                 version: "2024-01-03 00:00:00Z".parse()?,

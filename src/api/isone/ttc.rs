@@ -5,15 +5,19 @@ use duckdb::{AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, Timestamp};
 
-use crate::db::{isone::total_transfer_capability_archive::TotalTransferCapabilityArchive, prod_db::ProdDb};
+use crate::db::isone::total_transfer_capability_archive::TotalTransferCapabilityArchive;
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// http://127.0.0.1:8111/ttc/start/2024-01-01/end/2024-01-04?columns=hq_phase2_import,ny_north_import&format=csv
 #[get("/ttc/start/{start}/end/{end}")]
-async fn api_ttc_data(path: web::Path<(Date, Date)>, query: web::Query<DataQuery>) -> impl Responder {
+async fn api_ttc_data(
+    path: web::Path<(Date, Date)>,
+    query: web::Query<DataQuery>,
+    db: web::Data<TotalTransferCapabilityArchive>,
+) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(), config).unwrap();
+    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start_date = path.0;
     let end_date = path.1;
     let names: Option<Vec<String>> = query
@@ -37,12 +41,6 @@ struct DataQuery {
     // format: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Row {
-    name: String,
-    date: Date,
-    value: u8,
-}
 
 /// Get TTC data between a start and end date.
 /// If `columns` is `None`, return all columns.
@@ -55,8 +53,8 @@ fn get_ttc_data(
     let c_names = match &columns {
         Some(xs) => xs.to_vec(),
         None => TotalTransferCapabilityArchive::all_columns(),
-    };    
-    
+    };
+
     let query = format!(
         r#"
 SELECT hour_beginning, {}
@@ -80,16 +78,14 @@ ORDER BY hour_beginning;
     // println!("{}", query);
 
     let mut wtr = Writer::from_writer(vec![]);
-    wtr.write_record(
-        std::iter::once("hour_beginning")
-            .chain(c_names.iter().map(|s| s.as_str())),
-    )?;
+    wtr.write_record(std::iter::once("hour_beginning").chain(c_names.iter().map(|s| s.as_str())))?;
 
     let mut stmt = conn.prepare(&query).unwrap();
     let res_iter = stmt.query_map([], |row| {
         let mut row_vec: Vec<String> = vec![];
         let ts = row.get::<usize, i64>(0).unwrap();
-        let hb = Timestamp::from_microsecond(ts).unwrap()
+        let hb = Timestamp::from_microsecond(ts)
+            .unwrap()
             .in_tz("America/New_York")
             .unwrap();
         row_vec.push(hb.strftime("%Y-%m-%d %H:%M:%S%:z").to_string()); // hour_beginning
@@ -106,9 +102,6 @@ ORDER BY hour_beginning;
     Ok(String::from_utf8(wtr.into_inner()?)?)
 }
 
-fn get_path() -> String {
-    ProdDb::isone_ttc().duckdb_path.to_string()
-}
 
 #[cfg(test)]
 mod tests {
@@ -117,12 +110,12 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::api::isone::ttc::*;
+    use crate::{api::isone::ttc::*, db::{prod_db::ProdDb}};
 
     #[test]
     fn test_data() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path(), config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_ttc().duckdb_path.clone(), config).unwrap();
         let data = get_ttc_data(
             &conn,
             date(2024, 1, 1),

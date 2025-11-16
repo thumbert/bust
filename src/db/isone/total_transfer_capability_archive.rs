@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use jiff::civil::*;
-use jiff::Zoned;
 use log::error;
 use log::info;
 use std::error::Error;
@@ -10,13 +9,7 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
-#[derive(Debug)]
-pub struct Row {
-    pub report_date: Date,
-    pub forecast_hour_beginning: Zoned,
-    pub forecast_generation: usize,
-}
-
+// 
 pub struct TotalTransferCapabilityArchive {
     pub base_dir: String,
     pub duckdb_path: String,

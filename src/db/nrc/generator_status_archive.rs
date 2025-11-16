@@ -58,9 +58,12 @@ CREATE TEMP TABLE Changes AS
 CREATE TEMP TABLE Groups AS 
     FROM read_csv('{}/update_nrc_generator_status/groups.csv', 
         ignore_errors = true);
-            "#, asof_date, env::var("CONFIG_DIR").unwrap());        
+            "#,
+            asof_date,
+            env::var("CONFIG_DIR").unwrap()
+        );
         conn.execute_batch(&sql)?;
-    // println!("{}", sql);    
+        // println!("{}", sql);
 
         let query = r#"
 SELECT c.*, g.group FROM Changes c
@@ -72,13 +75,16 @@ ON c.Unit = g.unit_name;
         let res_iter = stmt.query_map([], |row| {
             let n = 719528 + row.get::<usize, i32>(0).unwrap();
             let group: String = row.get(5).unwrap();
-            Ok((group, DailyChangeResult {
-                report_date: Date::ZERO.checked_add(n.days()).unwrap(),
-                unit_name: row.get(1).unwrap(),
-                rating: row.get::<usize, i32>(2).unwrap(),
-                previous_rating: row.get::<usize, i32>(3).unwrap(),
-                change: row.get::<usize, i32>(4).unwrap(),
-            }))
+            Ok((
+                group,
+                DailyChangeResult {
+                    report_date: Date::ZERO.checked_add(n.days()).unwrap(),
+                    unit_name: row.get(1).unwrap(),
+                    rating: row.get::<usize, i32>(2).unwrap(),
+                    previous_rating: row.get::<usize, i32>(3).unwrap(),
+                    change: row.get::<usize, i32>(4).unwrap(),
+                },
+            ))
         })?;
         let res: Vec<(String, DailyChangeResult)> = res_iter.map(|e| e.unwrap()).collect();
 
@@ -201,7 +207,7 @@ ON c.Unit = g.unit_name;
 mod tests {
     use itertools::Itertools;
     use jiff::civil::date;
-    use std::error::Error;
+    use std::{error::Error, path::Path};
 
     use crate::db::prod_db::ProdDb;
 
@@ -209,11 +215,11 @@ mod tests {
 
     #[test]
     fn get_changes() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::nrc_generator_status();
         let conn = Connection::open(archive.duckdb_path.clone())?;
         let changes = archive.get_dod_changes(&conn, date(2024, 12, 4))?;
-        println!("{:?}", changes);
-        assert_eq!(changes.len(), 0);
+        assert_eq!(changes.len(), 2);
         Ok(())
     }
 

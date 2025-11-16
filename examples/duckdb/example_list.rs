@@ -1,5 +1,4 @@
 use duckdb::{types::Value, Connection, Result};
-use jiff::{civil::Date, ToSpan};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

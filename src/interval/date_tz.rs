@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use jiff::{civil::Date, ToSpan, Zoned};
+use jiff::{ToSpan, Zoned};
 
 use crate::interval::interval_base::IntervalTzLike;
 
@@ -65,7 +65,7 @@ impl IntervalTzLike for DateTz {
 
 #[cfg(test)]
 mod tests {
-    use jiff::{civil::{date, Time}, tz::TimeZone};
+    use jiff::{civil::date, tz::TimeZone};
 
     use crate::interval::interval_base::*;
 

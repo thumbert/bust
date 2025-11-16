@@ -1,10 +1,9 @@
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    api::isone::{
-        _api_isone_core::Market, masked_daas_offers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset}
-    },
+    api::isone::_api_isone_core::{Market, deserialize_zoned_assume_ny, serialize_zoned_as_offset},
     bucket::{Bucket, BucketLike},
+    db::nyiso::{dalmp::NyisoDalmpArchive, rtlmp::NyisoRtlmpArchive},
     interval::{
         month::{month, Month},
         month_tz::MonthTz,
@@ -41,6 +40,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -48,12 +48,8 @@ async fn api_hourly_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::nyiso_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
     let ptids: Option<Vec<u32>> = query
         .ptids
@@ -113,6 +109,7 @@ struct LmpQuery2 {
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery2>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -120,12 +117,8 @@ async fn api_daily_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {
@@ -158,6 +151,7 @@ async fn api_daily_prices(
 async fn api_monthly_prices(
     path: web::Path<(Market, Month, Month)>,
     query: web::Query<LmpQuery2>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_month = path.1;
@@ -165,12 +159,8 @@ async fn api_monthly_prices(
 
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = match market {
-        Market::DA => {
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap()
-        }
-        Market::RT => {
-            Connection::open_with_flags(ProdDb::isone_rtlmp().duckdb_path, config).unwrap()
-        }
+        Market::DA => Connection::open_with_flags(db.0.duckdb_path.clone(), config).unwrap(),
+        Market::RT => Connection::open_with_flags(db.1.duckdb_path.clone(), config).unwrap(),
     };
 
     let ptids: Option<Vec<i32>> = query.ptids.as_ref().map(|ids| {

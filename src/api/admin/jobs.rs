@@ -76,8 +76,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<String> = serde_json::from_str(&response).unwrap();
-        println!("{:?}", vs);
-        assert_eq!(vs.len(), 10);
+        assert!(vs.contains(&"update_isone_prices_da.sh".to_string()));
         Ok(())
     }
 

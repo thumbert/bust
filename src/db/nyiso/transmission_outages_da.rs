@@ -6,8 +6,8 @@ use jiff::ToSpan;
 use jiff::Zoned;
 use log::error;
 use log::info;
+use serde::Deserialize;
 use serde::Serialize;
-use serde::Serializer;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
@@ -15,6 +15,7 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
+use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
 use crate::db::nyiso::scheduled_outages::QueryOutages;
 use crate::elec::iso::ISONE;
 use crate::interval::month::Month;
@@ -25,22 +26,21 @@ pub struct NyisoTransmissionOutagesDaArchive {
     pub duckdb_path: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Row {
     pub as_of_date: Date,
     pub ptid: i32,
     pub equipment_name: String,
-    #[serde(serialize_with = "serialize_zoned_as_offset")]
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
     pub outage_start: Zoned,
-    #[serde(serialize_with = "serialize_zoned_as_offset")]
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
     pub outage_end: Zoned,
-}
-
-fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&z.strftime("%Y-%m-%d %H:%M:%S%:z").to_string())
 }
 
 impl NyisoTransmissionOutagesDaArchive {
