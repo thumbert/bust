@@ -1,7 +1,9 @@
+use std::time::Duration;
+
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{
-    arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef, AccessMode, Config,
+    arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef,
     Connection, Result,
 };
 use itertools::Itertools;
@@ -14,7 +16,19 @@ use crate::{
     },
     db::isone::masked_data::da_energy_offers_archive::IsoneDaEnergyOffersArchive,
     elec::iso::ISONE,
+    utils::lib_duckdb::open_with_retry,
 };
+
+#[get("/isone/energy_offers/masked_asset_ids")]
+async fn api_masked_asset_ids(db: web::Data<IsoneDaEnergyOffersArchive>) -> impl Responder {
+    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError()
+            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
+    }
+    let ids = get_masked_asset_ids(&conn.unwrap());
+    HttpResponse::Ok().json(ids)
+}
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -31,8 +45,11 @@ async fn api_offers(
     query: web::Query<OffersQuery>,
     db: web::Data<IsoneDaEnergyOffersArchive>,
 ) -> impl Responder {
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
+    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError()
+            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
+    }
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -58,7 +75,7 @@ async fn api_offers(
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
 
-    let offers = get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
+    let offers = get_energy_offers(&conn.unwrap(), market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
 }
 
@@ -68,8 +85,12 @@ async fn api_stack(
     path: web::Path<(String, String)>,
     db: web::Data<IsoneDaEnergyOffersArchive>,
 ) -> impl Responder {
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
+    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError()
+            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
+    }
+
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -95,7 +116,7 @@ async fn api_stack(
             ))
         }
     };
-    match get_stack(&conn, market, timestamps) {
+    match get_stack(&conn.unwrap(), market, timestamps) {
         Ok(offers) => HttpResponse::Ok().json(offers),
         Err(_) => HttpResponse::BadRequest().body("Error executing the query"),
     }
@@ -266,6 +287,22 @@ ORDER BY HourBeginning, Price;
 
     Ok(offers)
 }
+
+
+/// Get all masked ids
+pub fn get_masked_asset_ids(conn: &Connection) -> Vec<u32> {
+    let mut stmt = conn
+        .prepare("SELECT DISTINCT MaskedAssetId from da_offers ORDER BY MaskedAssetId;")
+        .unwrap();
+    let mut rows = stmt.query([]).unwrap();
+    let mut ids: Vec<u32> = Vec::new();
+    while let Some(row) = rows.next().unwrap() {
+        ids.push(row.get(0).unwrap());
+    }
+    ids
+}
+
+
 
 #[cfg(test)]
 mod tests {

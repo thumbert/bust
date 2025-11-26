@@ -2,11 +2,14 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     bucket::{Bucket, BucketLike},
-    db::{calendar::buckets::BucketsArchive, isone::{dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive}},
+    db::{
+        calendar::buckets::BucketsArchive,
+        isone::{dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive},
+    },
     interval::month::Month,
-    utils::lib_duckdb::{WithRetry, open_with_retry},
+    utils::lib_duckdb::{open_with_retry, WithRetry},
 };
-use duckdb::{Result, types::ValueRef};
+use duckdb::{types::ValueRef, AccessMode, Result};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -92,7 +95,13 @@ pub fn get_monthly_settle_prices(
     paths: Vec<Path0>,
     buckets: Vec<Bucket>,
 ) -> Result<Vec<Row>> {
-    let mut conn = open_with_retry(&dbs.2.duckdb_path, 8, std::time::Duration::from_millis(25)).unwrap();  
+    let mut conn = open_with_retry(
+        &dbs.2.duckdb_path,
+        8,
+        std::time::Duration::from_millis(25),
+        AccessMode::ReadOnly,
+    )
+    .unwrap();
     conn.execute_batch_with_retry(
         format!(
             r#"
@@ -213,7 +222,11 @@ mod tests {
     #[test]
     fn test_monthly_settle_prices() -> Result<(), Box<dyn Error>> {
         let data = get_monthly_settle_prices(
-            (ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices()),
+            (
+                ProdDb::isone_dalmp(),
+                ProdDb::buckets(),
+                ProdDb::isone_ftr_cleared_prices(),
+            ),
             (month(2025, 1), month(2025, 7)),
             vec![
                 Path0 {

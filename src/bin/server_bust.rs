@@ -56,13 +56,13 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
+            .app_data(Data::new(ProdDb::hq_hydro_data()))
+            .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
             .app_data(Data::new((
                 ProdDb::isone_dalmp(),
                 ProdDb::isone_rtlmp(),
                 ProdDb::buckets(),
             )))
-            .app_data(Data::new(ProdDb::hq_hydro_data()))
-            .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
             .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices())))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_daas_offers()))

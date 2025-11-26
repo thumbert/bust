@@ -51,12 +51,13 @@ pub fn open_with_retry(
     duckdb_path: &str,
     max_attempts: u32,
     initial_wait: Duration,
+    access_mode: AccessMode,
 ) -> Result<duckdb::Connection, duckdb::Error> {
     let mut attempts = 0;
     let mut wait_duration = initial_wait;
 
     loop {
-        let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
+        let config = Config::default().access_mode(access_mode.clone()).unwrap();
         match duckdb::Connection::open_with_flags(duckdb_path, config) {
             Ok(conn) => return Ok(conn),
             Err(e) => {

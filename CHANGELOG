@@ -4,6 +4,8 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2025-11-26
+- Add an access_mode argument to `open_with_retry`. 
 
 ## 2025-11-16 (version 0.2.0)
 - Make all test pass by working around DuckDB's one connection a time limitation.  I introduced 
@@ -24,8 +26,8 @@ TODO:
 - Inject the isone da and rt lmp dbs into the server.
 
 ## 2025-10-31
-- Started the update_isone_daas_strike_prices too.  Good example on how to load json into DuckDB when 
-  some row may be missing some columns.  
+- Started the update_isone_daas_strike_prices too.  **Good example on how to load json into DuckDB when 
+  some row may be missing some columns**.  
 
 ## 2025-10-27
 - Work on NYISO transmission outages.  Good example of fluid API with a builder for the query, etc.

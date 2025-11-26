@@ -22,7 +22,7 @@ async fn api_offers(
     query: web::Query<OffersQuery>,
     db: web::Data<NyisoEnergyOffersArchive>,
 ) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25));
+    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly);
     if let Err(e) = conn {
         return HttpResponse::InternalServerError()
             .body(format!("Error opening DuckDB database: {}", e));
