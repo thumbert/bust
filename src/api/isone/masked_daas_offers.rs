@@ -54,19 +54,19 @@ pub struct DaasOffer {
         serialize_with = "serialize_zoned_as_offset",
         deserialize_with = "deserialize_zoned_assume_ny"
     )]
-    hour_beginning: Zoned,
-    masked_participant_id: i32,
-    masked_asset_id: i32,
+    pub hour_beginning: Zoned,
+    pub masked_participant_id: i32,
+    pub masked_asset_id: i32,
     #[serde(with = "rust_decimal::serde::float")]
-    offer_mw: Decimal,
+    pub offer_mw: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
-    tmsr_offer_price: Decimal,
+    pub tmsr_offer_price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
-    tmnsr_offer_price: Decimal,
+    pub tmnsr_offer_price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
-    tmor_offer_price: Decimal,
+    pub tmor_offer_price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
-    eir_offer_price: Decimal,
+    pub eir_offer_price: Decimal,
 }
 
 /// Get the energy offers between a [start, end] date for a list of units
