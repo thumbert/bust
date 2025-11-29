@@ -130,7 +130,7 @@ pub struct EnergyOffer {
         serialize_with = "serialize_zoned_as_offset",
         deserialize_with = "deserialize_zoned_assume_ny"
     )]
-    hour_beginning: Zoned,
+    pub hour_beginning: Zoned,
     pub segment: u8,
     pub quantity: f32,
     pub price: f32,
