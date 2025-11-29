@@ -774,21 +774,21 @@ ORDER BY t.term, d.ptid;
 // for monthly data
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RowM {
-    month: Month,
-    ptid: i32,
-    bucket: Bucket,
+    pub month: Month,
+    pub ptid: i32,
+    pub bucket: Bucket,
     #[serde(with = "rust_decimal::serde::float")]
-    value: Decimal,
+    pub value: Decimal,
 }
 
 // for term data
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RowT {
-    term: String,
-    ptid: i32,
-    bucket: Bucket,
+    pub term: String,
+    pub ptid: i32,
+    pub bucket: Bucket,
     #[serde(with = "rust_decimal::serde::float")]
-    value: Decimal,
+    pub value: Decimal,
 }
 
 #[cfg(test)]

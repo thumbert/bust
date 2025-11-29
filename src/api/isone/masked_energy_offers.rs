@@ -124,16 +124,16 @@ async fn api_stack(
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EnergyOffer {
-    masked_asset_id: u32,
-    unit_status: UnitStatus,
+    pub masked_asset_id: u32,
+    pub unit_status: UnitStatus,
     #[serde(
         serialize_with = "serialize_zoned_as_offset",
         deserialize_with = "deserialize_zoned_assume_ny"
     )]
     hour_beginning: Zoned,
-    segment: u8,
-    quantity: f32,
-    price: f32,
+    pub segment: u8,
+    pub quantity: f32,
+    pub price: f32,
 }
 
 /// Get the energy offers between a [start, end] date for a list of units
@@ -315,8 +315,8 @@ mod tests {
 
     #[test]
     fn test_get_offers() -> Result<()> {
-        let archive = ProdDb::isone_masked_da_energy_offers();
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let archive = ProdDb::isone_masked_da_energy_offers();
         let conn = Connection::open_with_flags(archive.duckdb_path, config).unwrap();
         let xs = get_energy_offers(
             &conn,
