@@ -109,7 +109,7 @@ impl NyisoTransmissionOutagesDaArchive {
         }
         query.push(';');
 
-        println!("{}", query);
+        // println!("{}", query);
         let mut stmt = conn.prepare(&query).unwrap();
         let prices_iter = stmt.query_map([], |row| {
             let n = 719528 + row.get::<usize, i32>(0).unwrap();

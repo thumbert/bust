@@ -94,11 +94,11 @@ async fn api_stack(path: web::Path<(String, String)>, db: web::Data<NyisoEnergyO
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct EnergyOffer {
-    masked_asset_id: u32,
-    timestamp_s: i64, // seconds since epoch of hour beginning
-    segment: u8,
-    price: f32,
-    quantity: f32,
+    pub masked_asset_id: u32,
+    pub timestamp_s: i64, // seconds since epoch of hour beginning
+    pub segment: u8,
+    pub price: f32,
+    pub quantity: f32,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
