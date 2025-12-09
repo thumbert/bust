@@ -5,6 +5,10 @@ alerts_hq:
     cargo build --bin alerts_hq --release
     cp ./target/release/alerts_hq ~/Software
 
+alert_isone_peak_load_change:
+    cargo build --bin alert_isone_peak_load_change --release
+    cp ./target/release/alert_isone_peak_load_change ~/Software
+
 release_server:
     cargo test
     cargo build --bin server_bust --release
