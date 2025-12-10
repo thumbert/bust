@@ -1,14 +1,11 @@
 use crate::db::{
-    calendar::buckets::BucketsArchive,
-    hq::{
+    caiso::dalmp_archive::CaisoDaLmpArchive, calendar::buckets::BucketsArchive, hq::{
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    },
-    ieso::{
+    }, ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    },
-    isone::{
+    }, isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         dalmp_archive::IsoneDaLmpArchive,
         ftr_prices_archive::IsoneFtrPricesArchive,
@@ -22,11 +19,9 @@ use crate::db::{
         rtlmp_archive::IsoneRtLmpArchive,
         sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    },
-    nyiso::{
+    }, nyiso::{
         energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive
-    },
-    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive
 };
 
 use super::{
@@ -57,6 +52,14 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/Calendars".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets.duckdb"
                 .to_string(),
+        }
+    }
+
+    pub fn caiso_dalmp() -> CaisoDaLmpArchive {
+        CaisoDaLmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Caiso/DaLmp"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/caiso/dalmp.duckdb".to_string(),
         }
     }
 
