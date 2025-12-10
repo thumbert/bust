@@ -1,12 +1,17 @@
+use futures::StreamExt;
 use jiff::civil::Date;
 use jiff::Zoned;
 use log::{error, info};
+use reqwest::get;
 use rust_decimal::Decimal;
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
+use tokio::fs::File;
+use tokio::io::copy;
+use tokio::io::AsyncWriteExt;
+use tokio_util::io::StreamReader;
 
-use crate::db::isone::lib_isoexpress;
 use crate::db::nyiso::dalmp::LmpComponent;
 use crate::interval::month::Month;
 
@@ -26,8 +31,11 @@ pub struct CaisoDaLmpArchive {
 }
 
 impl CaisoDaLmpArchive {
-    /// Return the json filename for the day.  Does not check if the file exists.  
-    /// 20251206_20251206_PRC_LMP_DAM_LMP_v12.csv
+    /// Return the csv filename for one component for the day.  Does not check if the file exists.  
+    /// For example: 
+    ///  - 20251206_20251206_PRC_LMP_DAM_LMP_v12.csv
+    ///  - 20251206_20251206_PRC_LMP_DAM_MCC_v12.csv
+    ///  - 20251206_20251206_PRC_LMP_DAM_MCL_v12.csv
     pub fn filename(&self, date: &Date, component: LmpComponent) -> String {
         let yyyymmdd = date.strftime("%Y%m%d");
         self.base_dir.to_owned()
@@ -116,42 +124,26 @@ ORDER BY hour_beginning, ptid;
     /// Data is usually published before XX:XX every day
     /// Download the zip file for the date which contains 4 files (one per component)
     /// https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime=20251206T08:00-0000&enddatetime=20251207T08:00-0000&market_run_id=DAM&grp_type=ALL
-    pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
+    pub async fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let start = date.at(0, 0, 0, 0).in_tz("America/Los_Angeles")?;
         let start_z = start.in_tz("UTC")?.strftime("%Y%m%dT%H:%M-0000");
         let url = format!("https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime={}T08:00-0000&enddatetime={}T08:00-0000&market_run_id=DAM&grp_type=ALL", start_z, start_z);
-        let res = lib_isoexpress::download_file(
-            url,
-            false,
-            None,
-            Path::new(&(self.filename(&date, LmpComponent::Lmp) + ".zip")),
-            false,
+
+        let resp = get(&url).await?;
+        let stream = resp.bytes_stream();
+        let mut reader = StreamReader::new(
+            stream.map(|r| r.map_err(std::io::Error::other)),
         );
-        // match res {
-        //     Ok(_) => {
-        //         // unzip file
-        //         let zip_path = format!("{}.zip", self.filename(&date, LmpComponent::Lmp));
-        //         let unzip_status = Command::new("unzip")
-        //             .arg("-o")
-        //             .arg(&zip_path)
-        //             .arg("-d")
-        //             .arg(format!("{}/Raw/{}", self.base_dir, date.year()))
-        //             .status()?;
-        //         if !unzip_status.success() {
-        //             error!("Failed to unzip file {}", zip_path);
-        //         }
-        //         // remove zip file
-        //         std::fs::remove_file(zip_path)?;
-        //         // gzip the csv files
-        //         Ok(())
-        //     }
-        //     Err(e) => Err(e),
-        // }
+        let out_path = format!("{}.zip", self.filename(&date, LmpComponent::Lmp));
+        let mut out = File::create(out_path).await?;
+        let out = tokio::io::copy(&mut reader, &mut out).await?;
+        println!("downloaded {} bytes", out);
+
         Ok(())
     }
 
     /// Look for missing days
-    pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
+    pub async fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
         let mut last = Zoned::now().date();
         if Zoned::now().hour() > 13 {
             last = last.tomorrow()?;
@@ -163,7 +155,7 @@ ORDER BY hour_beginning, ptid;
             let fname = format!("{}.gz", self.filename(&day, LmpComponent::Lmp));
             if !Path::new(&fname).exists() {
                 info!("Working on {}", day);
-                self.download_file(day)?;
+                self.download_file(day).await?;
                 info!("  downloaded file for {}", day);
             }
         }
@@ -181,8 +173,8 @@ mod tests {
     use crate::{db::prod_db::ProdDb, interval::month::month};
 
     #[ignore]
-    #[test]
-    fn update_db() -> Result<(), Box<dyn Error>> {
+    #[tokio::test]
+    async fn update_db() -> Result<(), Box<dyn Error>> {
         let _ = env_logger::builder()
             .filter_level(log::LevelFilter::Info)
             .is_test(true)
@@ -193,18 +185,18 @@ mod tests {
         let months = month(2025, 12).up_to(month(2025, 12));
         for month in months.unwrap() {
             info!("Working on month {}", month);
-            archive.download_missing_days(month)?;
+            archive.download_missing_days(month).await?;
             // archive.update_duckdb(&month)?;
         }
         Ok(())
     }
 
     #[ignore]
-    #[test]
-    fn download_file() -> Result<(), Box<dyn Error>> {
+    #[tokio::test]
+    async fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_dalmp();
-        archive.download_file(date(2025, 11, 1))?;
+        archive.download_file(date(2025, 11, 1)).await?;
         Ok(())
     }
 }
