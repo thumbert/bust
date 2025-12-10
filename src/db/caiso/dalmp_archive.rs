@@ -6,6 +6,8 @@ use std::error::Error;
 use std::path::Path;
 use std::process::Command;
 
+use crate::db::isone::lib_isoexpress;
+use crate::db::nyiso::dalmp::LmpComponent;
 use crate::interval::month::Month;
 
 #[derive(Debug, PartialEq)]
@@ -25,13 +27,19 @@ pub struct CaisoDaLmpArchive {
 
 impl CaisoDaLmpArchive {
     /// Return the json filename for the day.  Does not check if the file exists.  
-    pub fn filename(&self, date: &Date) -> String {
+    /// 20251206_20251206_PRC_LMP_DAM_LMP_v12.csv
+    pub fn filename(&self, date: &Date, component: LmpComponent) -> String {
+        let yyyymmdd = date.strftime("%Y%m%d");
         self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
-            + "/WW_DALMP_ISO_"
-            + &date.strftime("%Y%m%d").to_string()
-            + ".json"
+            + format!(
+                "/{}_{}_PRC_LMP_DAM_{}_v12.csv",
+                yyyymmdd,
+                yyyymmdd,
+                component.to_string().to_uppercase()
+            )
+            .as_str()
     }
 
     /// Upload one month to DuckDB.
@@ -105,19 +113,41 @@ ORDER BY hour_beginning, ptid;
         Ok(())
     }
 
-    /// Data is usually published before 13:30 every day
+    /// Data is usually published before XX:XX every day
+    /// Download the zip file for the date which contains 4 files (one per component)
+    /// https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime=20251206T08:00-0000&enddatetime=20251207T08:00-0000&market_run_id=DAM&grp_type=ALL
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
-        let yyyymmdd = date.strftime("%Y%m%d");
-        super::lib_isoexpress::download_file(
-            format!(
-                "https://webservices.iso-ne.com/api/v1.1/hourlylmp/da/final/day/{}",
-                yyyymmdd
-            ),
-            true,
-            Some("application/json".to_string()),
-            Path::new(&self.filename(&date)),
-            true,
-        )
+        let start = date.at(0, 0, 0, 0).in_tz("America/Los_Angeles")?;
+        let start_z = start.in_tz("UTC")?.strftime("%Y%m%dT%H:%M-0000");
+        let url = format!("https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime={}T08:00-0000&enddatetime={}T08:00-0000&market_run_id=DAM&grp_type=ALL", start_z, start_z);
+        let res = lib_isoexpress::download_file(
+            url,
+            false,
+            None,
+            Path::new(&(self.filename(&date, LmpComponent::Lmp) + ".zip")),
+            false,
+        );
+        // match res {
+        //     Ok(_) => {
+        //         // unzip file
+        //         let zip_path = format!("{}.zip", self.filename(&date, LmpComponent::Lmp));
+        //         let unzip_status = Command::new("unzip")
+        //             .arg("-o")
+        //             .arg(&zip_path)
+        //             .arg("-d")
+        //             .arg(format!("{}/Raw/{}", self.base_dir, date.year()))
+        //             .status()?;
+        //         if !unzip_status.success() {
+        //             error!("Failed to unzip file {}", zip_path);
+        //         }
+        //         // remove zip file
+        //         std::fs::remove_file(zip_path)?;
+        //         // gzip the csv files
+        //         Ok(())
+        //     }
+        //     Err(e) => Err(e),
+        // }
+        Ok(())
     }
 
     /// Look for missing days
@@ -130,7 +160,7 @@ ORDER BY hour_beginning, ptid;
             if day > last {
                 continue;
             }
-            let fname = format!("{}.gz", self.filename(&day));
+            let fname = format!("{}.gz", self.filename(&day, LmpComponent::Lmp));
             if !Path::new(&fname).exists() {
                 info!("Working on {}", day);
                 self.download_file(day)?;
@@ -158,13 +188,13 @@ mod tests {
             .is_test(true)
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
+        let archive = ProdDb::caiso_dalmp();
 
-        let months = month(2022, 1).up_to(month(2022, 2));
+        let months = month(2025, 12).up_to(month(2025, 12));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month)?;
-            archive.update_duckdb(&month)?;
+            // archive.update_duckdb(&month)?;
         }
         Ok(())
     }
@@ -173,8 +203,8 @@ mod tests {
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::isone_dalmp();
-        archive.download_file(date(2025, 7, 1))?;
+        let archive = ProdDb::caiso_dalmp();
+        archive.download_file(date(2025, 11, 1))?;
         Ok(())
     }
 }
