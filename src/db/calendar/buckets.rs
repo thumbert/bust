@@ -1,9 +1,13 @@
 use std::{path::Path, process::Command};
 
+use duckdb::Connection;
 use jiff::Zoned;
 
 use crate::{
-    bucket::{Bucket, BucketLike}, db::prod_db::ProdDb, elec::iso::ISONE, interval::{interval_base::IntervalTzLike, term::Term}
+    bucket::{Bucket, BucketLike},
+    db::prod_db::ProdDb,
+    elec::iso::ISONE,
+    interval::{interval_base::IntervalTzLike, term::Term},
 };
 
 #[derive(Clone)]
@@ -20,14 +24,20 @@ struct Row {
     b7x8: bool,
     offpeak: bool,
     atc: bool,
+    caiso_6x16: bool,
+    caiso_1x16h: bool,
+    caiso_7x8: bool,
+    caiso_offpeak: bool,
 }
 
 /// Generate a CSV file with the bucket mask for each hour of the given term.
+///
 pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let term_tz = term.with_tz(&ISONE.tz);
 
     let rows = term_tz.hours().into_iter().map(|h| {
         let hour_beginning = h.start();
+        let hour_beginning_caiso = hour_beginning.in_tz("America/Los_Angeles").unwrap();
         Row {
             hour_beginning: hour_beginning.clone(),
             b5x16: Bucket::B5x16.contains(&hour_beginning),
@@ -35,13 +45,28 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
             b7x8: Bucket::B7x8.contains(&hour_beginning),
             offpeak: Bucket::Offpeak.contains(&hour_beginning),
             atc: true,
+            caiso_6x16: Bucket::Caiso6x16.contains(&hour_beginning_caiso),
+            caiso_1x16h: Bucket::Caiso1x16H.contains(&hour_beginning_caiso),
+            caiso_7x8: Bucket::Caiso7x8.contains(&hour_beginning_caiso),
+            caiso_offpeak: Bucket::CaisoOffpeak.contains(&hour_beginning_caiso),
         }
     });
 
     let file = std::fs::File::create(file_path).expect("Unable to create file");
     let mut wtr = csv::Writer::from_writer(file);
-    wtr.write_record(["hour_beginning", "5x16", "2x16H", "7x8", "offpeak", "atc"])
-        .unwrap();
+    wtr.write_record([
+        "hour_beginning",
+        "5x16",
+        "2x16H",
+        "7x8",
+        "offpeak",
+        "atc",
+        "caiso_6x16",
+        "caiso_1x16H",
+        "caiso_7x8",
+        "caiso_offpeak",
+    ])
+    .unwrap();
     for row in rows {
         wtr.write_record(&[
             row.hour_beginning
@@ -52,6 +77,10 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
             row.b7x8.to_string().to_uppercase(),
             row.offpeak.to_string().to_uppercase(),
             row.atc.to_string().to_uppercase(),
+            row.caiso_6x16.to_string().to_uppercase(),
+            row.caiso_1x16h.to_string().to_uppercase(),
+            row.caiso_7x8.to_string().to_uppercase(),
+            row.caiso_offpeak.to_string().to_uppercase(),
         ])
         .unwrap();
     }
@@ -70,6 +99,23 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+pub fn update_duckdb(file_path: &str) -> duckdb::Result<()> {
+    let archive = ProdDb::buckets();
+    let duckdb_path = archive.duckdb_path.as_str();
+    let conn = Connection::open(duckdb_path)?;
+    let sql = format!(r#"
+BEGIN;    
+DROP TABLE IF EXISTS buckets;
+
+CREATE TABLE buckets 
+AS SELECT * FROM read_csv('{}', header = true);    
+COMMIT;
+    "#, file_path);
+
+    conn.execute_batch(&sql)
+}
+
+
 /// Make a file with the count of hours by month
 pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let term_tz = term.with_tz(&ISONE.tz);
@@ -80,6 +126,10 @@ pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn st
         Bucket::B2x16H,
         Bucket::B7x8,
         Bucket::Offpeak,
+        Bucket::Caiso6x16,
+        Bucket::Caiso1x16H,
+        Bucket::Caiso7x8,
+        Bucket::CaisoOffpeak,
     ] {
         for month in term_tz.months() {
             let hours = bucket.count_hours(&month);
@@ -121,7 +171,9 @@ mod tests {
     fn make_file() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::buckets();
         let term = "Cal10-Cal34".parse::<Term>().unwrap();
+        let file_path = format!("{}/buckets.csv", archive.base_dir);
         generate_csv(term, format!("{}/buckets.csv", archive.base_dir).as_str())?;
+        update_duckdb(&(file_path + ".gz"))?;
         Ok(())
     }
 

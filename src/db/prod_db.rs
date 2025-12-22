@@ -1,5 +1,5 @@
 use crate::db::{
-    caiso::dalmp_archive::CaisoDaLmpArchive, calendar::buckets::BucketsArchive, hq::{
+    caiso::{dalmp_archive::CaisoDaLmpArchive, rtlmp_archive::CaisoRtLmpArchive}, calendar::buckets::BucketsArchive, hq::{
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
     }, ieso::{
@@ -55,11 +55,27 @@ impl ProdDb {
         }
     }
 
+    // pub fn buckets_caiso() -> BucketsCaisoArchive {
+    //     BucketsCaisoArchive {
+    //         base_dir: "/home/adrian/Downloads/Archive/Calendars".to_string(),
+    //         duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets_caiso.duckdb"
+    //             .to_string(),
+    //     }
+    // }
+
     pub fn caiso_dalmp() -> CaisoDaLmpArchive {
         CaisoDaLmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Caiso/DaLmp"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/caiso/dalmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn caiso_rtlmp() -> CaisoRtLmpArchive {
+        CaisoRtLmpArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Caiso/RtLmp"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/caiso/rtlmp.duckdb".to_string(),
         }
     }
 

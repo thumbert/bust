@@ -14,6 +14,10 @@ release_server:
     cargo build --bin server_bust --release
     cp -f ./target/release/server_bust ~/Software
 
+update_caiso_prices_da:
+    cargo build --bin update_caiso_prices_da --release 
+    cp ./target/release/update_caiso_prices_da ~/Software
+
 update_canadian_energy_production:
     cargo build --bin update_canadian_energy_production --release
     cp ./target/release/update_canadian_energy_production ~/Software

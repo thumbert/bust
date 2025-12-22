@@ -27,6 +27,14 @@ pub enum Bucket {
     B7x8,
     #[serde(rename = "7x16")]
     B7x16,
+    #[serde(rename = "Caiso1x16")]
+    Caiso1x16H,
+    #[serde(rename = "Caiso6x16")]
+    Caiso6x16,
+    #[serde(rename = "Caiso7x8")]
+    Caiso7x8,
+    #[serde(rename = "CaisoOffpeak")]
+    CaisoOffpeak,
     #[serde(rename = "Offpeak")]
     Offpeak,
 }
@@ -63,11 +71,16 @@ impl<'de> Deserialize<'de> for Bucket {
 }
 
 fn parse_bucket(s: &str) -> Result<Bucket, ParseError> {
-    match s.to_uppercase().as_str() {
+    match s.to_uppercase().replace("_", "").as_str() {
         "FLAT" | "ATC" => Ok(Bucket::Atc),
         "5X16" | "PEAK" => Ok(Bucket::B5x16),
         "2X16H" => Ok(Bucket::B2x16H),
         "7X8" => Ok(Bucket::B7x8),
+        "7X16" => Ok(Bucket::B7x16),
+        "CAISO1X16H" => Ok(Bucket::Caiso1x16H),
+        "CAISO6X16" | "CAISOPEAK" => Ok(Bucket::Caiso6x16),
+        "CAISO7X8" => Ok(Bucket::Caiso7x8),
+        "CAISOOFFPEAK" => Ok(Bucket::CaisoOffpeak),
         "OFFPEAK" => Ok(Bucket::Offpeak),
         _ => Err(ParseError),
     }
@@ -82,17 +95,25 @@ impl BucketLike for Bucket {
             Bucket::B7x8 => String::from("7x8"),
             Bucket::B7x16 => String::from("7x16"),
             Bucket::Offpeak => String::from("Offpeak"),
+            Bucket::Caiso1x16H => String::from("Caiso_1x16H"),
+            Bucket::Caiso6x16 => String::from("Caiso_6x16"),
+            Bucket::Caiso7x8 => String::from("Caiso_7x8"),
+            Bucket::CaisoOffpeak => String::from("Caiso_Offpeak"),
         }
     }
 
-    fn contains(&self, datetime: &Zoned) -> bool {
+    fn contains(&self, zoned: &Zoned) -> bool {
         match self {
             Bucket::Atc => true,
-            Bucket::B5x16 => contains_5x16(datetime),
-            Bucket::B2x16H => contains_2x16h(datetime),
-            Bucket::B7x8 => contains_7x8(datetime),
-            Bucket::B7x16 => contains_7x16(datetime),
-            Bucket::Offpeak => !contains_5x16(datetime),
+            Bucket::B5x16 => contains_5x16(zoned),
+            Bucket::B2x16H => contains_2x16h(zoned),
+            Bucket::B7x8 => contains_7x8(zoned),
+            Bucket::B7x16 => contains_7x16(zoned),
+            Bucket::Offpeak => !contains_5x16(zoned),
+            Bucket::Caiso1x16H => contains_caiso_1x16h(zoned),
+            Bucket::Caiso6x16 => contains_caiso_6x16(zoned),
+            Bucket::Caiso7x8 => contains_caiso_7x8(zoned),
+            Bucket::CaisoOffpeak => !contains_caiso_6x16(zoned),
         }
     }
 
@@ -139,6 +160,35 @@ fn contains_7x8(dt: &Zoned) -> bool {
 fn contains_7x16(dt: &Zoned) -> bool {
     dt.hour() >= 7 && dt.hour() < 23
 }
+
+/// Caiso Peak bucket.  Weekdays 6am-10pm, excluding NERC holidays.
+fn contains_caiso_6x16(dt: &Zoned) -> bool {
+    if dt.weekday() == Weekday::Sunday {
+        return false;
+    }
+    if dt.hour() < 6 || dt.hour() > 21 {
+        false
+    } else {
+        !NERC_CALENDAR.is_holiday(&dt.date())
+    }
+}
+
+fn contains_caiso_1x16h(dt: &Zoned) -> bool {
+    if dt.hour() < 6 || dt.hour() > 21 {
+        return false;
+    }
+    if dt.weekday() == Weekday::Sunday {
+        true
+    } else {
+        NERC_CALENDAR.is_holiday(&dt.date())
+    }
+}
+
+fn contains_caiso_7x8(dt: &Zoned) -> bool {
+    dt.hour() < 6 || dt.hour() > 21
+}
+
+
 
 #[cfg(test)]
 mod tests {

@@ -4,6 +4,12 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2025-12-22
+- Working Caiso DA LMP endpoints 
+
+## 2025-12-17
+- Add Caiso buckets
+- Start archiving Caiso DA LMP prices, start work on endpoints
 
 ## 2025-12-10
 - Beginning Caiso work

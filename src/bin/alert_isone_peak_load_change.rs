@@ -268,7 +268,7 @@ async fn send_email_alert(changes: Vec<PeakLoadWithChange>) -> Result<(), Box<dy
     let for_date = Zoned::now().date().tomorrow()?;
     let response = send_email(
         env::var("EMAIL_FROM").unwrap(),
-        vec![env::var("EMAIL_MAIN").unwrap()],
+        vec![env::var("EMAIL_WORK").unwrap()],
         format!("ISONE peak load forecast change for {}", for_date),
         "".to_string(),
         Some(html),
@@ -303,7 +303,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
     // remove file if it's from a previous day
-    let metadata = metadata("path/to/file.txt").await;
+    let metadata = metadata(get_file_path()).await;
     if metadata.is_ok() {
         let modified: SystemTime = metadata?.modified()?;
         let dt = Timestamp::from_second(

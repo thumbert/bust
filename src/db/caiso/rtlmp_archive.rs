@@ -1,0 +1,342 @@
+// Auto-generated Rust stub for DuckDB table: lmp
+// Created on 2025-12-15 with elec_server/utils/lib_duckdb_builder.dart
+
+use futures::StreamExt;
+use jiff::civil::Date;
+use jiff::Zoned;
+use log::{error, info};
+use reqwest::get;
+use std::error::Error;
+use std::path::Path;
+use std::process::Command;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio_util::io::StreamReader;
+
+use crate::db::nyiso::dalmp::LmpComponent;
+use crate::interval::month::Month;
+
+#[derive(Clone)]
+pub struct CaisoRtLmpArchive {
+    pub base_dir: String,
+    pub duckdb_path: String,
+}
+
+impl CaisoRtLmpArchive {
+    /// Return the csv filename for one component for the day.  Does not check if the file exists.  
+    /// For example:
+    ///  - 20251206_20251206_PRC_LMP_DAM_LMP_v12.csv
+    ///  - 20251206_20251206_PRC_LMP_DAM_MCC_v12.csv
+    ///  - 20251206_20251206_PRC_LMP_DAM_MCL_v12.csv
+    pub fn filename(&self, date: &Date, component: LmpComponent) -> String {
+        let yyyymmdd = date.strftime("%Y%m%d");
+        self.base_dir.to_owned()
+            + "/Raw/"
+            + &date.year().to_string()
+            + format!(
+                "/{}_{}_PRC_LMP_DAM_{}_v12.csv",
+                yyyymmdd,
+                yyyymmdd,
+                component.to_string().to_uppercase()
+            )
+            .as_str()
+    }
+
+    /// Upload one month to DuckDB.
+    /// Assumes all json.gz file exists for DA and RT.  Skips the day if it doesn't exist.
+    ///  
+    pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
+        info!(
+            "inserting CAISO DALMP hourly prices for month {} ...",
+            month
+        );
+
+        let sql = format!(
+            r#"
+LOAD icu;
+SET TimeZone = 'America/Los_Angeles';
+
+CREATE TABLE IF NOT EXISTS lmp (
+    node_id VARCHAR NOT NULL,
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    lmp DECIMAL(18,5) NOT NULL,
+    mcc DECIMAL(18,5) NOT NULL,
+    mcl DECIMAL(18,5) NOT NULL,
+);
+CREATE INDEX IF NOT EXISTS idx_lmp_node_id ON lmp(node_id);
+
+CREATE TEMPORARY TABLE tmp_lmp 
+AS 
+    SELECT 
+        "NODE_ID"::STRING AS node_id,
+        "INTERVALSTARTTIME_GMT"::STRING AS hour_beginning,
+        "MW"::DECIMAL(18,5) as lmp
+    FROM read_csv(
+            '{}/Raw/{}/{}*_{}*_PRC_LMP_DAM_LMP_v12.csv.gz',
+            header = true
+    )
+    ORDER BY node_id, hour_beginning 
+;
+
+CREATE TEMPORARY TABLE tmp_mcc 
+AS 
+    SELECT 
+        "NODE_ID"::STRING AS node_id,
+        "INTERVALSTARTTIME_GMT"::STRING AS hour_beginning,
+        "MW"::DECIMAL(18,5) as mcc
+    FROM read_csv(
+            '{}/Raw/{}/{}*_{}*_PRC_LMP_DAM_MCC_v12.csv.gz',
+            header = true
+    )
+    ORDER BY node_id, hour_beginning 
+;
+
+CREATE TEMPORARY TABLE tmp_mcl 
+AS 
+    SELECT 
+        "NODE_ID"::STRING AS node_id,
+        "INTERVALSTARTTIME_GMT"::STRING AS hour_beginning,
+        "MW"::DECIMAL(18,5) as mcl
+    FROM read_csv(
+            '{}/Raw/{}/{}*_{}*_PRC_LMP_DAM_MCL_v12.csv.gz',
+            header = true
+    )
+    ORDER BY node_id, hour_beginning 
+;
+
+CREATE TEMPORARY TABLE tmp 
+AS
+    SELECT 
+        l.node_id,
+        l.hour_beginning,
+        l.lmp,
+        m.mcc,
+        c.mcl
+    FROM tmp_lmp l
+    JOIN tmp_mcc m
+        ON l.node_id = m.node_id
+        AND l.hour_beginning = m.hour_beginning
+    JOIN tmp_mcl c
+        ON l.node_id = c.node_id
+        AND l.hour_beginning = c.hour_beginning
+    ORDER BY l.node_id, l.hour_beginning;
+
+
+INSERT INTO lmp
+(
+    SELECT * FROM tmp
+    WHERE NOT EXISTS 
+    (
+        SELECT 1 FROM lmp 
+        WHERE lmp.node_id = tmp.node_id 
+        AND lmp.hour_beginning = tmp.hour_beginning
+    )
+)
+ORDER BY node_id, hour_beginning;
+"#,
+            self.base_dir,
+            month.start_date().year(),
+            month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
+            self.base_dir,
+            month.start_date().year(),
+            month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
+            self.base_dir,
+            month.start_date().year(),
+            month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
+        );
+
+        let output = Command::new("duckdb")
+            .arg("-c")
+            .arg(&sql)
+            .arg(&self.duckdb_path)
+            .output()
+            .expect("Failed to invoke duckdb command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if output.status.success() {
+            info!("{}", stdout);
+            info!("done");
+        } else {
+            error!("Failed to update duckdb for month {}: {}", month, stderr);
+        }
+
+        Ok(())
+    }
+
+    /// Data is usually published every day before 18:00[America/New_York]
+    /// It is a zip file which contains 4 csv files (one per component)
+    /// https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime=20251206T08:00-0000&enddatetime=20251207T08:00-0000&market_run_id=DAM&grp_type=ALL
+    pub async fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
+        let yyyymmdd = date.strftime("%Y%m%d");
+        let start = date.at(0, 0, 0, 0).in_tz("America/Los_Angeles")?;
+        let start_z = start.in_tz("UTC")?.strftime("%Y%m%dT%H:%M-0000");
+        let url = format!("https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime={}T08:00-0000&enddatetime={}T08:00-0000&market_run_id=DAM&grp_type=ALL", start_z, start_z);
+        let resp = get(&url).await?;
+        let stream = resp.bytes_stream();
+        let mut reader = StreamReader::new(stream.map(|r| r.map_err(std::io::Error::other)));
+        // let out_path = format!("{}.zip", self.filename(&date, LmpComponent::Lmp));
+        let zip_path = self.base_dir.to_owned()
+            + "/Raw/"
+            + &date.year().to_string()
+            + format!("/{}_{}_PRC_LMP_DAM_LMP_v12_csv.zip", yyyymmdd, yyyymmdd).as_str();
+        let mut out = File::create(&zip_path).await?;
+        let out = tokio::io::copy(&mut reader, &mut out).await?;
+        info!("downloaded {} bytes", out);
+
+        // Unzip the file
+        info!("Unzipping file {}", zip_path);
+        let mut zip_file = File::open(&zip_path).await?;
+        let mut zip_data = Vec::new();
+        zip_file.read_to_end(&mut zip_data).await?;
+        let reader = std::io::Cursor::new(zip_data);
+        let mut zip = zip::ZipArchive::new(reader)?;
+        use std::fs::File as StdFile;
+        use std::io::copy as std_copy;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let out_path = match file.enclosed_name() {
+                Some(path) => path.to_owned(),
+                None => continue,
+            };
+            let out_path = self.base_dir.to_owned()
+                + "/Raw/"
+                + &date.year().to_string()
+                + "/"
+                + out_path.file_name().unwrap().to_str().unwrap();
+
+            // Use blocking std::fs::File and std::io::copy for extraction
+            let mut outfile = StdFile::create(&out_path)?;
+            std_copy(&mut file, &mut outfile)?;
+            info!("extracted file to {}", out_path);
+
+            // Gzip the csv file
+            let mut csv_file = File::open(&out_path).await?;
+            let mut csv_data = Vec::new();
+            csv_file.read_to_end(&mut csv_data).await?;
+            let gz_path = format!("{}.gz", out_path);
+            let mut gz_file = File::create(&gz_path).await?;
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            use std::io::Write;
+            encoder.write_all(&csv_data)?;
+            let compressed_data = encoder.finish()?;
+            gz_file.write_all(&compressed_data).await?;
+            info!("gzipped file to {}", gz_path);
+
+            // Remove the original csv file
+            tokio::fs::remove_file(&out_path).await?;
+        }
+
+        // Remove the zip file
+        tokio::fs::remove_file(&zip_path).await?;
+        info!("removed zip file {}", zip_path);
+
+        Ok(())
+    }
+
+    /// Look for missing days
+    pub async fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
+        let mut last = Zoned::now().date();
+        if Zoned::now().hour() > 18 {
+            last = last.tomorrow()?;
+        }
+        for day in month.days() {
+            if day > last {
+                continue;
+            }
+            let fname = format!("{}.gz", self.filename(&day, LmpComponent::Lmp));
+            if !Path::new(&fname).exists() {
+                info!("Working on {}", day);
+                self.download_file(day).await?;
+                info!("  downloaded file for {}", day);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // use duckdb::{AccessMode, Config, Connection};
+    use jiff::civil::date;
+    use log::info;
+    // use rust_decimal_macros::dec;
+    use std::{error::Error, path::Path};
+
+    // use super::*;
+    use crate::{db::prod_db::ProdDb, interval::month::month};
+
+    // #[test]
+    // fn test_get_data() -> Result<(), Box<dyn Error>> {
+    //     let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+    //     let conn = Connection::open_with_flags(ProdDb::caiso_dalmp().duckdb_path, config).unwrap();
+    //     conn.execute("LOAD ICU;SET TimeZone = 'America/Los_Angeles';", [])?;
+    //     let filter = QueryFilterBuilder::new()
+    //         .node_id("TH_NP15_GEN_ONPEAK-APND")
+    //         .hour_beginning_gte(
+    //             date(2025, 12, 1)
+    //                 .at(0, 0, 0, 0)
+    //                 .in_tz("America/Los_Angeles")?,
+    //         )
+    //         .hour_beginning_lt(
+    //             date(2025, 12, 2)
+    //                 .at(0, 0, 0, 0)
+    //                 .in_tz("America/Los_Angeles")?,
+    //         )
+    //         .build();
+    //     let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
+    //     conn.close().unwrap();
+    //     assert_eq!(xs.len(), 16);
+    //     assert_eq!(
+    //         xs[0],
+    //         Record {
+    //             node_id: "TH_NP15_GEN_ONPEAK-APND".to_string(),
+    //             hour_beginning: date(2025, 12, 1)
+    //                 .at(6, 0, 0, 0)
+    //                 .in_tz("America/Los_Angeles")?,
+    //             lmp: dec!(65.50000),
+    //             mcc: dec!(-0.36631),
+    //             mcl: dec!(-1.05060),
+    //         }
+    //     );
+    //     Ok(())
+    // }
+
+    #[ignore]
+    #[tokio::test]
+    async fn update_db() -> Result<(), Box<dyn Error>> {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::caiso_dalmp();
+
+        let months = month(2025, 12).up_to(month(2025, 12));
+        for month in months.unwrap() {
+            info!("Working on month {}", month);
+            archive.download_missing_days(month).await?;
+            archive.update_duckdb(&month)?;
+        }
+        Ok(())
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn download_file() -> Result<(), Box<dyn Error>> {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::caiso_dalmp();
+        archive.download_file(date(2025, 12, 3)).await?;
+        Ok(())
+    }
+}

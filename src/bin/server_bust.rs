@@ -4,7 +4,7 @@ use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{admin, epa, hq, ieso, isone, nrc, nyiso};
+use bust::api::{admin, caiso, epa, hq, ieso, isone, nrc, nyiso};
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -59,6 +59,11 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::hq_hydro_data()))
             .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
             .app_data(Data::new((
+                ProdDb::caiso_dalmp(),
+                ProdDb::caiso_rtlmp(),
+                ProdDb::buckets(),
+            )))
+            .app_data(Data::new((
                 ProdDb::isone_dalmp(),
                 ProdDb::isone_rtlmp(),
                 ProdDb::buckets(),
@@ -83,6 +88,11 @@ async fn main() -> std::io::Result<()> {
             .service(admin::jobs::api_get_job_names)
             .service(admin::jobs::api_get_log)
             .service(admin::jobs::api_run_job)
+            // CAISO
+            .service(caiso::lmp::api_hourly_prices)
+            .service(caiso::lmp::api_daily_prices)
+            .service(caiso::lmp::api_monthly_prices)
+            .service(caiso::lmp::api_term_prices)
             // EPA
             .service(epa::hourly_emissions::all_facilities)
             .service(epa::hourly_emissions::all_columns)

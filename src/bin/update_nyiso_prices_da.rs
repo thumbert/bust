@@ -27,7 +27,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
     let mut asof = Zoned::now().date();
-    // let mut asof = date(2025, 6, 5);
     if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
