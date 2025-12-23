@@ -27,7 +27,7 @@ struct LmpQuery {
     components: Option<String>,
 }
 
-#[get("/ieso/dalmp/hourly/start/{start}/end/{end}")]
+#[get("/ieso/prices/da/hourly/start/{start}/end/{end}")]
 async fn api_hourly_prices(
     path: web::Path<(Date, Date)>,
     query: web::Query<LmpQuery>,
@@ -55,7 +55,7 @@ async fn api_hourly_prices(
 }
 
 // Only ATC bucket currently implemented
-#[get("/ieso/dalmp/daily/bucket/{bucket}/start/{start}/end/{end}")]
+#[get("/ieso/prices/da/daily/bucket/{bucket}/start/{start}/end/{end}")]
 async fn api_daily_prices(
     path: web::Path<(Bucket, Date, Date)>,
     query: web::Query<LmpQuery>,
@@ -434,7 +434,7 @@ mod tests {
     fn api_hourly_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/ieso/dalmp/hourly/start/2025-08-31/end/2025-08-31?locations=TORONTO,WEST&components=lmp",
+            "{}/ieso/prices/da/hourly/start/2025-08-31/end/2025-08-31?locations=TORONTO,WEST&components=lmp",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
@@ -447,10 +447,10 @@ mod tests {
     fn api_daily_test() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/ieso/dalmp/daily/bucket/atc/start/2025-08-31/end/2025-09-04?locations=TORONTO,WEST&components=lmp",
+            "{}/ieso/prices/da/daily/bucket/atc/start/2025-08-31/end/2025-09-04?locations=TORONTO,WEST&components=lmp",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
+        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowD> = serde_json::from_str(&response).unwrap();
         assert_eq!(vs.len(), 10); // 5 days x 2 locations

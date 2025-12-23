@@ -55,14 +55,6 @@ impl ProdDb {
         }
     }
 
-    // pub fn buckets_caiso() -> BucketsCaisoArchive {
-    //     BucketsCaisoArchive {
-    //         base_dir: "/home/adrian/Downloads/Archive/Calendars".to_string(),
-    //         duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/calendars/buckets_caiso.duckdb"
-    //             .to_string(),
-    //     }
-    // }
-
     pub fn caiso_dalmp() -> CaisoDaLmpArchive {
         CaisoDaLmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Caiso/DaLmp"

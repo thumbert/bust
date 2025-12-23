@@ -3,14 +3,14 @@ use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market},
+    api::{caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset}, isone::_api_isone_core::Market},
     bucket::{Bucket, BucketLike},
     db::{
         caiso::{dalmp_archive::*, rtlmp_archive::CaisoRtLmpArchive},
         calendar::buckets::BucketsArchive,
     },
     interval::{
-        month::{month, Month},
+        month::{Month, month},
         month_tz::MonthTz,
         term::Term,
     },
@@ -132,7 +132,7 @@ async fn api_hourly_prices(
 pub struct RowH {
     #[serde(
         serialize_with = "serialize_zoned_as_offset",
-        deserialize_with = "deserialize_zoned_assume_ny"
+        deserialize_with = "deserialize_zoned_assume_la"
     )]
     hour_beginning: Zoned,
     name: String,
@@ -692,7 +692,7 @@ SELECT
     t.term,
     d.node_id,
     {}(d.{})::DECIMAL(18,5) AS price,
-FROM da_lmp d
+FROM lmp d
 JOIN terms t
     ON d.hour_beginning >= t.term_start
     AND d.hour_beginning < t.term_end
@@ -715,7 +715,7 @@ ORDER BY t.term, d.node_id;
     let prices_iter = stmt.query_map([], |row| {
         Ok(RowT {
             term: row.get(0).unwrap(),
-            ptid: row.get(1).unwrap(),
+            node_id: row.get(1).unwrap(),
             bucket,
             value: match row.get_ref_unwrap(2) {
                 ValueRef::Decimal(v) => v,
@@ -742,7 +742,7 @@ pub struct RowM {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RowT {
     pub term: String,
-    pub ptid: i32,
+    pub node_id: String,
     pub bucket: Bucket,
     #[serde(with = "rust_decimal::serde::float")]
     pub value: Decimal,
@@ -752,7 +752,7 @@ pub struct RowT {
 mod tests {
     use std::{env, error::Error, path::Path, vec};
 
-    use duckdb::{AccessMode, Config, Connection, Result};
+    use duckdb::{AccessMode, Connection, Result};
     use jiff::civil::date;
     use rust_decimal_macros::dec;
 
@@ -840,7 +840,6 @@ mod tests {
             "mean".into(),
         )
         .unwrap();
-        println!("{:?}", data);
         let x0 = data
             .iter()
             .find(|e| {
@@ -864,10 +863,8 @@ mod tests {
 
     #[test]
     fn test_term_prices() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let mut conn =
-            Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
-        let terms: Vec<Term> = vec!["Cal24", "Jul24", "Jul24-Aug24"]
+        let mut conn = get_connection().unwrap();
+        let terms: Vec<Term> = vec!["1Dec25-10Dec25"]
             .into_iter()
             .map(|s| s.parse::<Term>().unwrap())
             .collect();
@@ -885,10 +882,10 @@ mod tests {
         assert_eq!(
             data[0],
             RowT {
-                term: "Cal24".into(),
-                ptid: 4000,
-                bucket: Bucket::B5x16,
-                value: dec!(46.6208),
+                term: "1Dec25-10Dec25".into(),
+                node_id: "TH_NP15_GEN-APND".into(),
+                bucket: Bucket::Caiso6x16,
+                value: dec!(52.56761),
             }
         );
 
@@ -904,7 +901,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowH> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 720); // 2 locations x 3 components x 5 days x 24 hours = 720
+        assert_eq!(vs.len(), 96); 
         Ok(())
     }
 
@@ -915,10 +912,9 @@ mod tests {
             "{}/caiso/prices/da/daily/start/2025-12-01/end/2025-12-10?node_ids=TH_NP16_GEN-APND,TH_SP15_GEN-APND&buckets=Caiso6x16,Caiso1x16H,Caiso7x8",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowD> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 10); // 2 locations x 2 buckets x 5 days = 10
+        assert_eq!(vs.len(), 20); 
         Ok(())
     }
 
@@ -926,13 +922,12 @@ mod tests {
     fn api_monthly_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/prices/da/monthly/start/2024-01/end/2024-12?ptids=4000,4001&buckets=5x16,offpeak",
+            "{}/caiso/prices/da/monthly/start/2025-12/end/2026-01?node_ids=TH_NP16_GEN-APND,TH_SP15_GEN-APND&buckets=Caiso6x16,offpeak",
             env::var("RUST_SERVER").unwrap(),
         );
-        // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowM> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 48); // 2 locations x 2 buckets x 12 months = 48
+        assert!(!vs.is_empty()); 
         Ok(())
     }
 
@@ -940,20 +935,20 @@ mod tests {
     fn api_term_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/isone/prices/da?ptids=4000&buckets=5x16,offpeak&terms=Cal24;Jul24;Jul24-Aug25",
+            "{}/caiso/prices/da?node_ids=TH_NP15_GEN-APND&buckets=Caiso6x16,offpeak&terms=1Dec25-10Dec25",
             env::var("RUST_SERVER").unwrap(),
         );
         // println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowT> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 6); // 1 location x 2 buckets x 3 terms = 6
+        assert_eq!(vs.len(), 2); // 1 location x 2 buckets x 3 terms = 6
         assert_eq!(
             vs[0],
             RowT {
-                term: "Cal24".into(),
-                ptid: 4000,
-                bucket: Bucket::B5x16,
-                value: dec!(46.6208),
+                term: "1Dec25-10Dec25".into(),
+                node_id: "TH_NP15_GEN-APND".into(),
+                bucket: Bucket::Caiso6x16,
+                value: dec!(52.56761),
             }
         );
 

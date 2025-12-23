@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
             .app_data(Data::new(ProdDb::hq_hydro_data()))
+            .app_data(Data::new(ProdDb::caiso_dalmp()))
             .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
             .app_data(Data::new((
                 ProdDb::caiso_dalmp(),
@@ -93,6 +94,7 @@ async fn main() -> std::io::Result<()> {
             .service(caiso::lmp::api_daily_prices)
             .service(caiso::lmp::api_monthly_prices)
             .service(caiso::lmp::api_term_prices)
+            .service(caiso::node_table::api_get_all)
             // EPA
             .service(epa::hourly_emissions::all_facilities)
             .service(epa::hourly_emissions::all_columns)

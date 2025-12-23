@@ -3,8 +3,7 @@ use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{
-    arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef,
-    Connection, Result,
+    arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef, Connection, Result,
 };
 use itertools::Itertools;
 use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
@@ -21,12 +20,20 @@ use crate::{
 
 #[get("/isone/energy_offers/masked_asset_ids")]
 async fn api_masked_asset_ids(db: web::Data<IsoneDaEnergyOffersArchive>) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
-    if conn.is_err() {
-        return HttpResponse::InternalServerError()
-            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
-    }
-    let ids = get_masked_asset_ids(&conn.unwrap());
+    let conn = open_with_retry(
+        &db.duckdb_path,
+        8,
+        Duration::from_millis(25),
+        duckdb::AccessMode::ReadOnly,
+    );
+    let conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Unable to open the DuckDB connection {}", e));
+        }
+    };
+    let ids = get_masked_asset_ids(&conn);
     HttpResponse::Ok().json(ids)
 }
 
@@ -45,11 +52,19 @@ async fn api_offers(
     query: web::Query<OffersQuery>,
     db: web::Data<IsoneDaEnergyOffersArchive>,
 ) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
-    if conn.is_err() {
-        return HttpResponse::InternalServerError()
-            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
-    }
+    let conn = open_with_retry(
+        &db.duckdb_path,
+        8,
+        Duration::from_millis(25),
+        duckdb::AccessMode::ReadOnly,
+    );
+    let conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Unable to open the DuckDB connection {}", e));
+        }
+    };
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -75,7 +90,8 @@ async fn api_offers(
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
 
-    let offers = get_energy_offers(&conn.unwrap(), market, start_date, end_date, asset_ids).unwrap();
+    let offers =
+        get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
 }
 
@@ -85,12 +101,19 @@ async fn api_stack(
     path: web::Path<(String, String)>,
     db: web::Data<IsoneDaEnergyOffersArchive>,
 ) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
-    if conn.is_err() {
-        return HttpResponse::InternalServerError()
-            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
-    }
-
+    let conn = open_with_retry(
+        &db.duckdb_path,
+        8,
+        Duration::from_millis(25),
+        duckdb::AccessMode::ReadOnly,
+    );
+    let conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Unable to open the DuckDB connection {}", e));
+        }
+    };
 
     let market: Market = match path.0.parse() {
         Ok(v) => v,
@@ -116,7 +139,7 @@ async fn api_stack(
             ))
         }
     };
-    match get_stack(&conn.unwrap(), market, timestamps) {
+    match get_stack(&conn, market, timestamps) {
         Ok(offers) => HttpResponse::Ok().json(offers),
         Err(_) => HttpResponse::BadRequest().body("Error executing the query"),
     }
@@ -288,7 +311,6 @@ ORDER BY HourBeginning, Price;
     Ok(offers)
 }
 
-
 /// Get all masked ids
 pub fn get_masked_asset_ids(conn: &Connection) -> Vec<u32> {
     let mut stmt = conn
@@ -301,8 +323,6 @@ pub fn get_masked_asset_ids(conn: &Connection) -> Vec<u32> {
     }
     ids
 }
-
-
 
 #[cfg(test)]
 mod tests {

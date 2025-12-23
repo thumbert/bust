@@ -27,7 +27,7 @@ pub enum Bucket {
     B7x8,
     #[serde(rename = "7x16")]
     B7x16,
-    #[serde(rename = "Caiso1x16")]
+    #[serde(rename = "Caiso1x16H")]
     Caiso1x16H,
     #[serde(rename = "Caiso6x16")]
     Caiso6x16,

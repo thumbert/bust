@@ -52,8 +52,8 @@ CREATE TEMP TABLE Changes AS
         WHERE ReportDt > getvariable('asof_date') - 10
         ) AS a
     WHERE Change != 0
-    --AND ReportDt = getvariable('asof_date')
-    AND ReportDt = (SELECT MAX(ReportDt) FROM Status)
+    AND ReportDt = getvariable('asof_date')
+    --AND ReportDt = (SELECT MAX(ReportDt) FROM Status)
     ORDER BY Unit;
 CREATE TEMP TABLE Groups AS 
     FROM read_csv('{}/update_nrc_generator_status/groups.csv', 
@@ -219,7 +219,7 @@ mod tests {
         let archive = ProdDb::nrc_generator_status();
         let conn = Connection::open(archive.duckdb_path.clone())?;
         let changes = archive.get_dod_changes(&conn, date(2024, 12, 4))?;
-        assert_eq!(changes.len(), 2);
+        assert_eq!(changes.len(), 1);
         Ok(())
     }
 

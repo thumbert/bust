@@ -7,11 +7,14 @@ use crate::{db::nyiso::scheduled_outages::*, utils::lib_duckdb::open_with_retry}
 #[get("/nyiso/transmission_outages/scheduled")]
 async fn api_scheduled_outages(query: web::Query<QueryOutages>, db: web::Data<NyisoScheduledOutagesArchive>) -> impl Responder {
     let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
-    if conn.is_err() {
-        return HttpResponse::InternalServerError()
-            .body(format!("Unable to open the DuckDB connection {}", conn.unwrap_err()));
-    }
-    let rows = db.get_data(&conn.unwrap(), query.into_inner()).unwrap();
+    let conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Unable to open the DuckDB connection {}", e));
+        }
+    };
+    let rows = db.get_data(&conn, query.into_inner()).unwrap();
     HttpResponse::Ok().json(rows)
 }
 
