@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
-use tokio::fs::File;
+use tokio::fs::{self, File};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::StreamReader;
@@ -180,15 +180,17 @@ ORDER BY node_id, hour_beginning;
         let yyyymmdd = date.strftime("%Y%m%d");
         let start = date.at(0, 0, 0, 0).in_tz("America/Los_Angeles")?;
         let start_z = start.in_tz("UTC")?.strftime("%Y%m%dT%H:%M-0000");
-        let url = format!("https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime={}T08:00-0000&enddatetime={}T08:00-0000&market_run_id=DAM&grp_type=ALL", start_z, start_z);
+        let url = format!("https://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=PRC_LMP&version=12&startdatetime={}&enddatetime={}&market_run_id=DAM&grp_type=ALL", start_z, start_z);
         let resp = get(&url).await?;
         let stream = resp.bytes_stream();
         let mut reader = StreamReader::new(stream.map(|r| r.map_err(std::io::Error::other)));
-        // let out_path = format!("{}.zip", self.filename(&date, LmpComponent::Lmp));
         let zip_path = self.base_dir.to_owned()
             + "/Raw/"
             + &date.year().to_string()
             + format!("/{}_{}_PRC_LMP_DAM_LMP_v12_csv.zip", yyyymmdd, yyyymmdd).as_str();
+        let dir = Path::new(&zip_path).parent().unwrap();
+        fs::create_dir_all(dir).await?;
+
         let mut out = File::create(&zip_path).await?;
         let out = tokio::io::copy(&mut reader, &mut out).await?;
         info!("downloaded {} bytes", out);
@@ -667,10 +669,11 @@ mod tests {
             .iter()
             .find(|r| {
                 r.node_id == "TH_NP15_GEN-APND"
-                     && r.hour_beginning
+                    && r.hour_beginning
                         == date(2025, 12, 1)
                             .at(6, 0, 0, 0)
-                            .in_tz("America/Los_Angeles").unwrap()
+                            .in_tz("America/Los_Angeles")
+                            .unwrap()
             })
             .unwrap();
         assert_eq!(

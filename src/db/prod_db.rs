@@ -1,5 +1,5 @@
 use crate::db::{
-    caiso::{dalmp_archive::CaisoDaLmpArchive, rtlmp_archive::CaisoRtLmpArchive}, calendar::buckets::BucketsArchive, hq::{
+    caiso::{dalmp_archive::CaisoDaLmpArchive, public_bids_archive::CaisoPublicBidsArchive, rtlmp_archive::CaisoRtLmpArchive}, calendar::buckets::BucketsArchive, hq::{
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
     }, ieso::{
@@ -68,6 +68,14 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/Caiso/RtLmp"
                 .to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/caiso/rtlmp.duckdb".to_string(),
+        }
+    }
+
+    pub fn caiso_public_bids() -> CaisoPublicBidsArchive {
+        CaisoPublicBidsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Caiso/PublicBids"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/caiso/public_bids.duckdb".to_string(),
         }
     }
 
