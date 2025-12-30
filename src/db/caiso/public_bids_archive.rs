@@ -95,6 +95,7 @@ AS
     FROM read_csv(
         '{}/Raw/{}/{}*_{}*_PUB_BID_DAM_v3.csv.gz',
         header = true,
+        types = {{'SCH_BID_Y2AXISDATA': 'DECIMAL(9,4)', 'SCH_BID_Y1AXISDATA': 'DECIMAL(9,4)', 'SCH_BID_XAXISDATA': 'DECIMAL(9,4)', 'SELFSCHEDMW': 'DECIMAL(9,4)', 'RESOURCEBID_SEQ': 'UINTEGER', 'SCHEDULINGCOORDINATOR_SEQ': 'UINTEGER'}},
         timestampformat = 'YYYY-MM-DD HH:MM:SS.000'
     )
     ORDER BY hour_beginning, resource_bid_seq 
@@ -1183,7 +1184,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_public_bids();
 
-        let months = month(2025, 2).up_to(month(2025, 9));
+        let months = month(2024, 1).up_to(month(2024, 1));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month).await?;
