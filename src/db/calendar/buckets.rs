@@ -99,8 +99,7 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-pub fn update_duckdb(file_path: &str) -> duckdb::Result<()> {
-    let archive = ProdDb::buckets();
+pub fn update_duckdb(file_path: &str, archive: &BucketsArchive) -> duckdb::Result<()> {
     let duckdb_path = archive.duckdb_path.as_str();
     let conn = Connection::open(duckdb_path)?;
     let sql = format!(r#"
@@ -172,8 +171,8 @@ mod tests {
         let archive = ProdDb::buckets();
         let term = "Cal10-Cal34".parse::<Term>().unwrap();
         let file_path = format!("{}/buckets.csv", archive.base_dir);
-        generate_csv(term, format!("{}/buckets.csv", archive.base_dir).as_str())?;
-        update_duckdb(&(file_path + ".gz"))?;
+        generate_csv(term, file_path.as_str())?;
+        update_duckdb(&(file_path + ".gz"), &archive)?;
         Ok(())
     }
 
