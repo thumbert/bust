@@ -102,18 +102,20 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
 pub fn update_duckdb(file_path: &str, archive: &BucketsArchive) -> duckdb::Result<()> {
     let duckdb_path = archive.duckdb_path.as_str();
     let conn = Connection::open(duckdb_path)?;
-    let sql = format!(r#"
+    let sql = format!(
+        r#"
 BEGIN;    
 DROP TABLE IF EXISTS buckets;
 
 CREATE TABLE buckets 
 AS SELECT * FROM read_csv('{}', header = true);    
 COMMIT;
-    "#, file_path);
+    "#,
+        file_path
+    );
 
     conn.execute_batch(&sql)
 }
-
 
 /// Make a file with the count of hours by month
 pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -159,6 +161,8 @@ pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn st
 
 #[cfg(test)]
 mod tests {
+    use log::info;
+
     use crate::{
         db::{calendar::buckets::*, prod_db::ProdDb},
         interval::term::Term,
@@ -168,11 +172,17 @@ mod tests {
     #[ignore]
     #[test]
     fn make_file() -> Result<(), Box<dyn Error>> {
+        env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .init();
+
         let archive = ProdDb::buckets();
         let term = "Cal10-Cal34".parse::<Term>().unwrap();
         let file_path = format!("{}/buckets.csv", archive.base_dir);
         generate_csv(term, file_path.as_str())?;
+        info!("Generated CSV file {}", file_path);
         update_duckdb(&(file_path + ".gz"), &archive)?;
+        info!("Updated duckdb at {}", archive.duckdb_path);
         Ok(())
     }
 
