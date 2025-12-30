@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2025-12-30
+- Expose fields from Caiso API structs.
+
 ## 2025-12-29
 - Work on Caiso public bids archive and endpoint.  Not finished.
 

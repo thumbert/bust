@@ -134,11 +134,11 @@ pub struct RowH {
         serialize_with = "serialize_zoned_as_offset",
         deserialize_with = "deserialize_zoned_assume_la"
     )]
-    hour_beginning: Zoned,
-    name: String,
-    component: LmpComponent,
+    pub hour_beginning: Zoned,
+    pub name: String,
+    pub component: LmpComponent,
     #[serde(with = "rust_decimal::serde::float")]
-    price: Decimal,
+    pub price: Decimal,
 }
 
 #[get("/caiso/prices/{market}/daily/start/{start}/end/{end}")]
@@ -531,11 +531,11 @@ ORDER BY node_id, day;
 // for daily data
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RowD {
-    date: Date,
-    node_id: String,
-    bucket: Bucket,
+    pub date: Date,
+    pub node_id: String,
+    pub bucket: Bucket,
     #[serde(with = "rust_decimal::serde::float")]
-    value: Decimal,
+    pub value: Decimal,
 }
 
 pub fn get_monthly_prices(

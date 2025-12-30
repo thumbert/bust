@@ -261,7 +261,7 @@ ORDER BY node_id, hour_beginning;
             if !Path::new(&fname).exists() {
                 info!("Working on {}", day);
                 self.download_file(day).await?;
-                info!("  downloaded file for {}", day);
+                info!("  finished processing file for {}", day);
             }
         }
         Ok(())
@@ -701,7 +701,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_dalmp();
 
-        let months = month(2025, 12).up_to(month(2025, 12));
+        let months = month(2024, 1).up_to(month(2025, 12));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month).await?;
