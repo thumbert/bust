@@ -404,10 +404,6 @@ FROM public_bids_da WHERE 1=1"#);
         query.push_str(&format!("
     AND resource_type = '{}'", resource_type));
     }
-    if let Some(resource_type_like) = &query_filter.resource_type_like {
-        query.push_str(&format!("
-    AND resource_type LIKE '{}'", resource_type_like));
-    }
     if let Some(resource_type_in) = &query_filter.resource_type_in {
         query.push_str(&format!("
     AND resource_type IN ('{}')", resource_type_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
@@ -608,10 +604,6 @@ FROM public_bids_da WHERE 1=1"#);
         query.push_str(&format!("
     AND sch_bid_curve_type = '{}'", sch_bid_curve_type));
     }
-    if let Some(sch_bid_curve_type_like) = &query_filter.sch_bid_curve_type_like {
-        query.push_str(&format!("
-    AND sch_bid_curve_type LIKE '{}'", sch_bid_curve_type_like));
-    }
     if let Some(sch_bid_curve_type_in) = &query_filter.sch_bid_curve_type_in {
         query.push_str(&format!("
     AND sch_bid_curve_type IN ('{}')", sch_bid_curve_type_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
@@ -751,14 +743,12 @@ FROM public_bids_da WHERE 1=1"#);
 }
 
 
-
 #[derive(Debug, Default, Deserialize)]
 pub struct QueryFilter {
     pub hour_beginning: Option<Zoned>,
     pub hour_beginning_gte: Option<Zoned>,
     pub hour_beginning_lt: Option<Zoned>,
     pub resource_type: Option<ResourceType>,
-    pub resource_type_like: Option<String>,
     pub resource_type_in: Option<Vec<ResourceType>>,
     pub scheduling_coordinator_seq: Option<u32>,
     pub scheduling_coordinator_seq_in: Option<Vec<u32>>,
@@ -809,7 +799,6 @@ pub struct QueryFilter {
     pub sch_bid_y2axis_data_gte: Option<Decimal>,
     pub sch_bid_y2axis_data_lte: Option<Decimal>,
     pub sch_bid_curve_type: Option<SchBidCurveType>,
-    pub sch_bid_curve_type_like: Option<String>,
     pub sch_bid_curve_type_in: Option<Vec<SchBidCurveType>>,
     pub min_eoh_state_of_charge: Option<Decimal>,
     pub min_eoh_state_of_charge_in: Option<Vec<Decimal>>,
@@ -854,11 +843,6 @@ impl QueryFilterBuilder {
 
     pub fn resource_type(mut self, value: ResourceType) -> Self {
         self.inner.resource_type = Some(value);
-        self
-    }
-
-    pub fn resource_type_like(mut self, value_like: String) -> Self {
-        self.inner.resource_type_like = Some(value_like);
         self
     }
 
@@ -1112,11 +1096,6 @@ impl QueryFilterBuilder {
         self
     }
 
-    pub fn sch_bid_curve_type_like(mut self, value_like: String) -> Self {
-        self.inner.sch_bid_curve_type_like = Some(value_like);
-        self
-    }
-
     pub fn sch_bid_curve_type_in(mut self, values_in: Vec<SchBidCurveType>) -> Self {
         self.inner.sch_bid_curve_type_in = Some(values_in);
         self
@@ -1168,10 +1147,12 @@ impl QueryFilterBuilder {
 #[cfg(test)]
 mod tests {
 
+    use duckdb::{AccessMode, Config, Connection};
     use jiff::civil::date;
     use log::info;
     use std::{error::Error, path::Path};
 
+    use super::*;
     use crate::{db::prod_db::ProdDb, interval::month::month};
 
     #[ignore]
@@ -1203,6 +1184,18 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_public_bids();
         archive.download_file(date(2025, 1, 1)).await?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_data() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn =
+            Connection::open_with_flags(ProdDb::caiso_public_bids().duckdb_path, config).unwrap();
+        let filter = QueryFilterBuilder::new().build();
+        let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
+        conn.close().unwrap();
+        assert_eq!(xs.len(), 0);
         Ok(())
     }
 }

@@ -2,8 +2,6 @@ use duckdb::{
     arrow::array::StringArray, types::EnumType::UInt8, types::ValueRef, AccessMode, Config,
     Connection, Result,
 };
-// use r2d2::PooledConnection;
-// use r2d2_duckdb::DuckDBConnectionManager;
 
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;

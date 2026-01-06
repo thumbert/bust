@@ -47,6 +47,7 @@ tokio = {version = "1.47.1", features = ["full"]}
 tokio-util = "0.7.17"
 zip = "4.0.0"
 glob = "0.3.3"
+url = "2.5.7"
 
 [[bin]]
 name = "hello_world"
