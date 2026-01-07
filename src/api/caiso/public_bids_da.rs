@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::{db::caiso::public_bids_archive::*, utils::lib_duckdb::open_with_retry};
 use actix_web::{get, web, HttpResponse, Responder};
 
-#[get("/caiso/public_bids")]
+#[get("/caiso/public_bids_da")]
 pub async fn get_data_api(
     query: web::Query<ApiQuery>,
     data: web::Data<CaisoPublicBidsArchive>,
@@ -29,7 +29,7 @@ pub async fn get_data_api(
     let conn = conn.unwrap();
 
     let query_filter = query.to_query_filter();
-    match get_data(&conn, &query_filter) {
+    match get_data(&conn, &query_filter, query._limit) {
         Ok(records) => {
             if records.len() > 100_000 {
                 HttpResponse::BadRequest()
@@ -41,37 +41,6 @@ pub async fn get_data_api(
         Err(e) => HttpResponse::InternalServerError().body(format!("Error querying data: {}", e)),
     }
 }
-// async fn api_get_data(
-//     query: web::Query<ApiQuery>,
-//     db: web::Data<CaisoPublicBidsArchive>,
-// ) -> impl Responder {
-//     let conn = open_with_retry(
-//         &db.duckdb_path,
-//         8,
-//         Duration::from_millis(25),
-//         AccessMode::ReadOnly,
-//     );
-//     if conn.is_err() {
-//         return HttpResponse::InternalServerError().body(format!(
-//             "Error opening DuckDB database: {}",
-//             conn.err().unwrap()
-//         ));
-//     }
-
-//     let query_filter = query.into_inner().to_query_filter();
-//     // let query_filter = match query_filter {
-//     //     Ok(qf) => qf,
-//     //     Err(e) => {
-//     //         return HttpResponse::BadRequest().body(format!("Invalid query parameters: {}", e));
-//     //     }
-//     // };
-
-//     let ids = get_data(&conn.unwrap(), &query_filter);
-//     match ids {
-//         Ok(vs) => HttpResponse::Ok().json(vs),
-//         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-//     }
-// }
 
 #[derive(Debug, Deserialize)]
 pub struct ApiQuery {
@@ -138,6 +107,7 @@ pub struct ApiQuery {
     pub max_eoh_state_of_charge_in: Option<String>,
     pub max_eoh_state_of_charge_gte: Option<Decimal>,
     pub max_eoh_state_of_charge_lte: Option<Decimal>,
+    pub _limit: Option<usize>,
 }
 
 impl ApiQuery {
@@ -256,38 +226,25 @@ impl ApiQuery {
 
 #[cfg(test)]
 mod tests {
-
-    use std::{env, path::Path};
-
-    use duckdb::{AccessMode, Result};
-
-    use crate::db::prod_db::ProdDb;
-
     use super::*;
-
-    // #[test]
-    // fn test_names() -> Result<()> {
-    //     let conn = open_with_retry(
-    //         &ProdDb::caiso_public_bids().duckdb_path,
-    //         8,
-    //         Duration::from_millis(25),
-    //         AccessMode::ReadOnly,
-    //     )
-    //     .unwrap();
-
-    //     // let names = get_all(&conn).unwrap();
-    //     // assert!(names.len() >= 110);
-    //     Ok(())
-    // }
+    use std::{env, path::Path};
 
     #[test]
     fn api_get_data() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let url = format!("{}/caiso/public_bids", env::var("RUST_SERVER").unwrap(),);
+        let params = QueryFilterBuilder::new()
+            .resource_type_in(vec![ResourceType::Generator])
+            .build()
+            .to_query_url();
+        let url = format!(
+            "{}/caiso/public_bids_da?{}&_limit=5",
+            env::var("RUST_SERVER").unwrap(),
+            params
+        );
+        println!("URL: {}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<Record> = serde_json::from_str(&response).unwrap();
-        assert!(vs.len() > 1000);
-        // println!("{:?}", vs.iter().take(5).collect::<Vec<&Row>>());
+        assert_eq!(vs.len(), 5);
         Ok(())
     }
 }

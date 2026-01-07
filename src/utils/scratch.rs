@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use actix_web::{get, web, HttpResponse, Responder};
@@ -11,6 +12,7 @@ use jiff::Timestamp;
 use jiff::{tz::TimeZone, Zoned};
 use rust_decimal::Decimal;
 use std::str::FromStr;
+use url::form_urlencoded;
 
 use crate::db::prod_db::ScratchArchive;
 use crate::utils::lib_duckdb::open_with_retry;
@@ -419,6 +421,100 @@ pub struct QueryFilter {
     pub price_lte: Option<Decimal>,
 }
 
+impl QueryFilter {
+    pub fn to_query_url(&self) -> String {
+        let mut params = HashMap::new();
+        if let Some(value) = &self.hour_beginning {
+            params.insert("hour_beginning", value.to_string());
+        }
+        if let Some(value) = &self.hour_beginning_gte {
+            params.insert("hour_beginning_gte", value.to_string());
+        }
+        if let Some(value) = &self.hour_beginning_lt {
+            params.insert("hour_beginning_lt", value.to_string());
+        }
+        if let Some(value) = &self.as_of {
+            params.insert("as_of", value.to_string());
+        }
+        if let Some(value) = &self.as_of_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("as_of_in", joined);
+        }
+        if let Some(value) = &self.as_of_gte {
+            params.insert("as_of_gte", value.to_string());
+        }
+        if let Some(value) = &self.as_of_lte {
+            params.insert("as_of_lte", value.to_string());
+        }
+        if let Some(value) = &self.resource_type {
+            params.insert("resource_type", value.to_string());
+        }
+        if let Some(value) = &self.resource_type_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("resource_type_in", joined);
+        }
+        if let Some(value) = &self.resource_id {
+            params.insert("resource_id", value.to_string());
+        }
+        if let Some(value) = &self.resource_id_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("resource_id_in", joined);
+        }
+        if let Some(value) = &self.resource_id_gte {
+            params.insert("resource_id_gte", value.to_string());
+        }
+        if let Some(value) = &self.resource_id_lte {
+            params.insert("resource_id_lte", value.to_string());
+        }
+        if let Some(value) = &self.location {
+            params.insert("location", value.to_string());
+        }
+        if let Some(value) = &self.location_like {
+            params.insert("location_like", value.to_string());
+        }
+        if let Some(value) = &self.location_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("location_in", joined);
+        }
+        if let Some(value) = &self.price {
+            params.insert("price", value.to_string());
+        }
+        if let Some(value) = &self.price_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("price_in", joined);
+        }
+        if let Some(value) = &self.price_gte {
+            params.insert("price_gte", value.to_string());
+        }
+        if let Some(value) = &self.price_lte {
+            params.insert("price_lte", value.to_string());
+        }
+        form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(&params)
+            .finish()
+    }
+}
+
 #[derive(Default)]
 pub struct QueryFilterBuilder {
     inner: QueryFilter,
@@ -587,18 +683,7 @@ mod api_tests {
             .as_of_gte(date(2023, 1, 10))
             .as_of_lte(date(2023, 4, 20))
             .build();
-
-        let mut params = HashMap::new();
-        params.insert("as_of", "2023-01-01");
-        params.insert(
-            "hour_beginning",
-            "2023-01-01T00:00:00-05:00[America/New_York]",
-        );
-
-        let query_string = form_urlencoded::Serializer::new(String::new())
-            .extend_pairs(&params)
-            .finish();
-        let uri = format!("/api/data?{}", query_string);
+        let uri = format!("/api/data?{}", filter.to_query_url());
 
         let req = test::TestRequest::get().uri(&uri).to_request();
         let resp = test::call_service(&app, req).await;
@@ -606,7 +691,7 @@ mod api_tests {
         let data = resp.into_body().try_into_bytes().unwrap();
         let records: Vec<Record> = serde_json::from_slice(&data).unwrap();
         // println!("records: {:?}", records);
-        assert_eq!(records.len(), 1);
+        assert_eq!(records.len(), 3);
     }
 
     #[actix_web::test]
@@ -614,13 +699,10 @@ mod api_tests {
         let data = web::Data::new(ProdDb::scratch());
         let app = test::init_service(App::new().app_data(data.clone()).service(get_data_api)).await;
 
-        let mut params = HashMap::new();
-        params.insert("resource_type_in", "SOLAR,WIND");
-
-        let query_string = form_urlencoded::Serializer::new(String::new())
-            .extend_pairs(&params)
-            .finish();
-        let uri = format!("/api/data?{}", query_string);
+        let filter = QueryFilterBuilder::new()
+            .resource_type_in(vec![ResourceType::Solar, ResourceType::Wind])
+            .build();
+        let uri = format!("/api/data?{}", filter.to_query_url());
 
         let req = test::TestRequest::get().uri(&uri).to_request();
         let resp = test::call_service(&app, req).await;

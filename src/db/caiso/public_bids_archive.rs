@@ -11,6 +11,8 @@ use log::{error, info};
 use reqwest::get;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use url::form_urlencoded;
+use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 use std::process::Command;
@@ -365,8 +367,13 @@ impl<'de> serde::Deserialize<'de> for SchBidCurveType {
     }
 }
 
-pub fn get_data(conn: &Connection, query_filter: &QueryFilter) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
-   let mut query = String::from(r#"
+pub fn get_data(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+    limit: Option<usize>,
+) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
 SELECT
     hour_beginning,
     resource_type,
@@ -387,267 +394,524 @@ SELECT
     sch_bid_curve_type,
     min_eoh_state_of_charge,
     max_eoh_state_of_charge
-FROM public_bids_da WHERE 1=1"#);
+FROM public_bids_da WHERE 1=1"#,
+    );
     if let Some(hour_beginning) = &query_filter.hour_beginning {
-        query.push_str(&format!("
-    AND hour_beginning = '{}'", hour_beginning.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning = '{}'",
+            hour_beginning.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(hour_beginning_gte) = &query_filter.hour_beginning_gte {
-        query.push_str(&format!("
-    AND hour_beginning >= '{}'", hour_beginning_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning >= '{}'",
+            hour_beginning_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(hour_beginning_lt) = &query_filter.hour_beginning_lt {
-        query.push_str(&format!("
-    AND hour_beginning < '{}'", hour_beginning_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning < '{}'",
+            hour_beginning_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(resource_type) = &query_filter.resource_type {
-        query.push_str(&format!("
-    AND resource_type = '{}'", resource_type));
+        query.push_str(&format!(
+            "
+    AND resource_type = '{}'",
+            resource_type
+        ));
     }
     if let Some(resource_type_in) = &query_filter.resource_type_in {
-        query.push_str(&format!("
-    AND resource_type IN ('{}')", resource_type_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND resource_type IN ('{}')",
+            resource_type_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(scheduling_coordinator_seq) = &query_filter.scheduling_coordinator_seq {
-        query.push_str(&format!("
-    AND scheduling_coordinator_seq = {}", scheduling_coordinator_seq));
+        query.push_str(&format!(
+            "
+    AND scheduling_coordinator_seq = {}",
+            scheduling_coordinator_seq
+        ));
     }
     if let Some(scheduling_coordinator_seq_in) = &query_filter.scheduling_coordinator_seq_in {
-        query.push_str(&format!("
-    AND scheduling_coordinator_seq IN ({})", scheduling_coordinator_seq_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND scheduling_coordinator_seq IN ({})",
+            scheduling_coordinator_seq_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(scheduling_coordinator_seq_gte) = &query_filter.scheduling_coordinator_seq_gte {
-        query.push_str(&format!("
-    AND scheduling_coordinator_seq >= {}", scheduling_coordinator_seq_gte));
+        query.push_str(&format!(
+            "
+    AND scheduling_coordinator_seq >= {}",
+            scheduling_coordinator_seq_gte
+        ));
     }
     if let Some(scheduling_coordinator_seq_lte) = &query_filter.scheduling_coordinator_seq_lte {
-        query.push_str(&format!("
-    AND scheduling_coordinator_seq <= {}", scheduling_coordinator_seq_lte));
+        query.push_str(&format!(
+            "
+    AND scheduling_coordinator_seq <= {}",
+            scheduling_coordinator_seq_lte
+        ));
     }
     if let Some(resource_bid_seq) = &query_filter.resource_bid_seq {
-        query.push_str(&format!("
-    AND resource_bid_seq = {}", resource_bid_seq));
+        query.push_str(&format!(
+            "
+    AND resource_bid_seq = {}",
+            resource_bid_seq
+        ));
     }
     if let Some(resource_bid_seq_in) = &query_filter.resource_bid_seq_in {
-        query.push_str(&format!("
-    AND resource_bid_seq IN ({})", resource_bid_seq_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND resource_bid_seq IN ({})",
+            resource_bid_seq_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(resource_bid_seq_gte) = &query_filter.resource_bid_seq_gte {
-        query.push_str(&format!("
-    AND resource_bid_seq >= {}", resource_bid_seq_gte));
+        query.push_str(&format!(
+            "
+    AND resource_bid_seq >= {}",
+            resource_bid_seq_gte
+        ));
     }
     if let Some(resource_bid_seq_lte) = &query_filter.resource_bid_seq_lte {
-        query.push_str(&format!("
-    AND resource_bid_seq <= {}", resource_bid_seq_lte));
+        query.push_str(&format!(
+            "
+    AND resource_bid_seq <= {}",
+            resource_bid_seq_lte
+        ));
     }
     if let Some(time_interval_start) = &query_filter.time_interval_start {
-        query.push_str(&format!("
-    AND time_interval_start = '{}'", time_interval_start.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_start = '{}'",
+            time_interval_start.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(time_interval_start_gte) = &query_filter.time_interval_start_gte {
-        query.push_str(&format!("
-    AND time_interval_start >= '{}'", time_interval_start_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_start >= '{}'",
+            time_interval_start_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(time_interval_start_lt) = &query_filter.time_interval_start_lt {
-        query.push_str(&format!("
-    AND time_interval_start < '{}'", time_interval_start_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_start < '{}'",
+            time_interval_start_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(time_interval_end) = &query_filter.time_interval_end {
-        query.push_str(&format!("
-    AND time_interval_end = '{}'", time_interval_end.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_end = '{}'",
+            time_interval_end.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(time_interval_end_gte) = &query_filter.time_interval_end_gte {
-        query.push_str(&format!("
-    AND time_interval_end >= '{}'", time_interval_end_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_end >= '{}'",
+            time_interval_end_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(time_interval_end_lt) = &query_filter.time_interval_end_lt {
-        query.push_str(&format!("
-    AND time_interval_end < '{}'", time_interval_end_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND time_interval_end < '{}'",
+            time_interval_end_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(product_bid_desc) = &query_filter.product_bid_desc {
-        query.push_str(&format!("
-    AND product_bid_desc = '{}'", product_bid_desc));
+        query.push_str(&format!(
+            "
+    AND product_bid_desc = '{}'",
+            product_bid_desc
+        ));
     }
     if let Some(product_bid_desc_like) = &query_filter.product_bid_desc_like {
-        query.push_str(&format!("
-    AND product_bid_desc LIKE '{}'", product_bid_desc_like));
+        query.push_str(&format!(
+            "
+    AND product_bid_desc LIKE '{}'",
+            product_bid_desc_like
+        ));
     }
     if let Some(product_bid_desc_in) = &query_filter.product_bid_desc_in {
-        query.push_str(&format!("
-    AND product_bid_desc IN ('{}')", product_bid_desc_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND product_bid_desc IN ('{}')",
+            product_bid_desc_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(product_bid_mrid) = &query_filter.product_bid_mrid {
-        query.push_str(&format!("
-    AND product_bid_mrid = '{}'", product_bid_mrid));
+        query.push_str(&format!(
+            "
+    AND product_bid_mrid = '{}'",
+            product_bid_mrid
+        ));
     }
     if let Some(product_bid_mrid_like) = &query_filter.product_bid_mrid_like {
-        query.push_str(&format!("
-    AND product_bid_mrid LIKE '{}'", product_bid_mrid_like));
+        query.push_str(&format!(
+            "
+    AND product_bid_mrid LIKE '{}'",
+            product_bid_mrid_like
+        ));
     }
     if let Some(product_bid_mrid_in) = &query_filter.product_bid_mrid_in {
-        query.push_str(&format!("
-    AND product_bid_mrid IN ('{}')", product_bid_mrid_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND product_bid_mrid IN ('{}')",
+            product_bid_mrid_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(market_product_desc) = &query_filter.market_product_desc {
-        query.push_str(&format!("
-    AND market_product_desc = '{}'", market_product_desc));
+        query.push_str(&format!(
+            "
+    AND market_product_desc = '{}'",
+            market_product_desc
+        ));
     }
     if let Some(market_product_desc_like) = &query_filter.market_product_desc_like {
-        query.push_str(&format!("
-    AND market_product_desc LIKE '{}'", market_product_desc_like));
+        query.push_str(&format!(
+            "
+    AND market_product_desc LIKE '{}'",
+            market_product_desc_like
+        ));
     }
     if let Some(market_product_desc_in) = &query_filter.market_product_desc_in {
-        query.push_str(&format!("
-    AND market_product_desc IN ('{}')", market_product_desc_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND market_product_desc IN ('{}')",
+            market_product_desc_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(market_product_type) = &query_filter.market_product_type {
-        query.push_str(&format!("
-    AND market_product_type = '{}'", market_product_type));
+        query.push_str(&format!(
+            "
+    AND market_product_type = '{}'",
+            market_product_type
+        ));
     }
     if let Some(market_product_type_like) = &query_filter.market_product_type_like {
-        query.push_str(&format!("
-    AND market_product_type LIKE '{}'", market_product_type_like));
+        query.push_str(&format!(
+            "
+    AND market_product_type LIKE '{}'",
+            market_product_type_like
+        ));
     }
     if let Some(market_product_type_in) = &query_filter.market_product_type_in {
-        query.push_str(&format!("
-    AND market_product_type IN ('{}')", market_product_type_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND market_product_type IN ('{}')",
+            market_product_type_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(self_sched_mw) = &query_filter.self_sched_mw {
-        query.push_str(&format!("
-    AND self_sched_mw = {}", self_sched_mw));
+        query.push_str(&format!(
+            "
+    AND self_sched_mw = {}",
+            self_sched_mw
+        ));
     }
     if let Some(self_sched_mw_in) = &query_filter.self_sched_mw_in {
-        query.push_str(&format!("
-    AND self_sched_mw IN ({})", self_sched_mw_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND self_sched_mw IN ({})",
+            self_sched_mw_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(self_sched_mw_gte) = &query_filter.self_sched_mw_gte {
-        query.push_str(&format!("
-    AND self_sched_mw >= {}", self_sched_mw_gte));
+        query.push_str(&format!(
+            "
+    AND self_sched_mw >= {}",
+            self_sched_mw_gte
+        ));
     }
     if let Some(self_sched_mw_lte) = &query_filter.self_sched_mw_lte {
-        query.push_str(&format!("
-    AND self_sched_mw <= {}", self_sched_mw_lte));
+        query.push_str(&format!(
+            "
+    AND self_sched_mw <= {}",
+            self_sched_mw_lte
+        ));
     }
     if let Some(sch_bid_time_interval_start) = &query_filter.sch_bid_time_interval_start {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_start = '{}'", sch_bid_time_interval_start.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_start = '{}'",
+            sch_bid_time_interval_start.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_time_interval_start_gte) = &query_filter.sch_bid_time_interval_start_gte {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_start >= '{}'", sch_bid_time_interval_start_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_start >= '{}'",
+            sch_bid_time_interval_start_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_time_interval_start_lt) = &query_filter.sch_bid_time_interval_start_lt {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_start < '{}'", sch_bid_time_interval_start_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_start < '{}'",
+            sch_bid_time_interval_start_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_time_interval_end) = &query_filter.sch_bid_time_interval_end {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_end = '{}'", sch_bid_time_interval_end.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_end = '{}'",
+            sch_bid_time_interval_end.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_time_interval_end_gte) = &query_filter.sch_bid_time_interval_end_gte {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_end >= '{}'", sch_bid_time_interval_end_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_end >= '{}'",
+            sch_bid_time_interval_end_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_time_interval_end_lt) = &query_filter.sch_bid_time_interval_end_lt {
-        query.push_str(&format!("
-    AND sch_bid_time_interval_end < '{}'", sch_bid_time_interval_end_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_time_interval_end < '{}'",
+            sch_bid_time_interval_end_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(sch_bid_xaxis_data) = &query_filter.sch_bid_xaxis_data {
-        query.push_str(&format!("
-    AND sch_bid_xaxis_data = {}", sch_bid_xaxis_data));
+        query.push_str(&format!(
+            "
+    AND sch_bid_xaxis_data = {}",
+            sch_bid_xaxis_data
+        ));
     }
     if let Some(sch_bid_xaxis_data_in) = &query_filter.sch_bid_xaxis_data_in {
-        query.push_str(&format!("
-    AND sch_bid_xaxis_data IN ({})", sch_bid_xaxis_data_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_xaxis_data IN ({})",
+            sch_bid_xaxis_data_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(sch_bid_xaxis_data_gte) = &query_filter.sch_bid_xaxis_data_gte {
-        query.push_str(&format!("
-    AND sch_bid_xaxis_data >= {}", sch_bid_xaxis_data_gte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_xaxis_data >= {}",
+            sch_bid_xaxis_data_gte
+        ));
     }
     if let Some(sch_bid_xaxis_data_lte) = &query_filter.sch_bid_xaxis_data_lte {
-        query.push_str(&format!("
-    AND sch_bid_xaxis_data <= {}", sch_bid_xaxis_data_lte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_xaxis_data <= {}",
+            sch_bid_xaxis_data_lte
+        ));
     }
     if let Some(sch_bid_y1axis_data) = &query_filter.sch_bid_y1axis_data {
-        query.push_str(&format!("
-    AND sch_bid_y1axis_data = {}", sch_bid_y1axis_data));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y1axis_data = {}",
+            sch_bid_y1axis_data
+        ));
     }
     if let Some(sch_bid_y1axis_data_in) = &query_filter.sch_bid_y1axis_data_in {
-        query.push_str(&format!("
-    AND sch_bid_y1axis_data IN ({})", sch_bid_y1axis_data_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y1axis_data IN ({})",
+            sch_bid_y1axis_data_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(sch_bid_y1axis_data_gte) = &query_filter.sch_bid_y1axis_data_gte {
-        query.push_str(&format!("
-    AND sch_bid_y1axis_data >= {}", sch_bid_y1axis_data_gte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y1axis_data >= {}",
+            sch_bid_y1axis_data_gte
+        ));
     }
     if let Some(sch_bid_y1axis_data_lte) = &query_filter.sch_bid_y1axis_data_lte {
-        query.push_str(&format!("
-    AND sch_bid_y1axis_data <= {}", sch_bid_y1axis_data_lte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y1axis_data <= {}",
+            sch_bid_y1axis_data_lte
+        ));
     }
     if let Some(sch_bid_y2axis_data) = &query_filter.sch_bid_y2axis_data {
-        query.push_str(&format!("
-    AND sch_bid_y2axis_data = {}", sch_bid_y2axis_data));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y2axis_data = {}",
+            sch_bid_y2axis_data
+        ));
     }
     if let Some(sch_bid_y2axis_data_in) = &query_filter.sch_bid_y2axis_data_in {
-        query.push_str(&format!("
-    AND sch_bid_y2axis_data IN ({})", sch_bid_y2axis_data_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y2axis_data IN ({})",
+            sch_bid_y2axis_data_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(sch_bid_y2axis_data_gte) = &query_filter.sch_bid_y2axis_data_gte {
-        query.push_str(&format!("
-    AND sch_bid_y2axis_data >= {}", sch_bid_y2axis_data_gte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y2axis_data >= {}",
+            sch_bid_y2axis_data_gte
+        ));
     }
     if let Some(sch_bid_y2axis_data_lte) = &query_filter.sch_bid_y2axis_data_lte {
-        query.push_str(&format!("
-    AND sch_bid_y2axis_data <= {}", sch_bid_y2axis_data_lte));
+        query.push_str(&format!(
+            "
+    AND sch_bid_y2axis_data <= {}",
+            sch_bid_y2axis_data_lte
+        ));
     }
     if let Some(sch_bid_curve_type) = &query_filter.sch_bid_curve_type {
-        query.push_str(&format!("
-    AND sch_bid_curve_type = '{}'", sch_bid_curve_type));
+        query.push_str(&format!(
+            "
+    AND sch_bid_curve_type = '{}'",
+            sch_bid_curve_type
+        ));
     }
     if let Some(sch_bid_curve_type_in) = &query_filter.sch_bid_curve_type_in {
-        query.push_str(&format!("
-    AND sch_bid_curve_type IN ('{}')", sch_bid_curve_type_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND sch_bid_curve_type IN ('{}')",
+            sch_bid_curve_type_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(min_eoh_state_of_charge) = &query_filter.min_eoh_state_of_charge {
-        query.push_str(&format!("
-    AND min_eoh_state_of_charge = {}", min_eoh_state_of_charge));
+        query.push_str(&format!(
+            "
+    AND min_eoh_state_of_charge = {}",
+            min_eoh_state_of_charge
+        ));
     }
     if let Some(min_eoh_state_of_charge_in) = &query_filter.min_eoh_state_of_charge_in {
-        query.push_str(&format!("
-    AND min_eoh_state_of_charge IN ({})", min_eoh_state_of_charge_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND min_eoh_state_of_charge IN ({})",
+            min_eoh_state_of_charge_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(min_eoh_state_of_charge_gte) = &query_filter.min_eoh_state_of_charge_gte {
-        query.push_str(&format!("
-    AND min_eoh_state_of_charge >= {}", min_eoh_state_of_charge_gte));
+        query.push_str(&format!(
+            "
+    AND min_eoh_state_of_charge >= {}",
+            min_eoh_state_of_charge_gte
+        ));
     }
     if let Some(min_eoh_state_of_charge_lte) = &query_filter.min_eoh_state_of_charge_lte {
-        query.push_str(&format!("
-    AND min_eoh_state_of_charge <= {}", min_eoh_state_of_charge_lte));
+        query.push_str(&format!(
+            "
+    AND min_eoh_state_of_charge <= {}",
+            min_eoh_state_of_charge_lte
+        ));
     }
     if let Some(max_eoh_state_of_charge) = &query_filter.max_eoh_state_of_charge {
-        query.push_str(&format!("
-    AND max_eoh_state_of_charge = {}", max_eoh_state_of_charge));
+        query.push_str(&format!(
+            "
+    AND max_eoh_state_of_charge = {}",
+            max_eoh_state_of_charge
+        ));
     }
     if let Some(max_eoh_state_of_charge_in) = &query_filter.max_eoh_state_of_charge_in {
-        query.push_str(&format!("
-    AND max_eoh_state_of_charge IN ({})", max_eoh_state_of_charge_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND max_eoh_state_of_charge IN ({})",
+            max_eoh_state_of_charge_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(max_eoh_state_of_charge_gte) = &query_filter.max_eoh_state_of_charge_gte {
-        query.push_str(&format!("
-    AND max_eoh_state_of_charge >= {}", max_eoh_state_of_charge_gte));
+        query.push_str(&format!(
+            "
+    AND max_eoh_state_of_charge >= {}",
+            max_eoh_state_of_charge_gte
+        ));
     }
     if let Some(max_eoh_state_of_charge_lte) = &query_filter.max_eoh_state_of_charge_lte {
-        query.push_str(&format!("
-    AND max_eoh_state_of_charge <= {}", max_eoh_state_of_charge_lte));
+        query.push_str(&format!(
+            "
+    AND max_eoh_state_of_charge <= {}",
+            max_eoh_state_of_charge_lte
+        ));
     }
-    query.push(';');
+    match limit {
+        Some(l) => {
+            query.push_str(&format!(
+                "
+LIMIT {};",
+                l
+            ));
+        }
+        None => {
+            query.push(';');
+        }
+    }
 
     let mut stmt = conn.prepare(&query)?;
     let rows = stmt.query_map([], |row| {
         let _micros0: i64 = row.get::<usize, i64>(0)?;
         let hour_beginning = Zoned::new(
-                 Timestamp::from_microsecond(_micros0).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
+            Timestamp::from_microsecond(_micros0).unwrap(),
+            TimeZone::get("America/Los_Angeles").unwrap(),
         );
         let _n1 = match row.get_ref_unwrap(1).to_owned() {
             duckdb::types::Value::Enum(v) => v,
@@ -657,15 +921,19 @@ FROM public_bids_da WHERE 1=1"#);
         let scheduling_coordinator_seq: u32 = row.get::<usize, u32>(2)?;
         let resource_bid_seq: u32 = row.get::<usize, u32>(3)?;
         let _micros4: Option<i64> = row.get::<usize, Option<i64>>(4)?;
-        let time_interval_start = _micros4.map(|micros| Zoned::new(
-                 Timestamp::from_microsecond(micros).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
-        ));
+        let time_interval_start = _micros4.map(|micros| {
+            Zoned::new(
+                Timestamp::from_microsecond(micros).unwrap(),
+                TimeZone::get("America/Los_Angeles").unwrap(),
+            )
+        });
         let _micros5: Option<i64> = row.get::<usize, Option<i64>>(5)?;
-        let time_interval_end = _micros5.map(|micros| Zoned::new(
-                 Timestamp::from_microsecond(micros).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
-        ));
+        let time_interval_end = _micros5.map(|micros| {
+            Zoned::new(
+                Timestamp::from_microsecond(micros).unwrap(),
+                TimeZone::get("America/Los_Angeles").unwrap(),
+            )
+        });
         let product_bid_desc: Option<String> = row.get::<usize, Option<String>>(6)?;
         let product_bid_mrid: Option<String> = row.get::<usize, Option<String>>(7)?;
         let market_product_desc: Option<String> = row.get::<usize, Option<String>>(8)?;
@@ -676,15 +944,19 @@ FROM public_bids_da WHERE 1=1"#);
             _ => None,
         };
         let _micros11: Option<i64> = row.get::<usize, Option<i64>>(11)?;
-        let sch_bid_time_interval_start = _micros11.map(|micros| Zoned::new(
-                 Timestamp::from_microsecond(micros).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
-        ));
+        let sch_bid_time_interval_start = _micros11.map(|micros| {
+            Zoned::new(
+                Timestamp::from_microsecond(micros).unwrap(),
+                TimeZone::get("America/Los_Angeles").unwrap(),
+            )
+        });
         let _micros12: Option<i64> = row.get::<usize, Option<i64>>(12)?;
-        let sch_bid_time_interval_end = _micros12.map(|micros| Zoned::new(
-                 Timestamp::from_microsecond(micros).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
-        ));
+        let sch_bid_time_interval_end = _micros12.map(|micros| {
+            Zoned::new(
+                Timestamp::from_microsecond(micros).unwrap(),
+                TimeZone::get("America/Los_Angeles").unwrap(),
+            )
+        });
         let sch_bid_xaxis_data: Option<Decimal> = match row.get_ref_unwrap(13) {
             duckdb::types::ValueRef::Decimal(v) => Some(v),
             duckdb::types::ValueRef::Null => None,
@@ -741,7 +1013,6 @@ FROM public_bids_da WHERE 1=1"#);
     let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
     Ok(results)
 }
-
 
 #[derive(Debug, Default, Deserialize)]
 pub struct QueryFilter {
@@ -809,6 +1080,219 @@ pub struct QueryFilter {
     pub max_eoh_state_of_charge_gte: Option<Decimal>,
     pub max_eoh_state_of_charge_lte: Option<Decimal>,
 }
+
+impl QueryFilter {
+    pub fn to_query_url(&self) -> String {
+        let mut params = HashMap::new();
+        if let Some(value) = &self.hour_beginning {
+            params.insert("hour_beginning", value.to_string());
+        }
+        if let Some(value) = &self.hour_beginning_gte {
+            params.insert("hour_beginning_gte", value.to_string());
+        }
+        if let Some(value) = &self.hour_beginning_lt {
+            params.insert("hour_beginning_lt", value.to_string());
+        }
+        if let Some(value) = &self.resource_type {
+            params.insert("resource_type", value.to_string());
+        }
+        if let Some(value) = &self.resource_type_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("resource_type_in", joined);
+        }
+        if let Some(value) = &self.scheduling_coordinator_seq {
+            params.insert("scheduling_coordinator_seq", value.to_string());
+        }
+        if let Some(value) = &self.scheduling_coordinator_seq_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("scheduling_coordinator_seq_in", joined);
+        }
+        if let Some(value) = &self.scheduling_coordinator_seq_gte {
+            params.insert("scheduling_coordinator_seq_gte", value.to_string());
+        }
+        if let Some(value) = &self.scheduling_coordinator_seq_lte {
+            params.insert("scheduling_coordinator_seq_lte", value.to_string());
+        }
+        if let Some(value) = &self.resource_bid_seq {
+            params.insert("resource_bid_seq", value.to_string());
+        }
+        if let Some(value) = &self.resource_bid_seq_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("resource_bid_seq_in", joined);
+        }
+        if let Some(value) = &self.resource_bid_seq_gte {
+            params.insert("resource_bid_seq_gte", value.to_string());
+        }
+        if let Some(value) = &self.resource_bid_seq_lte {
+            params.insert("resource_bid_seq_lte", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_start {
+            params.insert("time_interval_start", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_start_gte {
+            params.insert("time_interval_start_gte", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_start_lt {
+            params.insert("time_interval_start_lt", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_end {
+            params.insert("time_interval_end", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_end_gte {
+            params.insert("time_interval_end_gte", value.to_string());
+        }
+        if let Some(value) = &self.time_interval_end_lt {
+            params.insert("time_interval_end_lt", value.to_string());
+        }
+        if let Some(value) = &self.product_bid_desc {
+            params.insert("product_bid_desc", value.to_string());
+        }
+        if let Some(value) = &self.product_bid_desc_like {
+            params.insert("product_bid_desc_like", value.to_string());
+        }
+        if let Some(value) = &self.product_bid_desc_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("product_bid_desc_in", joined);
+        }
+        if let Some(value) = &self.product_bid_mrid {
+            params.insert("product_bid_mrid", value.to_string());
+        }
+        if let Some(value) = &self.product_bid_mrid_like {
+            params.insert("product_bid_mrid_like", value.to_string());
+        }
+        if let Some(value) = &self.product_bid_mrid_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("product_bid_mrid_in", joined);
+        }
+        if let Some(value) = &self.market_product_desc {
+            params.insert("market_product_desc", value.to_string());
+        }
+        if let Some(value) = &self.market_product_desc_like {
+            params.insert("market_product_desc_like", value.to_string());
+        }
+        if let Some(value) = &self.market_product_desc_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("market_product_desc_in", joined);
+        }
+        if let Some(value) = &self.market_product_type {
+            params.insert("market_product_type", value.to_string());
+        }
+        if let Some(value) = &self.market_product_type_like {
+            params.insert("market_product_type_like", value.to_string());
+        }
+        if let Some(value) = &self.market_product_type_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("market_product_type_in", joined);
+        }
+        if let Some(value) = &self.self_sched_mw {
+            params.insert("self_sched_mw", value.to_string());
+        }
+        if let Some(value) = &self.self_sched_mw_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("self_sched_mw_in", joined);
+        }
+        if let Some(value) = &self.self_sched_mw_gte {
+            params.insert("self_sched_mw_gte", value.to_string());
+        }
+        if let Some(value) = &self.self_sched_mw_lte {
+            params.insert("self_sched_mw_lte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_start {
+            params.insert("sch_bid_time_interval_start", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_start_gte {
+            params.insert("sch_bid_time_interval_start_gte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_start_lt {
+            params.insert("sch_bid_time_interval_start_lt", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_end {
+            params.insert("sch_bid_time_interval_end", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_end_gte {
+            params.insert("sch_bid_time_interval_end_gte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_time_interval_end_lt {
+            params.insert("sch_bid_time_interval_end_lt", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_xaxis_data {
+            params.insert("sch_bid_xaxis_data", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_xaxis_data_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("sch_bid_xaxis_data_in", joined);
+        }
+        if let Some(value) = &self.sch_bid_xaxis_data_gte {
+            params.insert("sch_bid_xaxis_data_gte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_xaxis_data_lte {
+            params.insert("sch_bid_xaxis_data_lte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y1axis_data {
+            params.insert("sch_bid_y1axis_data", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y1axis_data_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("sch_bid_y1axis_data_in", joined);
+        }
+        if let Some(value) = &self.sch_bid_y1axis_data_gte {
+            params.insert("sch_bid_y1axis_data_gte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y1axis_data_lte {
+            params.insert("sch_bid_y1axis_data_lte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y2axis_data {
+            params.insert("sch_bid_y2axis_data", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y2axis_data_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("sch_bid_y2axis_data_in", joined);
+        }
+        if let Some(value) = &self.sch_bid_y2axis_data_gte {
+            params.insert("sch_bid_y2axis_data_gte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_y2axis_data_lte {
+            params.insert("sch_bid_y2axis_data_lte", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_curve_type {
+            params.insert("sch_bid_curve_type", value.to_string());
+        }
+        if let Some(value) = &self.sch_bid_curve_type_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("sch_bid_curve_type_in", joined);
+        }
+        if let Some(value) = &self.min_eoh_state_of_charge {
+            params.insert("min_eoh_state_of_charge", value.to_string());
+        }
+        if let Some(value) = &self.min_eoh_state_of_charge_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("min_eoh_state_of_charge_in", joined);
+        }
+        if let Some(value) = &self.min_eoh_state_of_charge_gte {
+            params.insert("min_eoh_state_of_charge_gte", value.to_string());
+        }
+        if let Some(value) = &self.min_eoh_state_of_charge_lte {
+            params.insert("min_eoh_state_of_charge_lte", value.to_string());
+        }
+        if let Some(value) = &self.max_eoh_state_of_charge {
+            params.insert("max_eoh_state_of_charge", value.to_string());
+        }
+        if let Some(value) = &self.max_eoh_state_of_charge_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("max_eoh_state_of_charge_in", joined);
+        }
+        if let Some(value) = &self.max_eoh_state_of_charge_gte {
+            params.insert("max_eoh_state_of_charge_gte", value.to_string());
+        }
+        if let Some(value) = &self.max_eoh_state_of_charge_lte {
+            params.insert("max_eoh_state_of_charge_lte", value.to_string());
+        }
+        form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(&params)
+            .finish()
+    }
+}
+
 
 #[derive(Default)]
 pub struct QueryFilterBuilder {
@@ -1142,8 +1626,6 @@ impl QueryFilterBuilder {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
 
@@ -1193,9 +1675,9 @@ mod tests {
         let conn =
             Connection::open_with_flags(ProdDb::caiso_public_bids().duckdb_path, config).unwrap();
         let filter = QueryFilterBuilder::new().build();
-        let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
+        let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
         conn.close().unwrap();
-        assert_eq!(xs.len(), 0);
+        assert_eq!(xs.len(), 5);
         Ok(())
     }
 }

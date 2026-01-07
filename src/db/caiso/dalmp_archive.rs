@@ -701,7 +701,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_dalmp();
 
-        let months = month(2024, 1).up_to(month(2025, 12));
+        let months = month(2026, 1).up_to(month(2026, 1));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month).await?;
