@@ -258,14 +258,20 @@ pub struct Record {
     pub product_bid_mrid: Option<String>,
     pub market_product_desc: Option<String>,
     pub market_product_type: Option<String>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub self_sched_mw: Option<Decimal>,
     pub sch_bid_time_interval_start: Option<Zoned>,
     pub sch_bid_time_interval_end: Option<Zoned>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub sch_bid_xaxis_data: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub sch_bid_y1axis_data: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub sch_bid_y2axis_data: Option<Decimal>,
     pub sch_bid_curve_type: Option<SchBidCurveType>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub min_eoh_state_of_charge: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub max_eoh_state_of_charge: Option<Decimal>,
 }
 
