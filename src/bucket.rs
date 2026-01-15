@@ -1,18 +1,21 @@
-use core::fmt;
+use core::fmt::Display;
+use rayon::prelude::*;
 use std::str::FromStr;
+use std::fmt::{self};
 
-use jiff::{civil::Weekday, Zoned};
+use jiff::{civil::Weekday, tz::TimeZone, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     holiday::*,
-    interval::{hour_tz::HourTz, interval_base::IntervalTzLike},
+    interval::{hour_tz::HourTz, interval_base::IntervalTzLike, term_tz::TermTz},
 };
 
 pub trait BucketLike {
     fn name(&self) -> String;
     fn contains(&self, datetime: &Zoned) -> bool;
     fn count_hours<K: IntervalTzLike>(&self, term: &K) -> i32;
+    fn timezone(&self) -> Option<TimeZone>;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -47,7 +50,7 @@ impl FromStr for Bucket {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parse_bucket(s) {
             Ok(bucket) => Ok(bucket),
-            Err(_) => Err(format!("Failed parsing {} as an bucket", s)),
+            Err(_) => Err(format!("Failed parsing {} as a bucket", s)),
         }
     }
 }
@@ -129,6 +132,55 @@ impl BucketLike for Bucket {
         }
         count
     }
+
+    fn timezone(&self) -> Option<TimeZone> {
+        match self {
+            Bucket::Caiso1x16H | Bucket::Caiso6x16 | Bucket::Caiso7x8 | Bucket::CaisoOffpeak => {
+                Some(TimeZone::get("America/Los_Angeles").unwrap())
+            }
+            Bucket::B5x16 | Bucket::B2x16H | Bucket::B7x8 | Bucket::B7x16 | Bucket::Offpeak => {
+                Some(TimeZone::get("America/New_York").unwrap())
+            }
+            Bucket::Atc => None,
+        }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct TimeZoneMismatchError {
+    pub bucket: Bucket,
+    pub bucket_tz: TimeZone,
+    pub term_tz: TimeZone,
+}
+
+impl Display for TimeZoneMismatchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Bucket {:?} timezone {:?} does not match term timezone {:?}",
+            self.bucket, self.bucket_tz, self.term_tz
+        )
+    }
+}
+
+pub fn count_hours(pairs: Vec<(Bucket, TermTz)>) -> Result<Vec<(Bucket, TermTz, i32)>, String> {
+    pairs
+        .par_iter()
+        .map(|(bucket, term)| {
+            if let Some(tz) = bucket.timezone() {
+                let term_tz = term.start().time_zone().clone();
+                if tz != term_tz {
+                    return Err(format!(
+                        "Bucket {:?} timezone {:?} does not match term timezone {:?}",
+                        bucket, tz, term_tz
+                    ));
+                }
+            }
+            let hours = bucket.count_hours(term);
+            Ok((*bucket, term.clone(), hours))
+        })
+        .collect()
 }
 
 fn contains_5x16(dt: &Zoned) -> bool {
@@ -187,8 +239,6 @@ fn contains_caiso_1x16h(dt: &Zoned) -> bool {
 fn contains_caiso_7x8(dt: &Zoned) -> bool {
     dt.hour() < 6 || dt.hour() > 21
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -345,5 +395,22 @@ mod tests {
             hours,
             vec![392, 352, 407, 368, 392, 400, 392, 392, 400, 376, 401, 408]
         );
+    }
+
+    #[test]
+    fn test_count_hours() {
+        let cal22 = "Cal 22".parse::<Term>().unwrap().with_tz(&ISONE.tz);
+        let pairs = vec![
+            (Bucket::Atc, cal22.clone()),
+            (Bucket::B5x16, cal22.clone()),
+            (Bucket::B2x16H, cal22.clone()),
+            (Bucket::B7x8, cal22.clone()),
+        ];
+        let results = count_hours(pairs).unwrap();
+        assert_eq!(results.len(), 4);
+        assert_eq!(results[0], (Bucket::Atc, cal22.clone(), 8760));
+        assert_eq!(results[1], (Bucket::B5x16, cal22.clone(), 4080));
+        assert_eq!(results[2], (Bucket::B2x16H, cal22.clone(), 1760));
+        assert_eq!(results[3], (Bucket::B7x8, cal22.clone(), 2920));
     }
 }

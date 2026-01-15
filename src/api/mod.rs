@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod caiso;
+pub mod calendar;
 pub mod epa;
 pub mod hq;
 pub mod ieso;

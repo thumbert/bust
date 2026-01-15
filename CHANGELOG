@@ -3,7 +3,14 @@ TODO:
 - Experiment writing a Rust UDF function in DuckDB
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
-- Expose endpoint for buckets.  
+
+## 2026-01-15, version 0.3.1
+- Add endpoint /calendar/buckets/all
+- Add endpoint to calculate hours in term for a bucket.  Good example of how to 
+  return errors on the request. 
+- Make archive with ISONE masked bids/offers for the annual capacity reconfiguration 
+  auction.  Create endpoint. 
+- Several improvements to TermTz and DateTz, regarding parsing and serialization  
 
 ## 2026-01-07
 - Probably now it's working as planned.  

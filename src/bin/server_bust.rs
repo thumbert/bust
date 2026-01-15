@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
             .app_data(Data::new(ProdDb::hq_hydro_data()))
+            .app_data(Data::new(ProdDb::buckets()))
             .app_data(Data::new(ProdDb::caiso_dalmp()))
             .app_data(Data::new(ProdDb::caiso_public_bids()))
             .app_data(Data::new(ProdDb::ieso_dalmp_nodes()))
@@ -72,6 +73,7 @@ async fn main() -> std::io::Result<()> {
             )))
             .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices())))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
+            .app_data(Data::new(ProdDb::isone_masked_ara_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_daas_offers()))
             .app_data(Data::new(ProdDb::isone_masked_demand_bids()))
             .app_data(Data::new(ProdDb::isone_masked_da_energy_offers()))
@@ -97,6 +99,9 @@ async fn main() -> std::io::Result<()> {
             .service(caiso::lmp::api_term_prices)
             .service(caiso::node_table::api_get_all)
             .service(caiso::public_bids_da::get_data_api)
+            // Calendar
+            .service(bust::api::calendar::buckets::api_count_hours)
+            .service(bust::api::calendar::buckets::api_get_all)
             // EPA
             .service(epa::hourly_emissions::all_facilities)
             .service(epa::hourly_emissions::all_columns)
@@ -109,6 +114,7 @@ async fn main() -> std::io::Result<()> {
             .service(ieso::dalmp::api_daily_prices)
             // ISONE
             .service(isone::actual_interchange::api_actual_flows)
+            .service(isone::capacity::annual_reconfiguration_bidsoffers::get_data_api)
             .service(isone::capacity::monthly_capacity_results::participant_ids)
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)

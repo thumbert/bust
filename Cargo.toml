@@ -1,6 +1,6 @@
 [package]
 name = "bust"
-version = "0.2.1"
+version = "0.3.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -32,8 +32,8 @@ plotly = "0.12.1"
 quick-xml = { version = "0.37", features = ["serialize"] }
 r2d2 = "0.8.10"
 # r2d2-duckdb = "0.1.0"
+rayon = "1.7.0"
 regex = "1.12.2"
-# reqwest = {version="0.12.0", features = ["cookies", "json", "blocking", "rustls-tls", "stream"]}
 reqwest = {version="0.13.1", features = ["cookies", "json", "blocking", "stream"]}
 reqwest_cookie_store = "0.9.0"
 rust_decimal = {version="1.39.0", features = ["serde-with-float", "serde"]}
@@ -49,6 +49,9 @@ tokio-util = "0.7.17"
 zip = "7.0.0"
 glob = "0.3.3"
 url = "2.5.8"
+
+[dev-dependencies]
+criterion = "0.5"   
 
 [[bin]]
 name = "hello_world"

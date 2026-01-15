@@ -18,9 +18,7 @@ use crate::db::{
         ftr_prices_archive::IsoneFtrPricesArchive,
         fuelmix_archive::IsoneFuelMixArchive,
         masked_data::{
-            da_energy_offers_archive::IsoneDaEnergyOffersArchive,
-            daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
-            import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
+            ara_archive::IsoneAraBidsOffersArchive, da_energy_offers_archive::IsoneDaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive
         },
         participants_archive::IsoneParticipantsArchive,
         rtlmp_archive::IsoneRtLmpArchive,
@@ -177,6 +175,14 @@ impl ProdDb {
         IsoneFuelMixArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/GridReports/FuelMix".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/fuelmix.duckdb".to_string(),
+        }
+    }
+
+    pub fn isone_masked_ara_bids_offers() -> IsoneAraBidsOffersArchive {
+        IsoneAraBidsOffersArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/Capacity/HistoricalBidsOffers/AnnualReconfigurationAuction"
+                .to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/ara.duckdb".to_string(),
         }
     }
 
