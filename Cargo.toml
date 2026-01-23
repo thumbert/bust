@@ -51,7 +51,7 @@ glob = "0.3.3"
 url = "2.5.8"
 
 [dev-dependencies]
-criterion = "0.5"   
+criterion = "0.8.1"
 
 [[bin]]
 name = "hello_world"
@@ -65,6 +65,9 @@ path = "src/bin/irregular/rebuild_duckdbs.rs"
 name = "send_email"
 path = "src/bin/irregular/send_email.rs"
 
+[[bench]]
+name = "count_hours_benchmark"
+harness = false
 
 [[example]]
 name = "calendar_bench"

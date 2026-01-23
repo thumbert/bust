@@ -1,20 +1,11 @@
 # bust
 Beginning Rust
 
+
+To run one benchmark:
 ```rust
-cargo build --bin qplot
-
-duckdb -csv -c "
-ATTACH '~/Downloads/Archive/DuckDB/isone/ttc.duckdb' AS ttc;
-SELECT hour_beginning, hq_phase2_import
-FROM ttc.ttc_limits 
-WHERE hour_beginning >= '2024-01-01 00:00:00-05:00'
-AND hour_beginning < '2024-01-05 00:00:00-05:00'
-ORDER BY hour_beginning;
-" | qplot 
+  cargo bench --bench count_hours_benchmark
 ```
-
-
 
  To run a development server:
  * Run `cargo test`

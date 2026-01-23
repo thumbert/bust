@@ -4,6 +4,7 @@ use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{AccessMode, Connection};
+use jiff::civil::Time;
 use jiff::{civil::Date, ToSpan};
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +39,7 @@ pub async fn get_data_api(
     let conn = conn.unwrap();
 
     let query_filter = query.to_query_filter();
-    println!("query_filter: {:?}", query_filter);
+    // println!("query_filter: {:?}", query_filter);
     match get_data(&conn, &query_filter) {
         Ok(records) => {
             if records.len() > 100_000 {
@@ -74,6 +75,11 @@ pub struct ApiQuery {
     pub price_in: Option<String>,
     pub price_gte: Option<Decimal>,
     pub price_lte: Option<Decimal>,
+    pub start_time: Option<Time>,
+    pub start_time_in: Option<String>,
+    pub start_time_gte: Option<Time>,
+    pub start_time_lte: Option<Time>,
+    pub _limit: Option<usize>,
 }
 
 impl ApiQuery {
@@ -115,6 +121,13 @@ impl ApiQuery {
                 .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             price_gte: self.price_gte,
             price_lte: self.price_lte,
+            start_time: self.start_time,
+            start_time_in: self
+                .start_time_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            start_time_gte: self.start_time_gte,
+            start_time_lte: self.start_time_lte,
         }
     }
 }
@@ -127,6 +140,7 @@ pub struct Record {
     pub resource_id: i32,
     pub location: Option<String>,
     pub price: Option<Decimal>,
+    pub start_time: Time,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -198,7 +212,8 @@ SELECT
     resource_type,
     resource_id,
     location,
-    price
+    price,
+    start_time
 FROM basic WHERE 1=1"#,
     );
     if let Some(hour_beginning) = &query_filter.hour_beginning {
@@ -361,6 +376,38 @@ FROM basic WHERE 1=1"#,
             price_lte
         ));
     }
+    if let Some(start_time) = &query_filter.start_time {
+        query.push_str(&format!(
+            "
+    AND start_time = {}",
+            start_time
+        ));
+    }
+    if let Some(start_time_in) = &query_filter.start_time_in {
+        query.push_str(&format!(
+            "
+    AND start_time IN ({})",
+            start_time_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    if let Some(start_time_gte) = &query_filter.start_time_gte {
+        query.push_str(&format!(
+            "
+    AND start_time >= {}",
+            start_time_gte
+        ));
+    }
+    if let Some(start_time_lte) = &query_filter.start_time_lte {
+        query.push_str(&format!(
+            "
+    AND start_time <= {}",
+            start_time_lte
+        ));
+    }
     query.push(';');
 
     let mut stmt = conn.prepare(&query)?;
@@ -384,6 +431,8 @@ FROM basic WHERE 1=1"#,
             duckdb::types::ValueRef::Null => None,
             _ => None,
         };
+        let _micros6: i64 = row.get::<usize, i64>(6)?;
+        let start_time = Time::midnight() + _micros6.microseconds();
         Ok(Record {
             hour_beginning,
             as_of,
@@ -391,6 +440,7 @@ FROM basic WHERE 1=1"#,
             resource_id,
             location,
             price,
+            start_time,
         })
     })?;
     let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
@@ -419,6 +469,10 @@ pub struct QueryFilter {
     pub price_in: Option<Vec<Decimal>>,
     pub price_gte: Option<Decimal>,
     pub price_lte: Option<Decimal>,
+    pub start_time: Option<Time>,
+    pub start_time_in: Option<Vec<Time>>,
+    pub start_time_gte: Option<Time>,
+    pub start_time_lte: Option<Time>,
 }
 
 impl QueryFilter {
@@ -509,6 +563,24 @@ impl QueryFilter {
         if let Some(value) = &self.price_lte {
             params.insert("price_lte", value.to_string());
         }
+        if let Some(value) = &self.start_time {
+            params.insert("start_time", value.to_string());
+        }
+        if let Some(value) = &self.start_time_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("start_time_in", joined);
+        }
+        if let Some(value) = &self.start_time_gte {
+            params.insert("start_time_gte", value.to_string());
+        }
+        if let Some(value) = &self.start_time_lte {
+            params.insert("start_time_lte", value.to_string());
+        }
+
         form_urlencoded::Serializer::new(String::new())
             .extend_pairs(&params)
             .finish()
@@ -630,6 +702,26 @@ impl QueryFilterBuilder {
         self.inner.price_lte = Some(value);
         self
     }
+
+    pub fn start_time(mut self, value: Time) -> Self {
+        self.inner.start_time = Some(value);
+        self
+    }
+
+    pub fn start_time_in(mut self, values_in: Vec<Time>) -> Self {
+        self.inner.start_time_in = Some(values_in);
+        self
+    }
+
+    pub fn start_time_gte(mut self, value: Time) -> Self {
+        self.inner.start_time_gte = Some(value);
+        self
+    }
+
+    pub fn start_time_lte(mut self, value: Time) -> Self {
+        self.inner.start_time_lte = Some(value);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -653,9 +745,6 @@ mod tests {
 
 #[cfg(test)]
 mod api_tests {
-    use std::collections::HashMap;
-    use url::form_urlencoded;
-
     use crate::db::prod_db::ProdDb;
 
     use super::*;

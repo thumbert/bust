@@ -1,9 +1,6 @@
 use std::{error::Error, path::Path};
 
-use bust::{
-    db::{nyiso::dalmp::*, prod_db::ProdDb},
-    interval::month::{month, Month},
-};
+use bust::{db::{nyiso::dalmp::NodeType, prod_db::ProdDb}, interval::month::{Month, month}};
 use clap::Parser;
 use jiff::Zoned;
 use log::info;
@@ -16,7 +13,7 @@ struct Args {
     env: String,
 }
 
-/// Run this job every day at 11:00AM
+/// Run this job every day at 10:30AM
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
