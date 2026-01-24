@@ -162,13 +162,13 @@ impl NyisoDalmpArchive {
                 self.base_dir.to_owned()
                     + "/Raw/"
                     + &month.start_date().strftime("%Y%m%d").to_string()
-                    + "damlbmp_gen_csv.zip"
+                    + "damlbmp_gen.csv.zip"
             }
             NodeType::Zone => {
                 self.base_dir.to_owned()
                     + "/Raw/"
                     + &month.start_date().strftime("%Y%m%d").to_string()
-                    + "damlbmp_zone_csv.zip"
+                    + "damlbmp_zone.csv.zip"
             }
         }
     }
@@ -462,48 +462,3 @@ mod tests {
     }
 }
 
-// /// Read one csv.zip file corresponding to one month.
-// pub fn read_file(&self, path_zip: String) -> Result<Vec<Row>, Box<dyn Error>> {
-//     // Open the zip file
-//     let file = File::open(path_zip)?;
-//     let mut archive = ZipArchive::new(BufReader::new(file))?;
-
-//     let mut all_records: Vec<Row> = Vec::new();
-
-//     // Iterate through each file in the archive
-//     for i in 0..archive.len() {
-//         let mut file = archive.by_index(i)?;
-//         let name = file.name().to_owned();
-//         if name.ends_with(".csv") {
-//             // Read file to a string (alternatively, use file directly as a reader)
-//             let mut contents = String::new();
-//             file.read_to_string(&mut contents)?;
-
-//             let date: Date = name[0..8]
-//                 .parse()
-//                 .map_err(|_| format!("Invalid date in filename: {}", name))?;
-//             // need to check DST!
-//             // let is_dst = false;
-
-//             // Set up CSV reader
-//             let mut rdr = csv::Reader::from_reader(contents.as_bytes());
-
-//             // Parse each record and collect
-//             for result in rdr.records() {
-//                 let record = result?;
-//                 let hour: i8 = record[0][11..13].parse()?;
-//                 let hour_beginning = date.at(hour, 0, 0, 0).in_tz("America/New_York")?;
-//                 let row = Row {
-//                     hour_beginning,
-//                     ptid: record[2].parse()?,
-//                     lmp: Decimal::from_str(&record[3])?,
-//                     mcl: Decimal::from_str(&record[4])?,
-//                     mcc: Decimal::from_str(&record[5])?,
-//                 };
-//                 all_records.push(row);
-//             }
-//         }
-//     }
-
-//     Ok(all_records)
-// }
