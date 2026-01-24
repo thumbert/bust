@@ -304,7 +304,6 @@ impl NyisoDalmpArchive {
         info!("inserting zone + gen files for the month {} ...", month);
         let sql = format!(
             r#"
-        LOAD zipfs;
         CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_zone.csv.gz';
         CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_gen.csv.gz';
 
