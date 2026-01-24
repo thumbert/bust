@@ -162,13 +162,13 @@ impl NyisoDalmpArchive {
                 self.base_dir.to_owned()
                     + "/Raw/"
                     + &month.start_date().strftime("%Y%m%d").to_string()
-                    + "damlbmp_gen.csv.zip"
+                    + "damlbmp_gen_csv.zip"
             }
             NodeType::Zone => {
                 self.base_dir.to_owned()
                     + "/Raw/"
                     + &month.start_date().strftime("%Y%m%d").to_string()
-                    + "damlbmp_zone.csv.zip"
+                    + "damlbmp_zone_csv.zip"
             }
         }
     }
