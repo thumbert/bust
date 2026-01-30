@@ -4,6 +4,13 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-01-30
+- Add custom serialization/deserialization for hour_beginning for Caiso public_bids_archive struct
+  to ignore the timezone.
+
+## 2026-01-25
+- Add nyiso_binding_constraints to the DuckDB data flow.
+
 ## 2026-01-23
 - Changed the nyiso/dalmp.rs archive to unzip the ISO file and avoid the DuckDB zipfs 
   extension.

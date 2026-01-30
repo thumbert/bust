@@ -18,7 +18,10 @@ use crate::db::{
         ftr_prices_archive::IsoneFtrPricesArchive,
         fuelmix_archive::IsoneFuelMixArchive,
         masked_data::{
-            ara_archive::IsoneAraBidsOffersArchive, da_energy_offers_archive::IsoneDaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive
+            ara_archive::IsoneAraBidsOffersArchive,
+            da_energy_offers_archive::IsoneDaEnergyOffersArchive,
+            daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
+            import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
         },
         participants_archive::IsoneParticipantsArchive,
         rtlmp_archive::IsoneRtLmpArchive,
@@ -26,6 +29,7 @@ use crate::db::{
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
     },
     nyiso::{
+        binding_constraints::NyisoBindingConstraintsDaArchive,
         energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive,
         scheduled_outages::NyisoScheduledOutagesArchive,
         transmission_outages_da::NyisoTransmissionOutagesDaArchive,
@@ -317,6 +321,22 @@ impl ProdDb {
         }
     }
 
+    pub fn nyiso_binding_constraints_da() -> NyisoBindingConstraintsDaArchive {
+        NyisoBindingConstraintsDaArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/BindingConstraints/DA".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/binding_constraints.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn nyiso_binding_constraints_rt() -> NyisoBindingConstraintsDaArchive {
+        NyisoBindingConstraintsDaArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/BindingConstraints/RT".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/binding_constraints.duckdb"
+                .to_string(),
+        }
+    }
+
     pub fn nyiso_dalmp() -> NyisoDalmpArchive {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
@@ -402,7 +422,6 @@ impl ProdDb {
         }
     }
 }
-
 
 #[derive(Clone)]
 pub struct ScratchArchive {

@@ -34,7 +34,7 @@ impl NyisoBindingConstraintsDaArchive {
         self.base_dir.to_owned()
             + "/Raw/"
             + &month.start_date().strftime("%Y%m%d").to_string()
-            + "damlbmp_zone_csv.zip"
+            + "DAMLimitingConstraints_csv.zip"
     }
 
     /// Return the file path of the csv file with data for one day
@@ -44,18 +44,18 @@ impl NyisoBindingConstraintsDaArchive {
             + day.year().to_string().as_str()
             + "/"
             + &day.strftime("%Y%m%d").to_string()
-            + "damlbmp_zone.csv"
+            + "DAMLimitingConstraints.csv"
     }
 
     /// Data is published around 10:30 every day
-    /// See https://mis.nyiso.com/public/csv/damlbmp/20250501damlbmp_gen_csv.zip
+    /// See https://mis.nyiso.com/public/csv/DAMLimitingConstraints/20260101DAMLimitingConstraints_csv.zip
     /// Take the monthly zip file, extract it and compress each individual day as a gz file.
     pub fn download_file(&self, month: Month) -> Result<(), Box<dyn Error>> {
         let binding = self.filename_zip(&month);
         let zip_path = Path::new(&binding);
 
         let url = format!(
-            "https://mis.nyiso.com/public/csv/damlbmp/{}",
+            "https://mis.nyiso.com/public/csv/DAMLimitingConstraints/{}",
             zip_path.file_name().unwrap().to_str().unwrap()
         );
         let mut resp = reqwest::blocking::get(url)?;
@@ -125,45 +125,53 @@ impl NyisoBindingConstraintsDaArchive {
     /// is wrong for some reason, it needs to be manually deleted first!
     ///
     pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        info!("inserting zone + gen files for the month {} ...", month);
+        info!("inserting da binding constraint files for the month {} ...", month);
         let sql = format!(
             r#"
-        LOAD zipfs;
-        CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_zone.csv.gz';
-        CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_gen.csv.gz';
+CREATE TABLE IF NOT EXISTS binding_constraints (
+    market ENUM('DA', 'RT') NOT NULL,
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    limiting_facility VARCHAR NOT NULL,
+    facility_ptid INT64 NOT NULL,
+    contingency VARCHAR NOT NULL,
+    constraint_cost DECIMAL(9,4) NOT NULL,
+);
 
-        CREATE TEMPORARY TABLE tmp AS
-        (SELECT
-            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
-            ptid::INTEGER AS ptid,
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp1
-        )
-        UNION
-        (SELECT
-            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
-            ptid::INTEGER AS ptid,
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp2
-        )
-        ORDER BY hour_beginning, ptid;
+CREATE TEMPORARY TABLE tmp
+AS (
+    SELECT 
+        'DA' AS market,
+        case "TIME ZONE" 
+            when 'EST' then strptime("Time Stamp" || ' -0500', '%m/%d/%Y %H:%M %z')::TIMESTAMPTZ
+            when 'EDT' then strptime("Time Stamp" || ' -0400', '%m/%d/%Y %H:%M %z')::TIMESTAMPTZ
+            else NULL
+        end AS hour_beginning, 
+        "Limiting Facility"::VARCHAR AS limiting_facility,
+        "Facility PTID"::INT64 AS facility_ptid,
+        "Contingency"::VARCHAR AS contingency,
+        "Constraint Cost($)"::DECIMAL(9,4) AS constraint_cost
+    FROM read_csv('{}/Raw/{}/{}*DAMLimitingConstraints.csv.gz', 
+        header = true,
+        types = {{'Facility PTID': 'INT64', 'Constraint Cost($)': 'DECIMAL(9,4)'}}
+));
 
-        INSERT INTO dalmp
-        (SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
-        WHERE NOT EXISTS (
-            SELECT * FROM dalmp d
-            WHERE d.hour_beginning = tmp.hour_beginning
-            AND d.ptid = tmp.ptid
-        ))
-        ORDER BY hour_beginning, ptid;
+
+INSERT INTO binding_constraints
+(
+    SELECT * FROM tmp t
+    WHERE NOT EXISTS (
+        SELECT * FROM binding_constraints d
+        WHERE
+            d.market = t.market AND
+            d.hour_beginning = t.hour_beginning AND
+            d.limiting_facility = t.limiting_facility AND
+            d.facility_ptid = t.facility_ptid AND
+            d.contingency = t.contingency AND
+            d.constraint_cost = t.constraint_cost
+    )
+);
+
         "#,
-            self.base_dir,
-            month.start_date().year(),
-            &month.start_date().strftime("%Y%m"),
             self.base_dir,
             month.start_date().year(),
             &month.start_date().strftime("%Y%m"),
@@ -262,7 +270,7 @@ SELECT
     facility_ptid,
     contingency,
     constraint_cost
-FROM binding_constraints_da WHERE 1=1"#,
+FROM binding_constraints WHERE 1=1"#,
     );
     if let Some(market) = &query_filter.market {
         query.push_str(&format!(
@@ -688,36 +696,23 @@ impl QueryFilterBuilder {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::error::Error;
-//     use duckdb::{AccessMode, Config, Connection};
-//     use crate::db::prod_db::ProdDb;
-//     use super::*;
-
-//     #[test]
-//     fn test_get_data() -> Result<(), Box<dyn Error>> {
-//         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-//         let conn = Connection::open_with_flags(ProdDb::scratch().duckdb_path, config).unwrap();
-//         let filter = QueryFilterBuilder::new().build();
-//         let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
-//         conn.close().unwrap();
-//         assert_eq!(xs.len(), 5);
-//         Ok(())
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use duckdb::{AccessMode, Config, Connection};
+    use crate::{db::prod_db::ProdDb, interval::month::month};
+    use super::*;
 
-    use std::{error::Error, path::Path, vec};
-
-    use rust_decimal_macros::dec;
-
-    use crate::{
-        db::{nyiso::dalmp::*, prod_db::ProdDb},
-        interval::month::month,
-    };
+    #[test]
+    fn test_get_data() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(ProdDb::nyiso_binding_constraints_da().duckdb_path, config).unwrap();
+        let filter = QueryFilterBuilder::new().build();
+        let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
+        conn.close().unwrap();
+        assert_eq!(xs.len(), 5);
+        Ok(())
+    }
 
     #[ignore]
     #[test]
@@ -727,10 +722,9 @@ mod tests {
             .is_test(true)
             .try_init();
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let archive = ProdDb::nyiso_dalmp();
-        archive.setup()?;
+        let archive = ProdDb::nyiso_binding_constraints_da();
 
-        let months = month(2026, 1).up_to(month(2026, 1))?;
+        let months = month(2020, 2).up_to(month(2026, 1))?;
         for month in months {
             println!("Processing month {}", month);
             archive.update_duckdb(month)?;
@@ -738,53 +732,6 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // #[should_panic]
-    // fn get_data_test() {
-    //     dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-    //     let archive = ProdDb::nyiso_dalmp();
-    //     let conn = duckdb::Connection::open(archive.duckdb_path.clone()).unwrap();
-    //     // test a zone location at DST
-    //     let rows = archive
-    //         .get_data(
-    //             &conn,
-    //             date(2024, 11, 3),
-    //             date(2024, 11, 3),
-    //             LmpComponent::Lmp,
-    //             Some(vec![61752]),
-    //         )
-    //         .unwrap();
-    //     assert_eq!(rows.len(), 25);
-    //     let values = rows[0..=2].iter().map(|r| r.value).collect::<Vec<_>>();
-    //     // the assertion below fails.  DuckDB has issues importing the DST hour from NYISO file.
-    //     assert_eq!(values, vec![dec!(29.27), dec!(27.32), dec!(27.14)]);
-    //     assert_eq!(
-    //         rows[2].hour_beginning,
-    //         "2024-11-03T01:00:00-05:00[America/New_York]"
-    //             .parse()
-    //             .unwrap()
-    //     );
-    //     assert_eq!(rows[2].value, dec!(27.14));
-
-    //     // test a gen location
-    //     let rows = archive
-    //         .get_data(
-    //             &conn,
-    //             date(2025, 6, 27),
-    //             date(2025, 6, 27),
-    //             LmpComponent::Lmp,
-    //             Some(vec![23575]),
-    //         )
-    //         .unwrap();
-    //     assert_eq!(rows.len(), 24);
-    //     assert_eq!(
-    //         rows[0].hour_beginning,
-    //         "2025-06-27T00:00:00-04:00[America/New_York]"
-    //             .parse()
-    //             .unwrap()
-    //     );
-    //     assert_eq!(rows[0].value, dec!(37.59));
-    // }
 
     #[ignore]
     #[test]
@@ -795,12 +742,13 @@ mod tests {
             .is_test(true)
             .try_init();
 
-        let archive = ProdDb::nyiso_dalmp();
-        let months = month(2026, 1).up_to(month(2026, 1))?;
+        let archive = ProdDb::nyiso_binding_constraints_da();
+        let months = month(2020, 2).up_to(month(2026, 1))?;
         for month in months {
-            archive.download_file(month, NodeType::Gen)?;
-            archive.download_file(month, NodeType::Zone)?;
+            archive.download_file(month)?;
         }
         Ok(())
     }
+
 }
+

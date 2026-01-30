@@ -9,11 +9,6 @@ alert_isone_peak_load_change:
     cargo build --bin alert_isone_peak_load_change --release
     cp ./target/release/alert_isone_peak_load_change ~/Software
 
-release_server:
-    cargo test
-    cargo build --bin server_bust --release
-    cp -f ./target/release/server_bust ~/Software
-
 update_caiso_prices_da:
     cargo build --bin update_caiso_prices_da --release 
     cp ./target/release/update_caiso_prices_da ~/Software
@@ -72,6 +67,10 @@ update_nrc_generator_status:
     cargo build --bin update_nrc_generator_status --release 
     cp ./target/release/update_nrc_generator_status ~/Software
 
+update_nyiso_binding_constraints:
+    cargo build --bin update_nyiso_binding_constraints --release 
+    cp ./target/release/update_nyiso_binding_constraints ~/Software
+
 update_nyiso_prices_da:
     cargo test --package bust --lib -- db::nyiso::dam_prices_archive::tests --show-output
     cargo build --bin update_nyiso_prices_da --release 
@@ -89,6 +88,11 @@ update_nyiso_transmission_outages_da:
     cargo test --package bust --lib -- db::nyiso::transmission_outages::tests --show-output
     cargo build --bin update_nyiso_transmission_outages_da --release
     cp ./target/release/update_nyiso_transmission_outages_da ~/Software
+
+server_bust:
+    cargo test
+    cargo build --bin server_bust --release
+    cp -f ./target/release/server_bust ~/Software
 
 string_speed:
     cargo build --example string_speed --release 

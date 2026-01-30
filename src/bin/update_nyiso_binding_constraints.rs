@@ -1,0 +1,44 @@
+use std::{error::Error, path::Path};
+
+use bust::{db::prod_db::ProdDb, interval::month::{Month, month}};
+use clap::Parser;
+use jiff::Zoned;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Environment name, e.g., test, prod
+    #[arg(short, long, default_value = "prod")]
+    env: String,
+}
+
+/// Run this job every day at 10:30AM
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
+
+    let mut asof = Zoned::now().date();
+    if Zoned::now().hour() >= 10 {
+        asof = asof.tomorrow().unwrap();
+    }
+
+    let current_month = month(asof.year(), asof.month());
+    let mut months: Vec<Month> = Vec::new();
+    if asof.day() < 4 {
+        months.push(current_month.previous());
+    }
+    months.push(current_month);
+    
+    let archive = ProdDb::nyiso_binding_constraints_da();
+    for month in months {
+        archive.download_file(month)?;
+        archive.update_duckdb(month)?;
+    }
+
+    Ok(())
+}

@@ -11,7 +11,6 @@ use log::{error, info};
 use reqwest::get;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use url::form_urlencoded;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
@@ -20,8 +19,12 @@ use std::str::FromStr;
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::io::StreamReader;
+use url::form_urlencoded;
 
-use crate::interval::month::Month;
+use crate::{
+    api::caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
+    interval::month::Month,
+};
 
 #[derive(Clone)]
 pub struct CaisoPublicBidsArchive {
@@ -248,6 +251,10 @@ INSERT INTO public_bids_da
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Record {
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_la"
+    )]
     pub hour_beginning: Zoned,
     pub resource_type: ResourceType,
     pub scheduling_coordinator_seq: u32,
@@ -1103,14 +1110,22 @@ impl QueryFilter {
             params.insert("resource_type", value.to_string());
         }
         if let Some(value) = &self.resource_type_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("resource_type_in", joined);
         }
         if let Some(value) = &self.scheduling_coordinator_seq {
             params.insert("scheduling_coordinator_seq", value.to_string());
         }
         if let Some(value) = &self.scheduling_coordinator_seq_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("scheduling_coordinator_seq_in", joined);
         }
         if let Some(value) = &self.scheduling_coordinator_seq_gte {
@@ -1123,7 +1138,11 @@ impl QueryFilter {
             params.insert("resource_bid_seq", value.to_string());
         }
         if let Some(value) = &self.resource_bid_seq_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("resource_bid_seq_in", joined);
         }
         if let Some(value) = &self.resource_bid_seq_gte {
@@ -1157,7 +1176,11 @@ impl QueryFilter {
             params.insert("product_bid_desc_like", value.to_string());
         }
         if let Some(value) = &self.product_bid_desc_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("product_bid_desc_in", joined);
         }
         if let Some(value) = &self.product_bid_mrid {
@@ -1167,7 +1190,11 @@ impl QueryFilter {
             params.insert("product_bid_mrid_like", value.to_string());
         }
         if let Some(value) = &self.product_bid_mrid_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("product_bid_mrid_in", joined);
         }
         if let Some(value) = &self.market_product_desc {
@@ -1177,7 +1204,11 @@ impl QueryFilter {
             params.insert("market_product_desc_like", value.to_string());
         }
         if let Some(value) = &self.market_product_desc_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("market_product_desc_in", joined);
         }
         if let Some(value) = &self.market_product_type {
@@ -1187,14 +1218,22 @@ impl QueryFilter {
             params.insert("market_product_type_like", value.to_string());
         }
         if let Some(value) = &self.market_product_type_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("market_product_type_in", joined);
         }
         if let Some(value) = &self.self_sched_mw {
             params.insert("self_sched_mw", value.to_string());
         }
         if let Some(value) = &self.self_sched_mw_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("self_sched_mw_in", joined);
         }
         if let Some(value) = &self.self_sched_mw_gte {
@@ -1225,7 +1264,11 @@ impl QueryFilter {
             params.insert("sch_bid_xaxis_data", value.to_string());
         }
         if let Some(value) = &self.sch_bid_xaxis_data_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("sch_bid_xaxis_data_in", joined);
         }
         if let Some(value) = &self.sch_bid_xaxis_data_gte {
@@ -1238,7 +1281,11 @@ impl QueryFilter {
             params.insert("sch_bid_y1axis_data", value.to_string());
         }
         if let Some(value) = &self.sch_bid_y1axis_data_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("sch_bid_y1axis_data_in", joined);
         }
         if let Some(value) = &self.sch_bid_y1axis_data_gte {
@@ -1251,7 +1298,11 @@ impl QueryFilter {
             params.insert("sch_bid_y2axis_data", value.to_string());
         }
         if let Some(value) = &self.sch_bid_y2axis_data_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("sch_bid_y2axis_data_in", joined);
         }
         if let Some(value) = &self.sch_bid_y2axis_data_gte {
@@ -1264,14 +1315,22 @@ impl QueryFilter {
             params.insert("sch_bid_curve_type", value.to_string());
         }
         if let Some(value) = &self.sch_bid_curve_type_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("sch_bid_curve_type_in", joined);
         }
         if let Some(value) = &self.min_eoh_state_of_charge {
             params.insert("min_eoh_state_of_charge", value.to_string());
         }
         if let Some(value) = &self.min_eoh_state_of_charge_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("min_eoh_state_of_charge_in", joined);
         }
         if let Some(value) = &self.min_eoh_state_of_charge_gte {
@@ -1284,7 +1343,11 @@ impl QueryFilter {
             params.insert("max_eoh_state_of_charge", value.to_string());
         }
         if let Some(value) = &self.max_eoh_state_of_charge_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("max_eoh_state_of_charge_in", joined);
         }
         if let Some(value) = &self.max_eoh_state_of_charge_gte {
@@ -1298,7 +1361,6 @@ impl QueryFilter {
             .finish()
     }
 }
-
 
 #[derive(Default)]
 pub struct QueryFilterBuilder {
