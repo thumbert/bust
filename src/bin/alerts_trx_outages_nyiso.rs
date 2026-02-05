@@ -36,8 +36,8 @@ WHERE zoned >= CURRENT_TIMESTAMP::TIMESTAMPTZ - INTERVAL '1 days';
     if mw < &threshold {
         info!(
             "Max demand in last 24 hours is {}, less than {} MW, no alert needed",
-            mw.to_string(),
-            threshold.to_string()
+            mw,
+            threshold
         );
         return Ok(None);
     }

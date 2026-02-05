@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-02-xx
+- Started change of 7day_capacity_forecast schema to add creation_time.  Not finished!
+
 ## 2026-01-30
 - Add custom serialization/deserialization for hour_beginning for Caiso public_bids_archive struct
   to ignore the timezone.

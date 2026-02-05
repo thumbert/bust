@@ -1,0 +1,1 @@
+/// https://www.iso-ne.com/api/1/services/events.json?sortBy=event_start_date_gmt+asc&eventDate=1769749200000&fromDate=2025-12-29T00:00:00&toDate=2026-01-30T23:59:59&count=1000
