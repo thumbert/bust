@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+# 2026-02-04
+- Work on isone/calendar_events.rs
+
 ## 2026-01-15, version 0.3.1
 - Add endpoint /calendar/buckets/all
 - Add endpoint to calculate hours in term for a bucket.  Good example of how to 
