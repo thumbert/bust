@@ -7,6 +7,18 @@ TODO:
 # 2026-02-04
 - Work on isone/calendar_events.rs
 
+## 2026-01-30
+- Add custom serialization/deserialization for hour_beginning for Caiso public_bids_archive struct
+  to ignore the timezone.
+
+## 2026-01-25
+- Add nyiso_binding_constraints to the DuckDB data flow.
+
+## 2026-01-23
+- Changed the nyiso/dalmp.rs archive to unzip the ISO file and avoid the DuckDB zipfs 
+  extension.
+- Add a benchmark for count_hours  
+
 ## 2026-01-15, version 0.3.1
 - Add endpoint /calendar/buckets/all
 - Add endpoint to calculate hours in term for a bucket.  Good example of how to 

@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::fs::{self, File};
+use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
@@ -54,7 +55,7 @@ impl FromStr for LmpComponent {
     }
 }
 
-// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g. 
+// Custom deserializer using FromStr so that Actix path path can parse different casing, e.g.
 // "lmp" and "LMP", not only the canonical one "Lmp".
 impl<'de> Deserialize<'de> for LmpComponent {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -65,7 +66,6 @@ impl<'de> Deserialize<'de> for LmpComponent {
         LmpComponent::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
-
 
 pub enum NodeType {
     Gen,
@@ -100,11 +100,14 @@ impl NyisoDalmpArchive {
         ptids: Option<Vec<i32>>,
     ) -> Result<Vec<Row>, Box<dyn Error>> {
         let mut query = "SELECT ptid, hour_beginning, ".to_string();
-        query.push_str(&format!("{} FROM dalmp ", match component {
-            LmpComponent::Lmp => "lmp",
-            LmpComponent::Mcl => "mlc",
-            LmpComponent::Mcc => "mcc",
-        }));
+        query.push_str(&format!(
+            "{} FROM dalmp ",
+            match component {
+                LmpComponent::Lmp => "lmp",
+                LmpComponent::Mcl => "mlc",
+                LmpComponent::Mcc => "mcc",
+            }
+        ));
         query = format!(
             r#"
             {}
@@ -153,7 +156,7 @@ impl NyisoDalmpArchive {
     }
 
     /// Return the full file path of the zip file with data for the entire month  
-    pub fn filename(&self, month: &Month, node_type: NodeType) -> String {
+    pub fn filename_zip(&self, month: &Month, node_type: NodeType) -> String {
         match node_type {
             NodeType::Gen => {
                 self.base_dir.to_owned()
@@ -170,20 +173,98 @@ impl NyisoDalmpArchive {
         }
     }
 
+    /// Return the file path of the csv file with data for one day
+    pub fn filename(&self, day: &Date, node_type: NodeType) -> String {
+        match node_type {
+            NodeType::Gen => {
+                self.base_dir.to_owned()
+                    + "/Raw/"
+                    + day.year().to_string().as_str()
+                    + "/"
+                    + &day.strftime("%Y%m%d").to_string()
+                    + "damlbmp_gen.csv"
+            }
+            NodeType::Zone => {
+                self.base_dir.to_owned()
+                    + "/Raw/"
+                    + day.year().to_string().as_str()
+                    + "/"
+                    + &day.strftime("%Y%m%d").to_string()
+                    + "damlbmp_zone.csv"
+            }
+        }
+    }
+
     /// Data is published around 10:30 every day
-    /// https://mis.nyiso.com/public/csv/damlbmp/20250501damlbmp_gen_csv.zip
+    /// See https://mis.nyiso.com/public/csv/damlbmp/20250501damlbmp_gen_csv.zip
+    /// Take the monthly zip file, extract it and compress each individual day as a gz file.
     pub fn download_file(&self, month: Month, node_type: NodeType) -> Result<(), Box<dyn Error>> {
-        let binding = self.filename(&month, node_type);
-        let path = Path::new(&binding);
+        let binding = self.filename_zip(&month, node_type);
+        let zip_path = Path::new(&binding);
 
         let url = format!(
             "https://mis.nyiso.com/public/csv/damlbmp/{}",
-            path.file_name().unwrap().to_str().unwrap()
+            zip_path.file_name().unwrap().to_str().unwrap()
         );
         let mut resp = get(url)?;
         let mut out = File::create(&binding)?;
         std::io::copy(&mut resp, &mut out)?;
         info!("downloaded file: {}", binding);
+
+        // Unzip the file
+        info!("Unzipping file {:?}", zip_path);
+        let mut zip_file = File::open(zip_path)?;
+        let mut zip_data = Vec::new();
+        zip_file.read_to_end(&mut zip_data)?;
+        let reader = std::io::Cursor::new(zip_data);
+        let mut zip = zip::ZipArchive::new(reader)?;
+        use std::fs::File as StdFile;
+        use std::io::copy as std_copy;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let out_path = match file.enclosed_name() {
+                Some(path) => path.to_owned(),
+                None => continue,
+            };
+            let day: Date = out_path.file_name().unwrap().to_str().unwrap()[0..8]
+                .parse()
+                .map_err(|_| format!("Invalid date in filename: {:?}", out_path))?;
+            let out_path = self.base_dir.to_owned()
+                + "/Raw/"
+                + &day.year().to_string()
+                + "/"
+                + out_path.file_name().unwrap().to_str().unwrap();
+            let dir = Path::new(&out_path).parent().unwrap();
+            fs::create_dir_all(dir)?;
+
+            // Use blocking std::fs::File and std::io::copy for extraction
+            let mut outfile = StdFile::create(&out_path)?;
+            std_copy(&mut file, &mut outfile)?;
+            info!(" -- extracted file to {}", out_path);
+
+            // Gzip the csv file
+            let mut csv_file = File::open(&out_path)?;
+            let mut csv_data = Vec::new();
+            csv_file.read_to_end(&mut csv_data)?;
+            let gz_path = format!("{}.gz", out_path);
+            let mut gz_file = File::create(&gz_path)?;
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            use std::io::Write;
+            encoder.write_all(&csv_data)?;
+            let compressed_data = encoder.finish()?;
+            gz_file.write_all(&compressed_data)?;
+            info!(" -- gzipped file to {}", gz_path);
+
+            // Remove the original csv file
+            std::fs::remove_file(&out_path)?;
+        }
+
+        // Remove the zip file
+        std::fs::remove_file(zip_path)?;
+        info!("removed zip file {:?}", zip_path);
+
         Ok(())
     }
 
@@ -218,20 +299,16 @@ impl NyisoDalmpArchive {
     /// Update duckdb with published data for the month.  No checks are made to see
     /// if there are missing files.  Does not delete any existing data.  So if data
     /// is wrong for some reason, it needs to be manually deleted first!
-    ///  
+    ///
     pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        info!(
-            "inserting zone + gen files from the monthly zip for {} ...",
-            month
-        );
+        info!("inserting zone + gen files for the month {} ...", month);
         let sql = format!(
             r#"
-        LOAD zipfs;    
-        CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM 'zip://{}/*.csv';
-        CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM 'zip://{}/*.csv';
+        CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_zone.csv.gz';
+        CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_gen.csv.gz';
 
         CREATE TEMPORARY TABLE tmp AS
-        (SELECT 
+        (SELECT
             strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
             ptid::INTEGER AS ptid,
             "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
@@ -239,8 +316,8 @@ impl NyisoDalmpArchive {
             "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
         FROM tmp1
         )
-        UNION 
-        (SELECT 
+        UNION
+        (SELECT
             strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
             ptid::INTEGER AS ptid,
             "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
@@ -259,8 +336,12 @@ impl NyisoDalmpArchive {
         ))
         ORDER BY hour_beginning, ptid;
         "#,
-            self.filename(&month, NodeType::Zone),
-            self.filename(&month, NodeType::Gen),
+            self.base_dir,
+            month.start_date().year(),
+            &month.start_date().strftime("%Y%m"),
+            self.base_dir,
+            month.start_date().year(),
+            &month.start_date().strftime("%Y%m"),
         );
         let output = Command::new("duckdb")
             .arg("-c")
@@ -305,7 +386,7 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         archive.setup()?;
 
-        let months = month(2020, 1).up_to(month(2025, 10))?;
+        let months = month(2026, 1).up_to(month(2026, 1))?;
         for month in months {
             println!("Processing month {}", month);
             archive.update_duckdb(month)?;
@@ -320,35 +401,43 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         let conn = duckdb::Connection::open(archive.duckdb_path.clone()).unwrap();
         // test a zone location at DST
-        let rows = archive.get_data(
-            &conn,
-            date(2024, 11, 3),
-            date(2024, 11, 3),
-            LmpComponent::Lmp,
-            Some(vec![61752]),
-        ).unwrap();
+        let rows = archive
+            .get_data(
+                &conn,
+                date(2024, 11, 3),
+                date(2024, 11, 3),
+                LmpComponent::Lmp,
+                Some(vec![61752]),
+            )
+            .unwrap();
         assert_eq!(rows.len(), 25);
         let values = rows[0..=2].iter().map(|r| r.value).collect::<Vec<_>>();
-        // the assertion below fails.  DuckDB has issues importing the DST hour from NYISO file. 
+        // the assertion below fails.  DuckDB has issues importing the DST hour from NYISO file.
         assert_eq!(values, vec![dec!(29.27), dec!(27.32), dec!(27.14)]);
         assert_eq!(
             rows[2].hour_beginning,
-            "2024-11-03T01:00:00-05:00[America/New_York]".parse().unwrap()
+            "2024-11-03T01:00:00-05:00[America/New_York]"
+                .parse()
+                .unwrap()
         );
         assert_eq!(rows[2].value, dec!(27.14));
 
         // test a gen location
-        let rows = archive.get_data(
-            &conn,
-            date(2025, 6, 27),
-            date(2025, 6, 27),
-            LmpComponent::Lmp,
-            Some(vec![23575]),
-        ).unwrap();
+        let rows = archive
+            .get_data(
+                &conn,
+                date(2025, 6, 27),
+                date(2025, 6, 27),
+                LmpComponent::Lmp,
+                Some(vec![23575]),
+            )
+            .unwrap();
         assert_eq!(rows.len(), 24);
         assert_eq!(
             rows[0].hour_beginning,
-            "2025-06-27T00:00:00-04:00[America/New_York]".parse().unwrap()
+            "2025-06-27T00:00:00-04:00[America/New_York]"
+                .parse()
+                .unwrap()
         );
         assert_eq!(rows[0].value, dec!(37.59));
     }
@@ -357,8 +446,13 @@ mod tests {
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+
         let archive = ProdDb::nyiso_dalmp();
-        let months = month(2025, 6).up_to(month(2025, 6))?;
+        let months = month(2026, 1).up_to(month(2026, 1))?;
         for month in months {
             archive.download_file(month, NodeType::Gen)?;
             archive.download_file(month, NodeType::Zone)?;
@@ -367,52 +461,3 @@ mod tests {
     }
 }
 
-
-
-
-
-// /// Read one csv.zip file corresponding to one month.
-// pub fn read_file(&self, path_zip: String) -> Result<Vec<Row>, Box<dyn Error>> {
-//     // Open the zip file
-//     let file = File::open(path_zip)?;
-//     let mut archive = ZipArchive::new(BufReader::new(file))?;
-
-//     let mut all_records: Vec<Row> = Vec::new();
-
-//     // Iterate through each file in the archive
-//     for i in 0..archive.len() {
-//         let mut file = archive.by_index(i)?;
-//         let name = file.name().to_owned();
-//         if name.ends_with(".csv") {
-//             // Read file to a string (alternatively, use file directly as a reader)
-//             let mut contents = String::new();
-//             file.read_to_string(&mut contents)?;
-
-//             let date: Date = name[0..8]
-//                 .parse()
-//                 .map_err(|_| format!("Invalid date in filename: {}", name))?;
-//             // need to check DST!
-//             // let is_dst = false;
-
-//             // Set up CSV reader
-//             let mut rdr = csv::Reader::from_reader(contents.as_bytes());
-
-//             // Parse each record and collect
-//             for result in rdr.records() {
-//                 let record = result?;
-//                 let hour: i8 = record[0][11..13].parse()?;
-//                 let hour_beginning = date.at(hour, 0, 0, 0).in_tz("America/New_York")?;
-//                 let row = Row {
-//                     hour_beginning,
-//                     ptid: record[2].parse()?,
-//                     lmp: Decimal::from_str(&record[3])?,
-//                     mcl: Decimal::from_str(&record[4])?,
-//                     mcc: Decimal::from_str(&record[5])?,
-//                 };
-//                 all_records.push(row);
-//             }
-//         }
-//     }
-
-//     Ok(all_records)
-// }

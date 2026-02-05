@@ -83,6 +83,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::sd_rtload()))
             .app_data(Data::new(ProdDb::sr_rsvcharge2()))
             .app_data(Data::new(ProdDb::sr_rsvstl2()))
+            .app_data(Data::new(ProdDb::nyiso_binding_constraints_da()))
             .app_data(Data::new((ProdDb::nyiso_dalmp(), ProdDb::nyiso_rtlmp())))
             .app_data(Data::new(ProdDb::nyiso_energy_offers()))
             .app_data(Data::new(ProdDb::nyiso_scheduled_outages()))
@@ -141,6 +142,7 @@ async fn main() -> std::io::Result<()> {
             .service(nrc::generator_status::api_get_names)
             .service(nrc::generator_status::api_status)
             // NYISO
+            .service(nyiso::binding_constraints::get_data_api)
             .service(nyiso::lmp::api_daily_prices)
             .service(nyiso::lmp::api_hourly_prices)
             .service(nyiso::lmp::api_monthly_prices)

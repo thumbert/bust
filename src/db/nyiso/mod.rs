@@ -1,3 +1,4 @@
+pub mod binding_constraints;
 pub mod dalmp;
 pub mod energy_offers;
 pub mod rtlmp;

@@ -1,9 +1,8 @@
 use std::{error::Error, path::Path};
 
-use bust::{db::{nyiso::dalmp::NodeType, prod_db::ProdDb}, interval::month::{Month, month}};
+use bust::{db::prod_db::ProdDb, interval::month::{Month, month}};
 use clap::Parser;
 use jiff::Zoned;
-use log::info;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -27,7 +26,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     if Zoned::now().hour() >= 10 {
         asof = asof.tomorrow().unwrap();
     }
-    info!("Updating NYISO DALMP for asof date: {}", asof);
 
     let current_month = month(asof.year(), asof.month());
     let mut months: Vec<Month> = Vec::new();
@@ -35,12 +33,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         months.push(current_month.previous());
     }
     months.push(current_month);
-    info!("Updating NYISO DALMP for months: {:?}", months);
-
-    let archive = ProdDb::nyiso_dalmp();
+    
+    let archive = ProdDb::nyiso_binding_constraints_da();
     for month in months {
-        archive.download_file(month, NodeType::Gen)?;
-        archive.download_file(month, NodeType::Zone)?;
+        archive.download_file(month)?;
         archive.update_duckdb(month)?;
     }
 
