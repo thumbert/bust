@@ -8,9 +8,12 @@ To run one benchmark:
 ```
 
  To run a development server:
- * Run `cargo test`
- * Run `cargo build --bin server_bust`
- * Launch as `./target/debug/server_bust --env=test`
+ ```bash
+ cargo test
+ cargo build --bin server_bust
+ ./target/debug/server_bust --env=test
+ ```
+
 
 To release a new version:
  * Run `cargo test`

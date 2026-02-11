@@ -1,11 +1,19 @@
-// 15-minute data for total electricity demand in Quebec from https://electricite-quebec.info/en#.
-// This site allows downloading historical data!
+//=========================================================
+// Auto-generated Rust stub for DuckDB table: total_demand
+// Created on 2026-02-11 with Dart package reduct
 
-use jiff::Zoned;
+use std::collections::HashMap;
+
+use duckdb::Connection;
+use serde::{Deserialize, Serialize};
+use url::form_urlencoded;
+
+use jiff::Timestamp;
+use jiff::{tz::TimeZone, Zoned};
+use rust_decimal::Decimal;
+
 use log::error;
 use log::info;
-use rust_decimal::Decimal;
-use serde::Serialize;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
@@ -13,17 +21,28 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
-use crate::interval::month::Month;
+use crate::{
+    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
+    interval::month::Month,
+};
 
-/// This is preliminary data.  
+
+// 15-minute data for total electricity demand in Quebec from https://electricite-quebec.info/en#.
+// This site allows downloading historical data!
+
 pub struct HqTotalDemandArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Row {
-    pub zoned: Zoned,
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Record {
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
+    pub start_15min: Zoned,
+    #[serde(with = "rust_decimal::serde::float")]
     pub value: Decimal,
 }
 
@@ -129,6 +148,199 @@ INSERT INTO total_demand
             .expect("gzip failed");
 
         Ok(())
+    }
+}
+
+pub fn get_data(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+    limit: Option<usize>,
+) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
+SELECT
+    start_15min,
+    value
+FROM total_demand WHERE 1=1"#,
+    );
+    if let Some(start_15min) = &query_filter.start_15min {
+        query.push_str(&format!(
+            "
+    AND start_15min = '{}'",
+            start_15min.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(start_15min_gte) = &query_filter.start_15min_gte {
+        query.push_str(&format!(
+            "
+    AND start_15min >= '{}'",
+            start_15min_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(start_15min_lt) = &query_filter.start_15min_lt {
+        query.push_str(&format!(
+            "
+    AND start_15min < '{}'",
+            start_15min_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(value) = &query_filter.value {
+        query.push_str(&format!(
+            "
+    AND value = {}",
+            value
+        ));
+    }
+    if let Some(value_in) = &query_filter.value_in {
+        query.push_str(&format!(
+            "
+    AND value IN ({})",
+            value_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    if let Some(value_gte) = &query_filter.value_gte {
+        query.push_str(&format!(
+            "
+    AND value >= {}",
+            value_gte
+        ));
+    }
+    if let Some(value_lte) = &query_filter.value_lte {
+        query.push_str(&format!(
+            "
+    AND value <= {}",
+            value_lte
+        ));
+    }
+    match limit {
+        Some(l) => {
+            query.push_str(&format!(
+                "
+LIMIT {};",
+                l
+            ));
+        }
+        None => {
+            query.push(';');
+        }
+    }
+
+    let mut stmt = conn.prepare(&query)?;
+    let rows = stmt.query_map([], |row| {
+        let _micros0: i64 = row.get::<usize, i64>(0)?;
+        let start_15min = Zoned::new(
+            Timestamp::from_microsecond(_micros0).unwrap(),
+            TimeZone::get("America/New_York").unwrap(),
+        );
+        let value: Decimal = match row.get_ref_unwrap(1) {
+            duckdb::types::ValueRef::Decimal(v) => v,
+            _ => Decimal::MIN,
+        };
+        Ok(Record { start_15min, value })
+    })?;
+    let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
+    Ok(results)
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct QueryFilter {
+    pub start_15min: Option<Zoned>,
+    pub start_15min_gte: Option<Zoned>,
+    pub start_15min_lt: Option<Zoned>,
+    pub value: Option<Decimal>,
+    pub value_in: Option<Vec<Decimal>>,
+    pub value_gte: Option<Decimal>,
+    pub value_lte: Option<Decimal>,
+}
+
+impl QueryFilter {
+    pub fn to_query_url(&self) -> String {
+        let mut params = HashMap::new();
+        if let Some(value) = &self.start_15min {
+            params.insert("start_15min", value.to_string());
+        }
+        if let Some(value) = &self.start_15min_gte {
+            params.insert("start_15min_gte", value.to_string());
+        }
+        if let Some(value) = &self.start_15min_lt {
+            params.insert("start_15min_lt", value.to_string());
+        }
+        if let Some(value) = &self.value {
+            params.insert("value", value.to_string());
+        }
+        if let Some(value) = &self.value_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("value_in", joined);
+        }
+        if let Some(value) = &self.value_gte {
+            params.insert("value_gte", value.to_string());
+        }
+        if let Some(value) = &self.value_lte {
+            params.insert("value_lte", value.to_string());
+        }
+        form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(&params)
+            .finish()
+    }
+}
+
+#[derive(Default)]
+pub struct QueryFilterBuilder {
+    inner: QueryFilter,
+}
+
+impl QueryFilterBuilder {
+    pub fn new() -> Self {
+        Self {
+            inner: QueryFilter::default(),
+        }
+    }
+
+    pub fn build(self) -> QueryFilter {
+        self.inner
+    }
+
+    pub fn start_15min(mut self, value: Zoned) -> Self {
+        self.inner.start_15min = Some(value);
+        self
+    }
+
+    pub fn start_15min_gte(mut self, value: Zoned) -> Self {
+        self.inner.start_15min_gte = Some(value);
+        self
+    }
+
+    pub fn start_15min_lt(mut self, value: Zoned) -> Self {
+        self.inner.start_15min_lt = Some(value);
+        self
+    }
+
+    pub fn value(mut self, value: Decimal) -> Self {
+        self.inner.value = Some(value);
+        self
+    }
+
+    pub fn value_in(mut self, values_in: Vec<Decimal>) -> Self {
+        self.inner.value_in = Some(values_in);
+        self
+    }
+
+    pub fn value_gte(mut self, value: Decimal) -> Self {
+        self.inner.value_gte = Some(value);
+        self
+    }
+
+    pub fn value_lte(mut self, value: Decimal) -> Self {
+        self.inner.value_lte = Some(value);
+        self
     }
 }
 
