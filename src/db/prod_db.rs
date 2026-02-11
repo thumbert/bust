@@ -5,28 +5,16 @@ use crate::db::{
     },
     calendar::buckets::BucketsArchive,
     hq::{
-        electricity_demand_final::HqFinalizedTotalDemandArchive,
-        electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
+        electricity_demand_final::HqFinalizedTotalDemandArchive, electricity_demand::HqTotalDemandArchive, electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive
     },
     ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
     },
     isone::{
-        actual_interchange_archive::IsoneActualInterchangeArchive,
-        dalmp_archive::IsoneDaLmpArchive,
-        ftr_prices_archive::IsoneFtrPricesArchive,
-        fuelmix_archive::IsoneFuelMixArchive,
-        masked_data::{
-            ara_archive::IsoneAraBidsOffersArchive,
-            da_energy_offers_archive::IsoneDaEnergyOffersArchive,
-            daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
-            import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
-        },
-        participants_archive::IsoneParticipantsArchive,
-        rtlmp_archive::IsoneRtLmpArchive,
-        sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
-        total_transfer_capability_archive::TotalTransferCapabilityArchive,
+        actual_interchange_archive::IsoneActualInterchangeArchive, calendar_events::IsoneEventsCalendarArchive, dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
+            ara_archive::IsoneAraBidsOffersArchive, da_energy_offers_archive::IsoneDaEnergyOffersArchive, daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive, import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive
+        }, participants_archive::IsoneParticipantsArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive
     },
     nyiso::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
@@ -167,6 +155,14 @@ impl ProdDb {
         }
     }
 
+    pub fn isone_events_calendar() -> IsoneEventsCalendarArchive {
+        IsoneEventsCalendarArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Isone/EventsCalendar".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/events_calendar.duckdb"
+                .to_string(),
+        }
+    }
+
     pub fn isone_ftr_cleared_prices() -> IsoneFtrPricesArchive {
         IsoneFtrPricesArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/FTR/ClearedPrices".to_string(),
@@ -292,6 +288,12 @@ impl ProdDb {
         }
     }
 
+    pub fn hq_total_demand() -> HqTotalDemandArchive {
+        HqTotalDemandArchive {
+            base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemand".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/total_demand.duckdb".to_string(),
+        }
+    }
     pub fn hq_total_demand_final() -> HqFinalizedTotalDemandArchive {
         HqFinalizedTotalDemandArchive {
             base_dir: "/home/adrian/Downloads/Archive/HQ/TotalDemandFinal".to_string(),

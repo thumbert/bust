@@ -26,9 +26,9 @@ update_hq_hydro_data:
     cargo build --bin update_hq_hydro_data --release 
     cp ./target/release/update_hq_hydro_data ~/Software
 
-update_hq_total_demand_prelim:
-    cargo build --bin update_hq_total_demand_prelim --release
-    cp ./target/release/update_hq_total_demand_prelim ~/Software
+update_hq_total_demand:
+    cargo build --bin update_hq_total_demand --release
+    cp ./target/release/update_hq_total_demand ~/Software
 
 update_ieso_prices_da:
     cargo build --bin update_ieso_prices_da --release 

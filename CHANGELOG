@@ -4,8 +4,14 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
-## 2026-02-xx
+## 2026-02-09
 - Started change of 7day_capacity_forecast schema to add creation_time.  Not finished!
+- Add hq_electricity_demand.  Same data as hq_electricity_prelim but more 
+reliable and available since 2024-03.  Decided to archive this data source 
+and not the _prelim one anymore.
+
+# 2026-02-04
+- Work on isone/calendar_events.rs
 
 ## 2026-01-30
 - Add custom serialization/deserialization for hour_beginning for Caiso public_bids_archive struct

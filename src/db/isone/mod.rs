@@ -1,4 +1,5 @@
 pub mod actual_interchange_archive;
+pub mod calendar_events;
 pub mod dalmp_archive;
 pub mod ftr_prices_archive;
 pub mod fuelmix_archive;
