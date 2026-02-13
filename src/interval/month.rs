@@ -70,6 +70,10 @@ impl Month {
             .collect()
     }
 
+    pub fn term(&self) -> Term {
+        Term::new(self.start_date, self.end_date()).unwrap()
+    }
+
     pub fn next(&self) -> Month {
         Month {
             start_date: self.start_date.saturating_add(1.month()),
