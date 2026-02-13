@@ -67,7 +67,7 @@ AS
         thermique::DECIMAL(9,2) AS thermal,
     FROM (
         SELECT *
-        FROM read_json('~/Downloads/Archive/HQ/FuelMix/Raw/{}/fuel_mix_{}-*.json.gz')
+        FROM read_json('{}/Raw/{}/fuel_mix_{}-*.json.gz')
     )
     WHERE total != 0
     ORDER BY zoned
@@ -85,10 +85,10 @@ INSERT INTO fuel_mix
     )
 ) ORDER BY zoned; 
             "#,
+            self.base_dir,
             month.start_date().year(),
             month.strftime("%Y-%m")
         );
-        // println!("{}", sql);
 
         let output = Command::new("duckdb")
             .arg("-c")
