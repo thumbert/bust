@@ -1,7 +1,6 @@
 use duckdb::{Connection, Result};
 use jiff::Timestamp;
 
-
 /// See another example in daas_strike_price.sql
 fn main() -> Result<()> {
     let conn = Connection::open_in_memory()?;
@@ -15,11 +14,12 @@ AS
 SELECT * from tmp;
     "#,
     )?;
-    let mut stmt =
-        conn.prepare("SELECT BeginDate::TIMESTAMPTZ, RtFlowMw FROM tmp WHERE InterfaceName = 'Millstone 3';")?;
+    let mut stmt = conn.prepare(
+        "SELECT BeginDate::TIMESTAMPTZ, RtFlowMw FROM tmp WHERE InterfaceName = 'Millstone 3';",
+    )?;
     let item_iter = stmt.query_map([], |row| {
-        let ts = Timestamp::from_second(row.get::<usize,i64>(0).unwrap() / 1_000_000).unwrap();
-        Ok((ts, row.get::<usize,f64>(1)?))
+        let ts = Timestamp::from_second(row.get::<usize, i64>(0).unwrap() / 1_000_000).unwrap();
+        Ok((ts, row.get::<usize, f64>(1)?))
     })?;
 
     for item in item_iter {

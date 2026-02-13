@@ -5,8 +5,16 @@ use actix_web::{get, web, HttpResponse, Responder};
 use crate::{db::nyiso::scheduled_outages::*, utils::lib_duckdb::open_with_retry};
 
 #[get("/nyiso/transmission_outages/scheduled")]
-async fn api_scheduled_outages(query: web::Query<QueryOutages>, db: web::Data<NyisoScheduledOutagesArchive>) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), duckdb::AccessMode::ReadOnly);
+async fn api_scheduled_outages(
+    query: web::Query<QueryOutages>,
+    db: web::Data<NyisoScheduledOutagesArchive>,
+) -> impl Responder {
+    let conn = open_with_retry(
+        &db.duckdb_path,
+        8,
+        Duration::from_millis(25),
+        duckdb::AccessMode::ReadOnly,
+    );
     let conn = match conn {
         Ok(conn) => conn,
         Err(e) => {

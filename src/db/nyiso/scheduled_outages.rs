@@ -54,7 +54,6 @@ pub struct QueryOutages {
     pub equipment_name_like: Option<String>,
 }
 
-
 #[derive(Default)]
 pub struct QueryOutagesBuilder {
     inner: QueryOutages,
@@ -131,7 +130,6 @@ impl QueryOutagesBuilder {
         self.inner
     }
 }
-
 
 impl NyisoScheduledOutagesArchive {
     /// Return the csv filename for the day.  Does not check if the file exists.  
@@ -342,10 +340,7 @@ mod tests {
 
     use duckdb::Connection;
 
-    use crate::db::{
-        nyiso::scheduled_outages::QueryOutagesBuilder,
-        prod_db::ProdDb,
-    };
+    use crate::db::{nyiso::scheduled_outages::QueryOutagesBuilder, prod_db::ProdDb};
 
     // #[ignore]
     // #[test]

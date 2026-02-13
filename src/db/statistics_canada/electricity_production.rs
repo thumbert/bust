@@ -6,7 +6,6 @@ use std::fs::File;
 use std::io::copy;
 use std::process::Command;
 
-
 #[derive(Clone)]
 pub struct StatisticsCanadaGenerationArchive {
     pub base_dir: String,

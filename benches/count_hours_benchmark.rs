@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 use bust::{
-    bucket::{Bucket, BucketLike, count_hours},
+    bucket::{count_hours, Bucket, BucketLike},
     interval::term_tz::TermTz,
 };
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -59,8 +59,7 @@ fn my_benchmark2(c: &mut Criterion) {
     });
 }
 
-
 criterion_group!(benches, my_benchmark, my_benchmark2);
 criterion_main!(benches);
 
-// Not clear that rayon is using all cores, or this 
+// Not clear that rayon is using all cores, or this

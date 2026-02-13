@@ -21,7 +21,7 @@ pub struct NyisoRtlmpArchive {
 }
 
 // impl NyisoRtlmpArchive {
-//     /// Get data from DuckDB.  
+//     /// Get data from DuckDB.
 //     /// If `ptids` is `None`, return all of them.
 //     /// If `components` is `None`, return all three LMP components (lmp, mcc, mlc).
 //     ///
@@ -86,7 +86,7 @@ pub struct NyisoRtlmpArchive {
 //         Ok(res)
 //     }
 
-//     /// Return the full file path of the zip file with data for the entire month  
+//     /// Return the full file path of the zip file with data for the entire month
 //     pub fn filename(&self, month: &Month, node_type: NodeType) -> String {
 //         match node_type {
 //             NodeType::Gen => {
@@ -141,7 +141,7 @@ pub struct NyisoRtlmpArchive {
 //         mlc DECIMAL(9,2) NOT NULL,
 //         mcc DECIMAL(9,2) NOT NULL,
 //     );
-//     CREATE INDEX idx ON dalmp (ptid);    
+//     CREATE INDEX idx ON dalmp (ptid);
 //     COMMENT ON TABLE dalmp IS 'Hourly DAM prices for all NYISO zones + generators';
 //     COMMIT;
 //         ",
@@ -152,7 +152,7 @@ pub struct NyisoRtlmpArchive {
 //     /// Update duckdb with published data for the month.  No checks are made to see
 //     /// if there are missing files.  Does not delete any existing data.  So if data
 //     /// is wrong for some reason, it needs to be manually deleted first!
-//     ///  
+//     ///
 //     pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
 //         info!(
 //             "inserting zone + gen files from the monthly zip for {} ...",
@@ -160,12 +160,12 @@ pub struct NyisoRtlmpArchive {
 //         );
 //         let sql = format!(
 //             r#"
-//         LOAD zipfs;    
+//         LOAD zipfs;
 //         CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM 'zip://{}/*.csv';
 //         CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM 'zip://{}/*.csv';
 
 //         CREATE TEMPORARY TABLE tmp AS
-//         (SELECT 
+//         (SELECT
 //             strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
 //             ptid::INTEGER AS ptid,
 //             "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
@@ -173,8 +173,8 @@ pub struct NyisoRtlmpArchive {
 //             "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
 //         FROM tmp1
 //         )
-//         UNION 
-//         (SELECT 
+//         UNION
+//         (SELECT
 //             strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
 //             ptid::INTEGER AS ptid,
 //             "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
@@ -300,7 +300,3 @@ pub struct NyisoRtlmpArchive {
 //         Ok(())
 //     }
 // }
-
-
-
-

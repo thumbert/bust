@@ -22,8 +22,6 @@ pub struct IesoVGForecastSummaryArchive {
 }
 
 impl IesoVGForecastSummaryArchive {
-
-
     /// Return the xml filename for the day
     pub fn filename(&self, day: &Date) -> String {
         self.base_dir.to_owned()
@@ -59,9 +57,10 @@ impl IesoVGForecastSummaryArchive {
 
         let doc: Document = from_str(&buffer)?;
         let mut rows: Vec<Row> = Vec::new();
-        let forecast_timestamp: Zoned = format!("{}-05:00[-05:00]", doc.doc_body.forecast_timestamp)
-            .parse::<Zoned>()
-            .unwrap();
+        let forecast_timestamp: Zoned =
+            format!("{}-05:00[-05:00]", doc.doc_body.forecast_timestamp)
+                .parse::<Zoned>()
+                .unwrap();
         for od in doc.doc_body.organization_data {
             let organization = od.organization_type;
             for fd in od.fuel_data {
@@ -84,8 +83,6 @@ impl IesoVGForecastSummaryArchive {
                             });
                         }
                     }
-
-
                 }
             }
         }

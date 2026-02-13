@@ -58,15 +58,15 @@ CREATE TABLE IF NOT EXISTS fuel_mix (
 CREATE TEMPORARY TABLE tmp
 AS
     SELECT
-        date::TIMESTAMPTZ AS zoned,
-        valeurs_total::DECIMAL(9,2) AS total,
-        valeurs_hydraulique::DECIMAL(9,2) AS hydro,
-        valeurs_eolien::DECIMAL(9,2) AS wind,
-        valeurs_solaire::DECIMAL(9,2) AS solar,
-        valeurs_autres::DECIMAL(9,2) AS other,
-        valeurs_thermique::DECIMAL(9,2) AS thermal,
+        time::TIMESTAMPTZ AS zoned,
+        total::DECIMAL(9,2) AS total,
+        hydraulique::DECIMAL(9,2) AS hydro,
+        eolien::DECIMAL(9,2) AS wind,
+        solaire::DECIMAL(9,2) AS solar,
+        autres::DECIMAL(9,2) AS other,
+        thermique::DECIMAL(9,2) AS thermal,
     FROM (
-        SELECT unnest(results, recursive := true)
+        SELECT *
         FROM read_json('~/Downloads/Archive/HQ/FuelMix/Raw/{}/fuel_mix_{}-*.json.gz')
     )
     WHERE total != 0
@@ -110,12 +110,23 @@ INSERT INTO fuel_mix
     }
 
     /// Data is updated on the website every 15 min
-    pub fn download_file(&self) -> Result<(), Box<dyn Error>> {
-        let url = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/production-electricite-quebec/records?limit=100";
+    pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
+        // this url has only the most recent 48 records, so not good for backfilling.
+        // let _ = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/production-electricite-quebec/records?limit=100&order_by=date";
+        // I switched to this url which has data from 2024-09-01 but uses a private key.  Not sure how stable
+        // the key is, etc.
+        let url = format!("https://electricite-quebec.info/gen_data?start_date={}&end_date={}&limit=100000&order_by=date&key={}", 
+            date,
+            date.tomorrow().unwrap(),
+            std::env::var("HQ_API_KEY").expect("HQ_API_KEY not set")
+        );
+        info!(
+            "Downloading HQ fuel mix data for {} from url: {}",
+            date, url
+        );
         let resp = reqwest::blocking::get(url).expect("request failed");
         let body = resp.text().expect("body invalid");
-        let today: Date = Zoned::now().date();
-        let path = &self.filename(&today);
+        let path = &self.filename(&date);
         let dir = Path::new(path).parent().unwrap();
         let _ = fs::create_dir_all(dir);
         let mut out = File::create(path).expect("failed to create file");
@@ -137,9 +148,10 @@ INSERT INTO fuel_mix
 #[cfg(test)]
 mod tests {
 
-    use std::error::Error;
+    use std::{error::Error, path::Path};
 
-    use crate::db::prod_db::ProdDb;
+
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     #[ignore]
     #[test]
@@ -148,19 +160,30 @@ mod tests {
             .filter_level(log::LevelFilter::Info)
             .is_test(true)
             .try_init();
-        // let archive = ProdDb::hq_fuel_mix();
-        // // let days = vec![date(2024, 12, 4), date(2024, 12, 5), date(2024, 12, 6)];
-        // let days: Vec<Date> = date(2024, 12, 8).series(1.day()).take(5).collect();
+        let archive = ProdDb::hq_fuel_mix();
+        let term = "Jan25-Jan26".parse::<Term>().unwrap();
+        for m in term.months() {
+            archive.update_duckdb(m)?;
+        }
 
-        // archive.update_duckdb(days)
         Ok(())
     }
 
     #[ignore]
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::hq_fuel_mix();
-        archive.download_file()?;
+        let term = "1Feb26-12Feb26".parse::<Term>().unwrap();
+        for day in term.days() {
+            // wait for 3 seconds between downloads to avoid overwhelming the server
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            archive.download_file(day)?;
+        }
         Ok(())
     }
 }

@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use super::lib_mis::*;
 
-
 // // Reserve zone section
 // #[derive(Debug, Serialize, Deserialize)]
 // pub struct RowTab0 {
@@ -54,7 +53,6 @@ pub struct RowTab5 {
     pub total_rt_reserve_charge: f64,
 }
 
-
 pub struct SrRsvcharge2Report {
     pub info: MisReportInfo,
     pub lines: Vec<String>,
@@ -71,7 +69,7 @@ impl SrRsvcharge2Report {
             .has_headers(false)
             .from_reader(data.as_bytes());
         for result in rdr.records() {
-            let record = result?;            
+            let record = result?;
             let subaccount_id: Option<String> = record[1].parse().ok();
             let subaccount_name: Option<String> = record[2].parse().ok();
             let hour_beginning = parse_hour_ending(&self.info.report_date, &record[3]);
@@ -97,7 +95,6 @@ impl SrRsvcharge2Report {
                 external_sale_load_obligation_mw,
                 reserve_charge_allocation_mw,
                 total_rt_reserve_charge,
-                
             });
         }
 
@@ -146,7 +143,6 @@ impl MisArchiveDuckDB for SrRsvcharge2Archive {
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
-
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing {} archive ...", self.report_name());
@@ -246,14 +242,17 @@ impl MisArchiveDuckDB for SrRsvcharge2Archive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab5 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab5 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
         info!("Done\n");
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -262,11 +261,7 @@ mod tests {
 
     use jiff::{civil::date, Zoned};
 
-    use crate::db::{
-        isone::mis::lib_mis::*,
-        prod_db::ProdDb,
-    };
-
+    use crate::db::{isone::mis::lib_mis::*, prod_db::ProdDb};
 
     #[ignore]
     #[test]
@@ -275,14 +270,14 @@ mod tests {
             .filter_level(log::LevelFilter::Info)
             .init();
 
-        let path = "../elec-server/test/_assets/sr_rsvcharge2_000000002_2024111500_20250108194854.csv"
-            .to_string();
+        let path =
+            "../elec-server/test/_assets/sr_rsvcharge2_000000002_2024111500_20250108194854.csv"
+                .to_string();
         let archive = ProdDb::sr_rsvcharge2();
         archive.setup()?;
         archive.update_duckdb(vec![path])?;
         Ok(())
     }
-
 
     #[test]
     fn months_test() -> Result<(), Box<dyn Error>> {
@@ -293,5 +288,4 @@ mod tests {
         }
         Ok(())
     }
-
 }

@@ -246,7 +246,7 @@ mod tests {
         // archive.setup()
 
         let months = month(2025, 5).up_to(month(2025, 9)).unwrap();
-        for month in months {     
+        for month in months {
             info!("Working on month {}", month);
             archive.download_missing_days(month)?;
             archive.update_duckdb(month)?;

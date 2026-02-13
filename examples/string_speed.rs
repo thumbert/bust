@@ -18,7 +18,9 @@ fn search_token(lines: &[String], token: &str) {
 
 fn duckdb_search(tokens: Vec<&str>) {
     let mut start = Instant::now();
-    let con = duckdb::Connection::open("/home/adrian/Downloads/Archive/PnodeTable/locations.duckdb").unwrap();
+    let con =
+        duckdb::Connection::open("/home/adrian/Downloads/Archive/PnodeTable/locations.duckdb")
+            .unwrap();
 
     for token in tokens {
         let mut stmt = con

@@ -127,10 +127,7 @@ mod tests {
     use jiff::civil::date;
     use std::{error::Error, path::Path};
 
-    use crate::{
-        db::prod_db::ProdDb,
-        interval::term::Term,
-    };
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     #[ignore]
     #[test]

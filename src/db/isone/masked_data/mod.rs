@@ -1,6 +1,6 @@
 pub mod ara_archive;
-pub mod daas_offers_archive;
 pub mod da_energy_offers_archive;
+pub mod daas_offers_archive;
 pub mod demand_bids_archive;
 pub mod import_export_archive;
 pub mod mra_archive;

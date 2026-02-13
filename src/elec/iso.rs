@@ -1,4 +1,3 @@
-
 use once_cell::sync::Lazy;
 
 pub static ISONE: Lazy<Iso> = Lazy::new(|| Iso {
@@ -10,4 +9,3 @@ pub struct Iso {
     pub name: &'static str,
     pub tz: jiff::tz::TimeZone,
 }
-

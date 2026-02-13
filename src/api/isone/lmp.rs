@@ -16,7 +16,7 @@ use crate::{
     },
     utils::lib_duckdb::open_with_retry,
 };
-use duckdb::{AccessMode, Connection, Result, types::ValueRef};
+use duckdb::{types::ValueRef, AccessMode, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
@@ -35,8 +35,18 @@ async fn api_hourly_prices(
     let end_date = path.2;
 
     let conn = match market {
-        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
-        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
+        Market::DA => open_with_retry(
+            &db.0.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
+        Market::RT => open_with_retry(
+            &db.1.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
     };
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
@@ -100,8 +110,18 @@ async fn api_daily_prices(
     let end_date = path.2;
 
     let conn = match market {
-        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
-        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
+        Market::DA => open_with_retry(
+            &db.0.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
+        Market::RT => open_with_retry(
+            &db.1.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
     };
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
@@ -156,8 +176,18 @@ async fn api_monthly_prices(
     let end_month = path.2;
 
     let conn = match market {
-        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
-        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
+        Market::DA => open_with_retry(
+            &db.0.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
+        Market::RT => open_with_retry(
+            &db.1.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
     };
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
@@ -208,8 +238,18 @@ async fn api_term_prices(
     let market = path.into_inner();
 
     let conn = match market {
-        Market::DA => open_with_retry(&db.0.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
-        Market::RT => open_with_retry(&db.1.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly),
+        Market::DA => open_with_retry(
+            &db.0.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
+        Market::RT => open_with_retry(
+            &db.1.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        ),
     };
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(

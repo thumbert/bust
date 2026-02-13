@@ -35,7 +35,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     archive.update_duckdb(&month)?;
 
-
     // archive.download_missing_days(month)?;
     // match archive.update_duckdb(month) {
     //     Ok(_) => info!("Updated month {} successfully", month),

@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use jiff::{ToSpan, Zoned, civil::date, tz::TimeZone};
+use jiff::{civil::date, tz::TimeZone, ToSpan, Zoned};
 use serde::{Deserialize, Deserializer};
 
 use crate::interval::{
@@ -10,7 +10,6 @@ use crate::interval::{
     month_tz::MonthTz,
     term::{Term, TermType},
 };
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TermTz {
@@ -115,7 +114,6 @@ impl FromStr for TermTz {
     }
 }
 
-
 impl fmt::Display for TermTz {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let binding = self.start();
@@ -141,7 +139,6 @@ impl serde::Serialize for TermTz {
     }
 }
 
-
 // Custom deserializer using FromStr so that Actix path path can parse different casing.
 impl<'de> Deserialize<'de> for TermTz {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -153,11 +150,13 @@ impl<'de> Deserialize<'de> for TermTz {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
-    use crate::{elec::iso::ISONE, interval::{date_tz::DateTz, term::*, term_tz::TermTz}};
+    use crate::{
+        elec::iso::ISONE,
+        interval::{date_tz::DateTz, term::*, term_tz::TermTz},
+    };
 
     #[test]
     fn test_fmt() {
@@ -168,11 +167,16 @@ mod tests {
     #[test]
     fn test_parse() -> Result<(), String> {
         let term = "3Jan25[America/New_York]".parse::<TermTz>()?;
-        assert_eq!(term.start_date, "2025-01-03[America/New_York]".parse::<DateTz>()?);
-        assert_eq!(term.end_date, "2025-01-03[America/New_York]".parse::<DateTz>()?);
+        assert_eq!(
+            term.start_date,
+            "2025-01-03[America/New_York]".parse::<DateTz>()?
+        );
+        assert_eq!(
+            term.end_date,
+            "2025-01-03[America/New_York]".parse::<DateTz>()?
+        );
         Ok(())
     }
-
 
     #[test]
     fn test_hours() {

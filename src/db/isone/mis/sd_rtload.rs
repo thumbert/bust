@@ -163,11 +163,10 @@ impl MisArchiveDuckDB for SdRtloadArchive {
     fn first_month(&self) -> crate::interval::month::Month {
         month(2001, 1)
     }
-        
+
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
-
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing SD_RTLOAD archive ...");
@@ -232,7 +231,10 @@ impl MisArchiveDuckDB for SdRtloadArchive {
         paths.sort_by_key(|e| e.path());
 
         if paths.is_empty() {
-            info!("No new {} files to upload to DuckDB.  Continue.", self.report_name());
+            info!(
+                "No new {} files to upload to DuckDB.  Continue.",
+                self.report_name()
+            );
             return Ok(());
         } else {
             info!("Inserting {} files into DuckDB.", paths.len());

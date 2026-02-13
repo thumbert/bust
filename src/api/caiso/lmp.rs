@@ -3,14 +3,17 @@ use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    api::{caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset}, isone::_api_isone_core::Market},
+    api::{
+        caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
+        isone::_api_isone_core::Market,
+    },
     bucket::{Bucket, BucketLike},
     db::{
         caiso::{dalmp_archive::*, rtlmp_archive::CaisoRtLmpArchive},
         calendar::buckets::BucketsArchive,
     },
     interval::{
-        month::{Month, month},
+        month::{month, Month},
         month_tz::MonthTz,
         term::Term,
     },
@@ -18,10 +21,7 @@ use crate::{
 };
 use duckdb::{types::ValueRef, AccessMode, Connection, Result};
 use itertools::Itertools;
-use jiff::{
-    civil::Date,
-    Timestamp, ToSpan, Zoned,
-};
+use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -901,7 +901,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowH> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 96); 
+        assert_eq!(vs.len(), 96);
         Ok(())
     }
 
@@ -914,7 +914,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowD> = serde_json::from_str(&response).unwrap();
-        assert_eq!(vs.len(), 20); 
+        assert_eq!(vs.len(), 20);
         Ok(())
     }
 
@@ -927,7 +927,7 @@ mod tests {
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<RowM> = serde_json::from_str(&response).unwrap();
-        assert!(!vs.is_empty()); 
+        assert!(!vs.is_empty());
         Ok(())
     }
 

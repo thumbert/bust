@@ -217,8 +217,7 @@ mod tests {
     fn get_path() -> String {
         ProdDb::sr_rsvstl2().duckdb_path.to_string()
     }
-    
-    
+
     #[test]
     fn test_tab3() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;

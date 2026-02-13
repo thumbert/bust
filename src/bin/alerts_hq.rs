@@ -1,9 +1,6 @@
 use std::{env, error::Error, path::Path};
 
-use bust::{
-    db::prod_db::ProdDb,
-    utils::send_email::*,
-};
+use bust::{db::prod_db::ProdDb, utils::send_email::*};
 use clap::Parser;
 use duckdb::{types::ValueRef, Connection};
 use log::info;
@@ -13,7 +10,7 @@ use rust_decimal_macros::dec;
 fn make_content(threshold: Decimal) -> Result<Option<String>, Box<dyn Error>> {
     let archive = ProdDb::hq_total_demand_prelim();
     let conn = Connection::open(&archive.duckdb_path).unwrap();
-    conn.execute("LOAD ICU;", [])?;    
+    conn.execute("LOAD ICU;", [])?;
     let query = r#"
 SELECT MAX(value) as max_demand
 FROM total_demand_prelim
@@ -27,17 +24,12 @@ WHERE zoned >= CURRENT_TIMESTAMP::TIMESTAMPTZ - INTERVAL '1 days';
         };
         Ok(mw)
     })?;
-    let binding = mw_iter
-        .map(|e| e.unwrap())
-        .collect::<Vec<Decimal>>();
-    let mw = binding
-        .first()
-        .unwrap();
+    let binding = mw_iter.map(|e| e.unwrap()).collect::<Vec<Decimal>>();
+    let mw = binding.first().unwrap();
     if mw < &threshold {
         info!(
             "Max demand in last 24 hours is {}, less than {} MW, no alert needed",
-            mw,
-            threshold
+            mw, threshold
         );
         return Ok(None);
     }
@@ -99,4 +91,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-

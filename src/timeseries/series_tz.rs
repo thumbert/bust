@@ -319,7 +319,6 @@ impl<I: IntervalTzLike, V: Clone> Default for SeriesTz<I, V> {
     }
 }
 
-
 // /// Iterator for merging two SeriesTz instances
 // pub struct MergeIterator<'a, T, V> {
 //     iter1: std::slice::Iter<'a, (T, V)>,
@@ -370,7 +369,6 @@ impl<I: IntervalTzLike, V: Clone> Default for SeriesTz<I, V> {
 //         MergeIterator::new(&self.0, &other.0)
 //     }
 // }
-
 
 pub struct DateTzSeries<V: Clone>(pub SeriesTz<DateTz, V>);
 // pub struct MonthTzSeries<V: Clone>(Vec<(MonthTz, V)>);

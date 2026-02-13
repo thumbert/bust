@@ -158,7 +158,6 @@ impl IntervalLike for Month {
     }
 }
 
-
 impl Serialize for Month {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -169,7 +168,7 @@ impl Serialize for Month {
     }
 }
 
-// Custom deserializer using FromStr so that Actix path path can parse different formats, e.g. 
+// Custom deserializer using FromStr so that Actix path path can parse different formats, e.g.
 // "2025-03", "Mar25", etc.
 impl<'de> Deserialize<'de> for Month {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -180,7 +179,6 @@ impl<'de> Deserialize<'de> for Month {
         Month::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
-
 
 /// Parse various formats for a month:
 /// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"

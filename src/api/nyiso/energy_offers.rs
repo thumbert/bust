@@ -8,7 +8,9 @@ use itertools::Itertools;
 use jiff::{civil::Date, Timestamp, ToSpan};
 use serde::{Deserialize, Serialize};
 
-use crate::{db::nyiso::energy_offers::NyisoEnergyOffersArchive, utils::lib_duckdb::open_with_retry};
+use crate::{
+    db::nyiso::energy_offers::NyisoEnergyOffersArchive, utils::lib_duckdb::open_with_retry,
+};
 
 #[derive(Debug, Deserialize)]
 struct OffersQuery {
@@ -22,7 +24,12 @@ async fn api_offers(
     query: web::Query<OffersQuery>,
     db: web::Data<NyisoEnergyOffersArchive>,
 ) -> impl Responder {
-    let conn = open_with_retry(&db.duckdb_path, 8, Duration::from_millis(25), AccessMode::ReadOnly);
+    let conn = open_with_retry(
+        &db.duckdb_path,
+        8,
+        Duration::from_millis(25),
+        AccessMode::ReadOnly,
+    );
     if let Err(e) = conn {
         return HttpResponse::InternalServerError()
             .body(format!("Error opening DuckDB database: {}", e));
@@ -52,13 +59,17 @@ async fn api_offers(
             .collect()
     });
 
-    let offers = get_energy_offers(&conn.unwrap(), market, start_date, end_date, asset_ids).unwrap();
+    let offers =
+        get_energy_offers(&conn.unwrap(), market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
 }
 
 /// Get DAM or HAM stack for a list of timestamps (seconds from epoch)
 #[get("/nyiso/energy_offers/{market}/stack/timestamps/{timestamps}")]
-async fn api_stack(path: web::Path<(String, String)>, db: web::Data<NyisoEnergyOffersArchive>) -> impl Responder {
+async fn api_stack(
+    path: web::Path<(String, String)>,
+    db: web::Data<NyisoEnergyOffersArchive>,
+) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
 
@@ -369,7 +380,8 @@ mod tests {
     #[test]
     fn test_get_masked_unit_ids() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
         let start: Date = date(2023, 1, 1);
         let end: Date = date(2023, 1, 31);
         let ids = get_unit_ids(&conn, start, end);
@@ -381,7 +393,8 @@ mod tests {
     #[test]
     fn test_get_offers() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
         let xs = get_energy_offers(
             &conn,
             Market::Dam,
@@ -409,7 +422,8 @@ mod tests {
     #[test]
     fn test_get_stack() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::nyiso_energy_offers().duckdb_path, config).unwrap();
         let xs = get_stack(
             &conn,
             Market::Dam,

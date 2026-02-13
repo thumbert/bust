@@ -39,7 +39,7 @@ impl SingleSourceContingencyArchive {
 
     /// Upload each individual day to DuckDB.
     /// Assumes a json.gz file exists.  Skips the day if it doesn't exist.
-    /// This method only works well for a few day.  For a lot of days, don't loop over days. 
+    /// This method only works well for a few day.  For a lot of days, don't loop over days.
     /// Consider using DuckDB directly by globbing the file names.
     ///  
     pub fn update_duckdb(&self, days: &HashSet<Date>) -> Result<(), Box<dyn Error>> {

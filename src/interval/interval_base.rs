@@ -158,7 +158,6 @@ impl From<TermTz> for IntervalTz {
     }
 }
 
-
 // impl cmp::PartialEq for dyn IntervalLike {
 //     fn eq(&self, other: &Self) -> bool {
 //         self.start() == other.start() && self.end() == other.end()
@@ -232,14 +231,13 @@ mod tests {
         month_tz::MonthTz,
     };
 
-
     #[test]
     fn test_from_term() {
         let term = MonthTz::new(2025, 1, "America/New_York");
         assert_eq!(
             IntervalTz::from(term.clone()),
             IntervalTz::new(term.start(), term.end()).unwrap()
-        ); 
+        );
     }
 
     //     #[test]

@@ -29,7 +29,6 @@ pub struct Row {
     eir_designation_mw: Decimal,
 }
 
-
 #[derive(Clone)]
 pub struct DaasReserveDataArchive {
     pub base_dir: String,

@@ -58,7 +58,7 @@
 // //     let query = format!(
 // //         r#"
 // // SELECT *
-// // FROM tab0 
+// // FROM tab0
 // // WHERE date >= '{}'
 // // AND date <= '{}'
 // // {}

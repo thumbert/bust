@@ -26,7 +26,6 @@ use crate::{
     interval::month::Month,
 };
 
-
 // 15-minute data for total electricity demand in Quebec from https://electricite-quebec.info/en#.
 // This site allows downloading historical data!
 

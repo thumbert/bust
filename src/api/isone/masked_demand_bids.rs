@@ -50,14 +50,11 @@ async fn api_offers(
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
 
-    let bid_types: Option<Vec<BidType>> = query
-        .bid_types
-        .as_ref()
-        .map(|ids| {
-            ids.split(',')
-                .map(|e| e.parse::<BidType>().unwrap())
-                .collect()
-        });
+    let bid_types: Option<Vec<BidType>> = query.bid_types.as_ref().map(|ids| {
+        ids.split(',')
+            .map(|e| e.parse::<BidType>().unwrap())
+            .collect()
+    });
 
     let offers = get_demand_bids(
         &conn,

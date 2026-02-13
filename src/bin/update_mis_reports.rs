@@ -1,5 +1,5 @@
-use std::{error::Error, thread, time::Duration};
 use std::sync::{Arc, Mutex};
+use std::{error::Error, thread, time::Duration};
 
 use bust::db::{isone::mis::lib_mis::MisArchiveDuckDB, prod_db::ProdDb};
 use log::info;

@@ -1,16 +1,19 @@
-use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::Deserialize;
 use duckdb::AccessMode;
+use serde::Deserialize;
+use std::time::Duration;
 
-use rust_decimal::Decimal;
 use jiff::Zoned;
+use rust_decimal::Decimal;
 
 use crate::db::nyiso::binding_constraints::*;
 use crate::utils::lib_duckdb::open_with_retry;
 
 #[get("/nyiso/binding_constraints")]
-pub async fn get_data_api(query: web::Query<ApiQuery>, data: web::Data<NyisoBindingConstraintsDaArchive>) -> impl Responder {
+pub async fn get_data_api(
+    query: web::Query<ApiQuery>,
+    data: web::Data<NyisoBindingConstraintsDaArchive>,
+) -> impl Responder {
     let conn = open_with_retry(
         &data.duckdb_path,
         8,
@@ -68,22 +71,38 @@ impl ApiQuery {
     pub fn to_query_filter(&self) -> QueryFilter {
         QueryFilter {
             market: self.market,
-            market_in: self.market_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse::<Market>().unwrap()).collect()),
+            market_in: self.market_in.as_ref().map(|s| {
+                s.split(',')
+                    .map(|v| v.trim().parse::<Market>().unwrap())
+                    .collect()
+            }),
             hour_beginning: self.hour_beginning.clone(),
             hour_beginning_gte: self.hour_beginning_gte.clone(),
             hour_beginning_lt: self.hour_beginning_lt.clone(),
             limiting_facility: self.limiting_facility.clone(),
             limiting_facility_like: self.limiting_facility_like.clone(),
-            limiting_facility_in: self.limiting_facility_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            limiting_facility_in: self
+                .limiting_facility_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             facility_ptid: self.facility_ptid,
-            facility_ptid_in: self.facility_ptid_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            facility_ptid_in: self
+                .facility_ptid_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             facility_ptid_gte: self.facility_ptid_gte,
             facility_ptid_lte: self.facility_ptid_lte,
             contingency: self.contingency.clone(),
             contingency_like: self.contingency_like.clone(),
-            contingency_in: self.contingency_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            contingency_in: self
+                .contingency_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             constraint_cost: self.constraint_cost,
-            constraint_cost_in: self.constraint_cost_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            constraint_cost_in: self
+                .constraint_cost_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             constraint_cost_gte: self.constraint_cost_gte,
             constraint_cost_lte: self.constraint_cost_lte,
         }

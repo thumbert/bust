@@ -65,12 +65,7 @@ impl IesoDaLmpAreaArchive {
             month
         );
         let mut wtr = csv::Writer::from_path(&file_out)?;
-        wtr.write_record([
-            "hour_beginning",
-            "lmp",
-            "mcc",
-            "mcl",
-        ])?;
+        wtr.write_record(["hour_beginning", "lmp", "mcc", "mcl"])?;
 
         let mut last = Zoned::now().date();
         if Zoned::now().hour() > 13 {
@@ -259,8 +254,6 @@ pub struct Row {
     pub mcc: Decimal,
     pub mcl: Decimal,
 }
-
-
 
 #[cfg(test)]
 mod tests {

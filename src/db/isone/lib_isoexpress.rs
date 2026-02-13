@@ -5,7 +5,8 @@ use std::{
     fs::{self, File},
     io,
     path::Path,
-    process::Command, time::Duration,
+    process::Command,
+    time::Duration,
 };
 
 use reqwest::{
@@ -29,7 +30,6 @@ impl Display for ReportError {
         }
     }
 }
-
 
 pub fn download_file(
     url: String,

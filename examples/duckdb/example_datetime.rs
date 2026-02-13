@@ -1,8 +1,15 @@
 use std::{error::Error, fmt};
 
 use duckdb::{Connection, Result};
-use jiff::{civil::{Date, Time}, tz::TimeZone, Timestamp, ToSpan, Zoned};
-use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
+use jiff::{
+    civil::{Date, Time},
+    tz::TimeZone,
+    Timestamp, ToSpan, Zoned,
+};
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use serde_json::json;
 
 fn serialize_zoned_as_offset<S>(z: &Zoned, serializer: S) -> Result<S::Ok, S::Error>
@@ -11,7 +18,6 @@ where
 {
     serializer.serialize_str(&z.strftime("%Y-%m-%d %H:%M:%S%:z").to_string())
 }
-
 
 // Custom deserialization function for the Zoned field
 fn deserialize_zoned_assume_ny<'de, D>(deserializer: D) -> Result<Zoned, D::Error>
@@ -44,7 +50,6 @@ where
 
     deserializer.deserialize_str(ZonedVisitor)
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Row {
@@ -84,12 +89,15 @@ INSERT INTO test VALUES ('2025-01-01', NULL, '2025-01-01T02:00:00-05:00', '16:30
     let res_iter = stmt.query_map([], |row| {
         let n = 719528 + row.get::<usize, i32>(0).unwrap();
         let version = match row.get_ref_unwrap(1) {
-            duckdb::types::ValueRef::Timestamp(_, value) => Some(Timestamp::from_second(value / 1_000_000).unwrap()),
+            duckdb::types::ValueRef::Timestamp(_, value) => {
+                Some(Timestamp::from_second(value / 1_000_000).unwrap())
+            }
             _ => None,
         };
         let micro2: i64 = row.get(2).unwrap();
         let ts = Timestamp::from_second(micro2 / 1_000_000).unwrap();
-        let time = Time::midnight().saturating_add((row.get::<usize, i64>(3)? / 1_000_000).seconds());
+        let time =
+            Time::midnight().saturating_add((row.get::<usize, i64>(3)? / 1_000_000).seconds());
         Ok(Row {
             date: Date::ZERO.checked_add(n.days()).unwrap(),
             version,
@@ -102,11 +110,12 @@ INSERT INTO test VALUES ('2025-01-01', NULL, '2025-01-01T02:00:00-05:00', '16:30
     for item in &items {
         println!("Found item: {:?}", item);
     }
-    println!("{}", json!(items.first().unwrap())); 
+    println!("{}", json!(items.first().unwrap()));
     // {"date":"2025-01-01","version":"2025-01-03T05:25:00Z","hour_beginning":"2025-01-01T00:00:00-05:00[America/New_York]"}
 
     // How to deserialize it?
-    let json_data = "{\"hour_beginning\":\"2025-03-02 00:00:00-05:00[America/New_York]\",\"price\":42.0}";
+    let json_data =
+        "{\"hour_beginning\":\"2025-03-02 00:00:00-05:00[America/New_York]\",\"price\":42.0}";
     let deserialized: Data = serde_json::from_str(json_data)?;
     println!("{:?}", deserialized);
 

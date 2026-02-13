@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::isone::_api_isone_core::{BidOffer, ResourceType};
 
-
-
 #[derive(Clone)]
 pub struct IsoneMraBidsOffersArchive {
     pub base_dir: String,
@@ -106,9 +104,9 @@ ORDER BY month;
 
 #[cfg(test)]
 mod tests {
+    use crate::db::{isone::masked_data::mra_archive::*, prod_db::ProdDb};
     use duckdb::{AccessMode, Config, Connection};
     use std::error::Error;
-    use crate::db::{isone::masked_data::mra_archive::*, prod_db::ProdDb};
 
     #[test]
     fn test_get_offers() -> Result<(), Box<dyn Error>> {

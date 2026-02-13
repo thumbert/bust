@@ -44,7 +44,6 @@ impl WithRetry for duckdb::Connection {
     }
 }
 
-
 /// Use this function to open a DuckDB connection.
 /// Suggested `max_attempts = 8`, `initial_wait = Duration::from_millis(25)`.
 pub fn open_with_retry(

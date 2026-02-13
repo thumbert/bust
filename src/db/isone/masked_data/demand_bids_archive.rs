@@ -35,7 +35,6 @@ impl DemandBidsArchive {
             true,
         )
     }
-
 }
 
 #[cfg(test)]
@@ -81,7 +80,7 @@ mod tests {
         let days = date(2025, 10, 31).up_to(date(2025, 10, 31));
         for day in days {
             archive.download_file(&day)?;
-        }   
+        }
         Ok(())
     }
 }

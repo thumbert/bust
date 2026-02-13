@@ -63,12 +63,12 @@ impl SevendaySolarForecastArchive {
         let mut out: Vec<Row> = Vec::new();
         for row in rows.iter().skip(2) {
             let n = row.len();
-            let hour = row.get(2).unwrap();  // "01", "02", "02X", "03", .. "24"
+            let hour = row.get(2).unwrap(); // "01", "02", "02X", "03", .. "24"
             for j in 3..n {
                 if row.get(j) == Some("") {
                     continue;
                 }
-                let forecast_hour_beginning = parse_hour_ending(&future_dates[j-3], hour);                
+                let forecast_hour_beginning = parse_hour_ending(&future_dates[j - 3], hour);
                 let forecast_generation = row
                     .get(j)
                     .unwrap()
@@ -153,8 +153,6 @@ impl SevendaySolarForecastArchive {
         }
         Ok(())
     }
-    
-    
 }
 
 #[cfg(test)]
@@ -212,7 +210,6 @@ mod tests {
         assert_eq!(x.forecast_generation, 696);
         Ok(())
     }
-
 
     #[test]
     fn make_gzfile() -> Result<(), Box<dyn Error>> {

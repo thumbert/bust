@@ -3,7 +3,9 @@ use std::time::Instant;
 use jiff::{ToSpan, Zoned};
 
 fn main() {
-    let mut dt = "2000-01-01T00:00:00-05:00[America/New_York]".parse::<Zoned>().unwrap();
+    let mut dt = "2000-01-01T00:00:00-05:00[America/New_York]"
+        .parse::<Zoned>()
+        .unwrap();
     let mut count = 0;
 
     let start = Instant::now();

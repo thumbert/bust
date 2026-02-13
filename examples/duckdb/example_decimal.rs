@@ -42,7 +42,8 @@ INSERT INTO test VALUES ('pen', '0.49');
     }
 
     let item = Item {
-        name: "ham".to_string(), price: dec!(10.99)
+        name: "ham".to_string(),
+        price: dec!(10.99),
     };
     println!("{}", json!(item)); // {"name":"ham","price":10.99}
 

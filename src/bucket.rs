@@ -1,7 +1,7 @@
 use core::fmt::Display;
 use rayon::prelude::*;
-use std::str::FromStr;
 use std::fmt::{self};
+use std::str::FromStr;
 
 use jiff::{civil::Weekday, tz::TimeZone, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -145,7 +145,6 @@ impl BucketLike for Bucket {
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct TimeZoneMismatchError {

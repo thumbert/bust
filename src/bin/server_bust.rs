@@ -72,7 +72,11 @@ async fn main() -> std::io::Result<()> {
                 ProdDb::isone_rtlmp(),
                 ProdDb::buckets(),
             )))
-            .app_data(Data::new((ProdDb::isone_dalmp(), ProdDb::buckets(), ProdDb::isone_ftr_cleared_prices())))
+            .app_data(Data::new((
+                ProdDb::isone_dalmp(),
+                ProdDb::buckets(),
+                ProdDb::isone_ftr_cleared_prices(),
+            )))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_ara_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_daas_offers()))

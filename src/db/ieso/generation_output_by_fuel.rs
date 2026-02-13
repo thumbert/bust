@@ -85,9 +85,7 @@ impl IesoGenOutputByFuelArchive {
         let rows = self.read_file(year)?;
         for row in rows {
             let _ = wtr.write_record(&[
-                row.begin_hour
-                    .strftime("%Y-%m-%dT%H:%M:%S.000")
-                    .to_string(),
+                row.begin_hour.strftime("%Y-%m-%dT%H:%M:%S.000").to_string(),
                 row.fuel_type.to_string(),
                 row.output_quality.to_string(),
                 match row.mw {
@@ -110,7 +108,7 @@ impl IesoGenOutputByFuelArchive {
 
     /// Upload each one year to DuckDB.
     /// Assumes the corresponding json.gz file exists.  
-    /// 
+    ///
     pub fn update_duckdb(&self, year: i16) -> Result<(), Box<dyn Error>> {
         info!(
             "inserting hourly generation totals by fuel for IESO's area for year {} ...",
@@ -149,8 +147,7 @@ WHERE NOT EXISTS (
 )
 ORDER BY hour_beginning, fuel_type;
 "#,
-            self.base_dir,
-            year,
+            self.base_dir, year,
         );
         // println!("{}", sql);
 
@@ -252,10 +249,7 @@ pub struct Row {
 mod tests {
     use std::{error::Error, path::Path};
 
-    use crate::{
-        db::prod_db::ProdDb,
-        interval::term::Term,
-    };
+    use crate::{db::prod_db::ProdDb, interval::term::Term};
 
     use super::*;
 

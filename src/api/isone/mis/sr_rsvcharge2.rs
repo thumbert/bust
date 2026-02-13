@@ -4,7 +4,11 @@ use duckdb::{params, AccessMode, Config, Connection, Result};
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 
 use crate::db::isone::mis::sr_rsvcharge2::{RowTab5, SrRsvcharge2Archive};
-use actix_web::{get, web::{self}, HttpResponse, Responder};
+use actix_web::{
+    get,
+    web::{self},
+    HttpResponse, Responder,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -190,7 +194,6 @@ ORDER BY subaccount_id, report_date, hour_beginning;
     Ok(res)
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -199,12 +202,15 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::{api::isone::mis::sr_rsvcharge2::{get_tab5_data, DailyCharges}, db::prod_db::ProdDb};
+    use crate::{
+        api::isone::mis::sr_rsvcharge2::{get_tab5_data, DailyCharges},
+        db::prod_db::ProdDb,
+    };
 
     fn get_path() -> String {
         ProdDb::sr_rsvcharge2().duckdb_path.to_string()
     }
-    
+
     #[test]
     fn test_tab5() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;

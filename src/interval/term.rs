@@ -8,9 +8,9 @@ use jiff::{
 };
 // use super::interval::Interval;
 // use pest::error::Error;
+use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
-use pest::iterators::Pair;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

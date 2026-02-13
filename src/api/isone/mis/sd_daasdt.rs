@@ -7,7 +7,9 @@ use duckdb::{
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 
-use crate::db::isone::mis::sd_daasdt::{AssetType, ProductType, RowTab0, RowTab1, RowTab6, RowTab7, SdDaasdtArchive};
+use crate::db::isone::mis::sd_daasdt::{
+    AssetType, ProductType, RowTab0, RowTab1, RowTab6, RowTab7, SdDaasdtArchive,
+};
 use actix_web::{
     get,
     web::{self},
@@ -80,7 +82,7 @@ struct DataQuery2 {
 async fn api_daily_charges(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
-    db: web::Data<SdDaasdtArchive>
+    db: web::Data<SdDaasdtArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
@@ -108,7 +110,7 @@ async fn api_daily_charges(
 async fn api_daily_credits(
     path: web::Path<(usize, Date, Date, u8)>,
     query: web::Query<DataQuery2>,
-    db: web::Data<SdDaasdtArchive>
+    db: web::Data<SdDaasdtArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
@@ -726,7 +728,6 @@ ORDER BY subaccount_id, report_date, hour_beginning;
     Ok(res)
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -741,7 +742,7 @@ mod tests {
 
     fn get_path() -> String {
         ProdDb::sd_daasdt().duckdb_path.to_string()
-    }    
+    }
 
     #[test]
     fn test_tab0() -> Result<()> {

@@ -69,7 +69,8 @@ mod tests {
             8,
             Duration::from_millis(25),
             AccessMode::ReadOnly,
-        ).unwrap();
+        )
+        .unwrap();
         let names = get_all(&conn).unwrap();
         assert!(names.len() >= 110);
         Ok(())

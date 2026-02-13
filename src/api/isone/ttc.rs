@@ -41,7 +41,6 @@ struct DataQuery {
     // format: Option<String>,
 }
 
-
 /// Get TTC data between a start and end date.
 /// If `columns` is `None`, return all columns.
 fn get_ttc_data(
@@ -102,7 +101,6 @@ ORDER BY hour_beginning;
     Ok(String::from_utf8(wtr.into_inner()?)?)
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::{env, path::Path};
@@ -110,12 +108,13 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::{api::isone::ttc::*, db::{prod_db::ProdDb}};
+    use crate::{api::isone::ttc::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_data() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_ttc().duckdb_path.clone(), config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::isone_ttc().duckdb_path.clone(), config).unwrap();
         let data = get_ttc_data(
             &conn,
             date(2024, 1, 1),

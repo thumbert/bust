@@ -35,7 +35,9 @@ impl HourTz {
     }
 
     pub fn previous(&self) -> HourTz {
-        HourTz { start: self.start.saturating_sub(1.hours()) }
+        HourTz {
+            start: self.start.saturating_sub(1.hours()),
+        }
     }
 }
 
@@ -55,9 +57,7 @@ mod tests {
 
     use jiff::Zoned;
 
-    use crate::interval::
-        hour_tz::HourTz
-    ;
+    use crate::interval::hour_tz::HourTz;
 
     #[test]
     fn test_hourtz() {

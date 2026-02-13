@@ -9,14 +9,13 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
-// 
+//
 pub struct TotalTransferCapabilityArchive {
     pub base_dir: String,
     pub duckdb_path: String,
 }
 
 impl TotalTransferCapabilityArchive {
-
     /// All columns as of 2025-06-01.  This will change in the future once NECEC is operational.
     pub fn all_columns() -> Vec<String> {
         vec![
@@ -36,7 +35,7 @@ impl TotalTransferCapabilityArchive {
     }
 
     /// Path to the CSV file with the ISO report for a given day.
-    /// ISO doesn't publish this data as part of their webservices API. 
+    /// ISO doesn't publish this data as part of their webservices API.
     /// https://webservices.iso-ne.com/api/v1.1/totaltransfercapability/day/20250101
     pub fn filename(&self, date: Date) -> String {
         self.base_dir.to_owned()
@@ -46,7 +45,6 @@ impl TotalTransferCapabilityArchive {
             + &date.strftime("%Y%m%d").to_string()
             + ".csv"
     }
-
 
     /// Upload one month to DuckDB.
     /// Assumes all json.gz file exists for DA and RT.  Skips the day if it doesn't exist.
@@ -205,7 +203,7 @@ mod tests {
         // for day in &days {
         //     archive.download_days(vec![day])?;
         // }
-        let months = month(2025,1).up_to(month(2025, 5))?;
+        let months = month(2025, 1).up_to(month(2025, 5))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);
             archive.update_duckdb(month)?;

@@ -2,15 +2,14 @@ use std::{fmt, str::FromStr};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
-
 use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
 use itertools::Itertools;
 use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::db::prod_db::ProdDb;
 use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
+use crate::db::prod_db::ProdDb;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Copy)]
 pub enum FlowComponent {
@@ -183,7 +182,9 @@ mod tests {
     #[test]
     fn test_data() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_actual_interchange().duckdb_path, config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::isone_actual_interchange().duckdb_path, config)
+                .unwrap();
         let data = get_flows(
             &conn,
             date(2025, 7, 14),

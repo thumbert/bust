@@ -30,7 +30,7 @@ impl IsoneFtrPricesArchive {
             + ".json"
     }
 
-        pub fn filename_year(&self, auction_type: AuctionType, year: i32) -> String {
+    pub fn filename_year(&self, auction_type: AuctionType, year: i32) -> String {
         self.base_dir.to_owned()
             + "/Raw"
             + "/ftr_clearing_prices_"
@@ -43,9 +43,11 @@ impl IsoneFtrPricesArchive {
             + ".json"
     }
 
-
-
-    pub fn download_file_month(&self, auction_type: AuctionType, month: Month) -> Result<(), Box<dyn Error>> {
+    pub fn download_file_month(
+        &self,
+        auction_type: AuctionType,
+        month: Month,
+    ) -> Result<(), Box<dyn Error>> {
         super::lib_isoexpress::download_file(
             format!(
                 "https://webservices.iso-ne.com/api/v1.1/ftrauctionclearingprices/{}/month/{}",
@@ -63,7 +65,11 @@ impl IsoneFtrPricesArchive {
         )
     }
 
-    pub fn download_file_year(&self, auction_type: AuctionType, year: i32) -> Result<(), Box<dyn Error>> {
+    pub fn download_file_year(
+        &self,
+        auction_type: AuctionType,
+        year: i32,
+    ) -> Result<(), Box<dyn Error>> {
         super::lib_isoexpress::download_file(
             format!(
                 "https://webservices.iso-ne.com/api/v1.1/ftrauctionclearingprices/{}/year/{}",

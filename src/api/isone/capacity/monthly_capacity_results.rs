@@ -17,7 +17,10 @@ async fn participant_ids(db: web::Data<IsoneMraBidsOffersArchive>) -> impl Respo
 }
 
 #[get("/isone/capacity/mra/results/interface/start/{start}/end/{end}")]
-async fn results_interface(path: web::Path<(String, String)>, db: web::Data<IsoneMraBidsOffersArchive>) -> impl Responder {
+async fn results_interface(
+    path: web::Path<(String, String)>,
+    db: web::Data<IsoneMraBidsOffersArchive>,
+) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start = match path.0.replace('-', "").parse::<u32>() {
@@ -33,7 +36,10 @@ async fn results_interface(path: web::Path<(String, String)>, db: web::Data<Ison
 }
 
 #[get("/isone/capacity/mra/results/zone/start/{start}/end/{end}")]
-async fn results_zone(path: web::Path<(String, String)>, db: web::Data<IsoneMraBidsOffersArchive>) -> impl Responder {
+async fn results_zone(
+    path: web::Path<(String, String)>,
+    db: web::Data<IsoneMraBidsOffersArchive>,
+) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
     let start = match path.0.replace('-', "").parse::<u32>() {
@@ -205,7 +211,8 @@ mod tests {
     #[test]
     fn test_get_results_zone() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config)
+            .unwrap();
         let data = get_results_zone(conn, 202401, 202403).unwrap();
         assert!(data.len() >= 12);
         Ok(())
@@ -214,7 +221,8 @@ mod tests {
     #[test]
     fn test_get_results_interface() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path , config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config)
+            .unwrap();
         let data = get_results_interface(conn, 202401, 202403).unwrap();
         let sene = data
             .iter()
@@ -228,7 +236,8 @@ mod tests {
     #[test]
     fn test_participant_ids() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::isone_mra_bids_offers().duckdb_path, config)
+            .unwrap();
         let ids = get_participant_ids(conn);
         assert!(ids.len() >= 107);
         Ok(())

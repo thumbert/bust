@@ -1,8 +1,6 @@
 use std::{error::Error, path::Path};
 
-use bust::{
-    db::prod_db::ProdDb, interval::month::month
-};
+use bust::{db::prod_db::ProdDb, interval::month::month};
 use clap::Parser;
 use jiff::{ToSpan, Zoned};
 use log::{error, info};
@@ -15,7 +13,7 @@ struct Args {
     env: String,
 }
 
-/// Run this job every day 
+/// Run this job every day
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
@@ -25,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
     let today = Zoned::now().date();
-    let archive = ProdDb::isone_sevenday_capacity_forecast();   
+    let archive = ProdDb::isone_sevenday_capacity_forecast();
     for i in 0..5 {
         let date = today - i.days();
         let file = archive.filename(&date) + ".gz";

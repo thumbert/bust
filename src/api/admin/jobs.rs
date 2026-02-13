@@ -70,16 +70,12 @@ mod tests {
     #[test]
     fn api_get_job_names() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let url = format!(
-            "{}/admin/jobs/job-names",
-            env::var("RUST_SERVER").unwrap(),
-        );
+        let url = format!("{}/admin/jobs/job-names", env::var("RUST_SERVER").unwrap(),);
         let response = reqwest::blocking::get(url)?.text()?;
         let vs: Vec<String> = serde_json::from_str(&response).unwrap();
         assert!(vs.contains(&"update_isone_prices_da.sh".to_string()));
         Ok(())
     }
-
 
     #[test]
     fn api_get_log() -> Result<(), reqwest::Error> {

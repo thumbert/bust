@@ -9,4 +9,3 @@ pub mod masked_energy_offers;
 pub mod mis;
 pub mod participant_list;
 pub mod ttc;
-

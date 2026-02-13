@@ -1,7 +1,7 @@
 use duckdb::Connection;
 use jiff::civil::Date;
 use jiff::Timestamp;
-use jiff::{Zoned, tz::TimeZone};
+use jiff::{tz::TimeZone, Zoned};
 use log::{error, info};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -156,100 +156,178 @@ pub struct Record {
     pub mcl: Decimal,
 }
 
-pub fn get_data(conn: &Connection, query_filter: &QueryFilter) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
-   let mut query = String::from(r#"
+pub fn get_data(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
 SELECT
     hour_beginning,
     ptid,
     lmp,
     mcc,
     mcl
-FROM da_lmp WHERE 1=1"#);
+FROM da_lmp WHERE 1=1"#,
+    );
     if let Some(hour_beginning) = &query_filter.hour_beginning {
-        query.push_str(&format!("
-    AND hour_beginning = '{}'", hour_beginning.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning = '{}'",
+            hour_beginning.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(hour_beginning_gte) = &query_filter.hour_beginning_gte {
-        query.push_str(&format!("
-    AND hour_beginning >= '{}'", hour_beginning_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning >= '{}'",
+            hour_beginning_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(hour_beginning_lt) = &query_filter.hour_beginning_lt {
-        query.push_str(&format!("
-    AND hour_beginning < '{}'", hour_beginning_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")));
+        query.push_str(&format!(
+            "
+    AND hour_beginning < '{}'",
+            hour_beginning_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
     }
     if let Some(ptid) = query_filter.ptid {
-        query.push_str(&format!("
-    AND ptid = {}", ptid));
+        query.push_str(&format!(
+            "
+    AND ptid = {}",
+            ptid
+        ));
     }
     if let Some(ptid_in) = &query_filter.ptid_in {
-        query.push_str(&format!("
-    AND ptid IN ({})", ptid_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND ptid IN ({})",
+            ptid_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(ptid_gte) = query_filter.ptid_gte {
-        query.push_str(&format!("
-    AND ptid >= {}", ptid_gte));
+        query.push_str(&format!(
+            "
+    AND ptid >= {}",
+            ptid_gte
+        ));
     }
     if let Some(ptid_lte) = query_filter.ptid_lte {
-        query.push_str(&format!("
-    AND ptid <= {}", ptid_lte));
+        query.push_str(&format!(
+            "
+    AND ptid <= {}",
+            ptid_lte
+        ));
     }
     if let Some(lmp) = &query_filter.lmp {
-        query.push_str(&format!("
-    AND lmp = {}", lmp));
+        query.push_str(&format!(
+            "
+    AND lmp = {}",
+            lmp
+        ));
     }
     if let Some(lmp_in) = &query_filter.lmp_in {
-        query.push_str(&format!("
-    AND lmp IN ({})", lmp_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND lmp IN ({})",
+            lmp_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(lmp_gte) = &query_filter.lmp_gte {
-        query.push_str(&format!("
-    AND lmp >= {}", lmp_gte));
+        query.push_str(&format!(
+            "
+    AND lmp >= {}",
+            lmp_gte
+        ));
     }
     if let Some(lmp_lte) = &query_filter.lmp_lte {
-        query.push_str(&format!("
-    AND lmp <= {}", lmp_lte));
+        query.push_str(&format!(
+            "
+    AND lmp <= {}",
+            lmp_lte
+        ));
     }
     if let Some(mcc) = &query_filter.mcc {
-        query.push_str(&format!("
-    AND mcc = {}", mcc));
+        query.push_str(&format!(
+            "
+    AND mcc = {}",
+            mcc
+        ));
     }
     if let Some(mcc_in) = &query_filter.mcc_in {
-        query.push_str(&format!("
-    AND mcc IN ({})", mcc_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND mcc IN ({})",
+            mcc_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(mcc_gte) = &query_filter.mcc_gte {
-        query.push_str(&format!("
-    AND mcc >= {}", mcc_gte));
+        query.push_str(&format!(
+            "
+    AND mcc >= {}",
+            mcc_gte
+        ));
     }
     if let Some(mcc_lte) = &query_filter.mcc_lte {
-        query.push_str(&format!("
-    AND mcc <= {}", mcc_lte));
+        query.push_str(&format!(
+            "
+    AND mcc <= {}",
+            mcc_lte
+        ));
     }
     if let Some(mcl) = &query_filter.mcl {
-        query.push_str(&format!("
-    AND mcl = {}", mcl));
+        query.push_str(&format!(
+            "
+    AND mcl = {}",
+            mcl
+        ));
     }
     if let Some(mcl_in) = &query_filter.mcl_in {
-        query.push_str(&format!("
-    AND mcl IN ({})", mcl_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        query.push_str(&format!(
+            "
+    AND mcl IN ({})",
+            mcl_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if let Some(mcl_gte) = &query_filter.mcl_gte {
-        query.push_str(&format!("
-    AND mcl >= {}", mcl_gte));
+        query.push_str(&format!(
+            "
+    AND mcl >= {}",
+            mcl_gte
+        ));
     }
     if let Some(mcl_lte) = &query_filter.mcl_lte {
-        query.push_str(&format!("
-    AND mcl <= {}", mcl_lte));
+        query.push_str(&format!(
+            "
+    AND mcl <= {}",
+            mcl_lte
+        ));
     }
     query.push(';');
-    println!("query: {}", query);   
+    println!("query: {}", query);
 
     let mut stmt = conn.prepare(&query)?;
     let rows = stmt.query_map([], |row| {
         let _micros0: i64 = row.get::<usize, i64>(0)?;
         let hour_beginning = Zoned::new(
-                 Timestamp::from_microsecond(_micros0).unwrap(),
-                 TimeZone::get("America/Los_Angeles").unwrap()
+            Timestamp::from_microsecond(_micros0).unwrap(),
+            TimeZone::get("America/Los_Angeles").unwrap(),
         );
         let ptid: u32 = row.get::<usize, u32>(1)?;
         let lmp: Decimal = match row.get_ref_unwrap(2) {
@@ -411,7 +489,6 @@ impl QueryFilterBuilder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use duckdb::{AccessMode, Config, Connection};
@@ -458,20 +535,12 @@ mod tests {
         conn.execute("LOAD ICU;SET TimeZone = 'America/New_York';", [])?;
         let filter = QueryFilterBuilder::new()
             .ptid_in(vec![4000, 4001])
-            .hour_beginning_gte(
-                date(2025, 12, 1)
-                    .at(0, 0, 0, 0)
-                    .in_tz("America/New_York")?,
-            )
-            .hour_beginning_lt(
-                date(2025, 12, 2)
-                    .at(0, 0, 0, 0)
-                    .in_tz("America/New_York")?,
-            )
+            .hour_beginning_gte(date(2025, 12, 1).at(0, 0, 0, 0).in_tz("America/New_York")?)
+            .hour_beginning_lt(date(2025, 12, 2).at(0, 0, 0, 0).in_tz("America/New_York")?)
             .build();
         let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
         conn.close().unwrap();
-        assert_eq!(xs.len(), 48);  // two ptids, 24 hours
+        assert_eq!(xs.len(), 48); // two ptids, 24 hours
         let xs0 = xs
             .iter()
             .find(|r| {
@@ -487,9 +556,7 @@ mod tests {
             *xs0,
             Record {
                 ptid: 4000,
-                hour_beginning: date(2025, 12, 1)
-                    .at(6, 0, 0, 0)
-                    .in_tz("America/New_York")?,
+                hour_beginning: date(2025, 12, 1).at(6, 0, 0, 0).in_tz("America/New_York")?,
                 lmp: dec!(72.41),
                 mcc: dec!(0.02),
                 mcl: dec!(0.16),

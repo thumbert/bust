@@ -7,7 +7,6 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
-
 #[derive(Clone)]
 pub struct IsoneActualInterchangeArchive {
     pub base_dir: String,
@@ -92,7 +91,6 @@ ORDER BY hour_beginning, ptid;
         Ok(())
     }
 
-
     /// Data is usually published before 13:30 every day
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
@@ -108,7 +106,7 @@ ORDER BY hour_beginning, ptid;
         )
     }
 
-    /// Look for missing days.  Does not download current day. 
+    /// Look for missing days.  Does not download current day.
     pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
         let last = Zoned::now().date();
         for day in month.days() {
@@ -125,7 +123,6 @@ ORDER BY hour_beginning, ptid;
         }
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -163,7 +160,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-
-

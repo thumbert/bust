@@ -13,11 +13,11 @@ use url::form_urlencoded;
 use convert_case::{Case, Casing};
 use jiff::Timestamp;
 use jiff::{tz::TimeZone, Zoned};
+use log::{error, info};
 use rust_decimal::Decimal;
 use std::fs::{self, File};
 use std::io::Read;
 use std::process::Command;
-use log::{error, info};
 use std::str::FromStr;
 
 use crate::interval::month::Month;
@@ -125,7 +125,10 @@ impl NyisoBindingConstraintsDaArchive {
     /// is wrong for some reason, it needs to be manually deleted first!
     ///
     pub fn update_duckdb(&self, month: Month) -> Result<(), Box<dyn Error>> {
-        info!("inserting da binding constraint files for the month {} ...", month);
+        info!(
+            "inserting da binding constraint files for the month {} ...",
+            month
+        );
         let sql = format!(
             r#"
 CREATE TABLE IF NOT EXISTS binding_constraints (
@@ -698,15 +701,17 @@ impl QueryFilterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-    use duckdb::{AccessMode, Config, Connection};
-    use crate::{db::prod_db::ProdDb, interval::month::month};
     use super::*;
+    use crate::{db::prod_db::ProdDb, interval::month::month};
+    use duckdb::{AccessMode, Config, Connection};
+    use std::error::Error;
 
     #[test]
     fn test_get_data() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nyiso_binding_constraints_da().duckdb_path, config).unwrap();
+        let conn =
+            Connection::open_with_flags(ProdDb::nyiso_binding_constraints_da().duckdb_path, config)
+                .unwrap();
         let filter = QueryFilterBuilder::new().build();
         let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
         conn.close().unwrap();
@@ -732,7 +737,6 @@ mod tests {
         Ok(())
     }
 
-
     #[ignore]
     #[test]
     fn download_file() -> Result<(), Box<dyn Error>> {
@@ -749,6 +753,4 @@ mod tests {
         }
         Ok(())
     }
-
 }
-

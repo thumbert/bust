@@ -2,8 +2,8 @@ use jiff::civil::Date;
 use jiff::Zoned;
 use log::{error, info};
 use rust_decimal::Decimal;
-use std::fs;
 use std::error::Error;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
@@ -106,7 +106,6 @@ ORDER BY hour_beginning, ptid;
         Ok(())
     }
 
-
     /// Data is usually published before 13:30 every day
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
@@ -135,17 +134,16 @@ ORDER BY hour_beginning, ptid;
                 if metadata.len() < 100_000 {
                     info!("File for day {} is incorrect, deleting it.", day);
                     fs::remove_file(&fname)?;
-                } 
-            } 
+                }
+            }
             if !Path::new(&fname).exists() {
                 info!("Working on {}", day);
                 self.download_file(day)?;
                 info!("  downloaded file for {}", day);
-            } 
+            }
         }
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -183,7 +181,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-
-

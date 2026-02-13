@@ -1,5 +1,7 @@
 pub mod actual_interchange_archive;
 pub mod calendar_events;
+pub mod daas_reserve_data_archive;
+pub mod daas_strike_prices_archive;
 pub mod dalmp_archive;
 pub mod ftr_prices_archive;
 pub mod fuelmix_archive;
@@ -7,8 +9,6 @@ pub mod lib_dam;
 pub mod lib_isoexpress;
 pub mod masked_data;
 pub mod mis;
-pub mod daas_reserve_data_archive;
-pub mod daas_strike_prices_archive;
 pub mod monthly_capacity_auction_archive;
 pub mod participants_archive;
 pub mod rtlmp_archive;

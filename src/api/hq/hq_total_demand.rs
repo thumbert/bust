@@ -1,16 +1,19 @@
-use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::Deserialize;
 use duckdb::AccessMode;
+use serde::Deserialize;
+use std::time::Duration;
 
-use rust_decimal::Decimal;
 use jiff::Zoned;
+use rust_decimal::Decimal;
 
 use crate::db::hq::electricity_demand::*;
 use crate::utils::lib_duckdb::open_with_retry;
 
 #[get("/hq/total_demand")]
-pub async fn get_data_api(query: web::Query<ApiQuery>, data: web::Data<HqTotalDemandArchive>) -> impl Responder {
+pub async fn get_data_api(
+    query: web::Query<ApiQuery>,
+    data: web::Data<HqTotalDemandArchive>,
+) -> impl Responder {
     let conn = open_with_retry(
         &data.duckdb_path,
         8,
@@ -59,7 +62,10 @@ impl ApiQuery {
             start_15min_gte: self.start_15min_gte.clone(),
             start_15min_lt: self.start_15min_lt.clone(),
             value: self.value,
-            value_in: self.value_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            value_in: self
+                .value_in
+                .as_ref()
+                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             value_gte: self.value_gte,
             value_lte: self.value_lte,
         }

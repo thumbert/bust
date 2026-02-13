@@ -359,7 +359,7 @@ mod tests {
         let archive = ProdDb::hq_hydro_data();
         // let days = vec![date(2024, 12, 4), date(2024, 12, 5), date(2024, 12, 6)];
         let days = date(2024, 12, 8).series(1.day()).take(5).collect();
-        
+
         archive.update_duckdb(days)
     }
 

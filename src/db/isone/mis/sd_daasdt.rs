@@ -41,7 +41,7 @@ pub enum ProductType {
     #[serde(rename = "DA TMSR")]
     Tmsr,
     #[serde(rename = "DA TMNSR")]
-    Tmnsr, 
+    Tmnsr,
     #[serde(rename = "DA TMOR")]
     Tmor,
     #[serde(rename = "DA EIR")]

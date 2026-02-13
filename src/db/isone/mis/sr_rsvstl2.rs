@@ -9,8 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use super::lib_mis::*;
 
-
-
 // Asset section
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RowTab3 {
@@ -28,7 +26,6 @@ pub struct RowTab3 {
     pub rt_reserve_credit: f64,
 }
 
-
 pub struct SrRsvstl2Report {
     pub info: MisReportInfo,
     pub lines: Vec<String>,
@@ -45,7 +42,7 @@ impl SrRsvstl2Report {
             .has_headers(false)
             .from_reader(data.as_bytes());
         for result in rdr.records() {
-            let record = result?;            
+            let record = result?;
             let hour_beginning = parse_hour_ending(&self.info.report_date, &record[1]);
             let asset_id: u32 = record[2].parse()?;
             let asset_name: String = record[3].to_owned();
@@ -68,7 +65,7 @@ impl SrRsvstl2Report {
                 rt_tmsr_credit,
                 rt_tmnsr_credit,
                 rt_tmor_credit,
-                rt_reserve_credit, 
+                rt_reserve_credit,
             });
         }
 
@@ -109,7 +106,6 @@ impl MisArchiveDuckDB for SrRsvstl2Archive {
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
-
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {
         info!("initializing {} archive ...", self.report_name());
@@ -207,14 +203,17 @@ impl MisArchiveDuckDB for SrRsvstl2Archive {
             self.base_dir,
         );
         match conn.execute(&sql, params![]) {
-            Ok(n) => info!("  inserted {} rows into {} tab3 table", n, self.report_name()),
+            Ok(n) => info!(
+                "  inserted {} rows into {} tab3 table",
+                n,
+                self.report_name()
+            ),
             Err(e) => error!("{:?}", e),
         }
 
         info!("Done\n");
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -223,11 +222,7 @@ mod tests {
 
     use jiff::{civil::date, Zoned};
 
-    use crate::db::{
-        isone::mis::lib_mis::*,
-        prod_db::ProdDb,
-    };
-
+    use crate::db::{isone::mis::lib_mis::*, prod_db::ProdDb};
 
     #[ignore]
     #[test]
@@ -244,7 +239,6 @@ mod tests {
         Ok(())
     }
 
-
     #[test]
     fn months_test() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::sr_rsvstl2();
@@ -254,5 +248,4 @@ mod tests {
         }
         Ok(())
     }
-
 }

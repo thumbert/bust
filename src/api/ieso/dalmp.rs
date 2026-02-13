@@ -31,7 +31,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Date, Date)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<IesoDaLmpNodalArchive>
+    db: web::Data<IesoDaLmpNodalArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();
@@ -59,7 +59,7 @@ async fn api_hourly_prices(
 async fn api_daily_prices(
     path: web::Path<(Bucket, Date, Date)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<IesoDaLmpNodalArchive>
+    db: web::Data<IesoDaLmpNodalArchive>,
 ) -> impl Responder {
     let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
     let conn = Connection::open_with_flags(db.duckdb_path.clone(), config).unwrap();

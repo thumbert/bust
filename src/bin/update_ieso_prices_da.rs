@@ -84,6 +84,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         archive.update_duckdb(&date)?;
     }
 
-
     Ok(())
 }

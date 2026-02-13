@@ -101,7 +101,6 @@ fn get_names(conn: &Connection) -> Result<Vec<String>> {
     Ok(res)
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -115,7 +114,8 @@ mod tests {
     #[test]
     fn test_names() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config)
+            .unwrap();
         // get all facilities
         let names = get_names(&conn).unwrap();
         assert!(names.len() >= 110);
@@ -125,7 +125,8 @@ mod tests {
     #[test]
     fn test_status() -> Result<()> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config).unwrap();
+        let conn = Connection::open_with_flags(ProdDb::nrc_generator_status().duckdb_path, config)
+            .unwrap();
 
         // for all facilities
         let data = get_status(&conn, date(2024, 12, 4), date(2024, 12, 8), None).unwrap();

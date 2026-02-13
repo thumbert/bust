@@ -90,8 +90,7 @@ async fn api_offers(
         .as_ref()
         .map(|ids| ids.split(',').map(|e| e.parse::<i32>().unwrap()).collect());
 
-    let offers =
-        get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
+    let offers = get_energy_offers(&conn, market, start_date, end_date, asset_ids).unwrap();
     HttpResponse::Ok().json(offers)
 }
 

@@ -1,8 +1,6 @@
 use std::{error::Error, path::Path};
 
-use bust::{
-    db::prod_db::ProdDb, interval::month::month
-};
+use bust::{db::prod_db::ProdDb, interval::month::month};
 use clap::Parser;
 use jiff::{ToSpan, Zoned};
 use log::{error, info};

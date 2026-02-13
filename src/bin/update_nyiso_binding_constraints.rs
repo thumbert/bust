@@ -1,6 +1,9 @@
 use std::{error::Error, path::Path};
 
-use bust::{db::prod_db::ProdDb, interval::month::{Month, month}};
+use bust::{
+    db::prod_db::ProdDb,
+    interval::month::{month, Month},
+};
 use clap::Parser;
 use jiff::Zoned;
 
@@ -33,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         months.push(current_month.previous());
     }
     months.push(current_month);
-    
+
     let archive = ProdDb::nyiso_binding_constraints_da();
     for month in months {
         archive.download_file(month)?;

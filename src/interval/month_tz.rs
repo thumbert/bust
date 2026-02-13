@@ -1,8 +1,4 @@
-
-use jiff::{
-    civil::date,
-    ToSpan, Zoned,
-};
+use jiff::{civil::date, ToSpan, Zoned};
 
 use crate::interval::{date_tz::DateTz, interval_base::IntervalTzLike};
 
@@ -20,16 +16,25 @@ impl MonthTz {
     }
 
     pub fn containing(zoned: Zoned) -> Self {
-        MonthTz(zoned.with().day(1).hour(0).minute(0).second(0).nanosecond(0).build().unwrap())
+        MonthTz(
+            zoned
+                .with()
+                .day(1)
+                .hour(0)
+                .minute(0)
+                .second(0)
+                .nanosecond(0)
+                .build()
+                .unwrap(),
+        )
     }
 
     pub fn start_date(&self) -> DateTz {
         DateTz::containing(&self.start())
     }
 
-
     pub fn end_date(&self) -> DateTz {
-        DateTz::containing(&self.end().checked_sub(1.day()).unwrap())    
+        DateTz::containing(&self.end().checked_sub(1.day()).unwrap())
     }
 
     pub fn next(&self) -> MonthTz {
@@ -93,15 +98,15 @@ impl IntervalTzLike for MonthTz {
 //         .unwrap()
 //     }
 
-    // pub fn hour_count(&self) -> usize {
-    //     usize::try_from(
-    //         self.next()
-    //             .start
-    //             .signed_duration_since(self.start)
-    //             .num_hours(),
-    //     )
-    //     .unwrap()
-    // }
+// pub fn hour_count(&self) -> usize {
+//     usize::try_from(
+//         self.next()
+//             .start
+//             .signed_duration_since(self.start)
+//             .num_hours(),
+//     )
+//     .unwrap()
+// }
 // }
 
 // impl IntervalLike for MonthTz {

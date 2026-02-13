@@ -244,7 +244,6 @@
 //         true_solution.insert('l', 4);
 //         println!("{:?}", puzzle.check_solution(&true_solution));
 //         assert_eq!(solution, Some(true_solution));
-    
 
 //         Ok(())
 //     }

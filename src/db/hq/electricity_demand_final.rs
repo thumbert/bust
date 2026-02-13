@@ -157,7 +157,7 @@ mod tests {
         let term = "Jan24".parse::<Term>().unwrap();
         for day in term.days() {
             archive.download_file(&day)?;
-        }   
+        }
         Ok(())
     }
 }

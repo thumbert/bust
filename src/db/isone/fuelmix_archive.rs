@@ -7,7 +7,6 @@ use std::process::Command;
 
 use crate::interval::month::Month;
 
-
 #[derive(Clone)]
 pub struct IsoneFuelMixArchive {
     pub base_dir: String,
@@ -29,10 +28,7 @@ impl IsoneFuelMixArchive {
     /// Assumes all json.gz file exists for DA and RT.  Skips the day if it doesn't exist.
     ///  
     pub fn update_duckdb(&self, day: &Date) -> Result<(), Box<dyn Error>> {
-        info!(
-            "inserting fuel mix file for day {} ...",
-            day
-        );
+        info!("inserting fuel mix file for day {} ...", day);
 
         let sql = format!(
             r#"
@@ -98,7 +94,6 @@ ORDER BY timestamp, fuel_category;
         Ok(())
     }
 
-
     /// Data is usually published before 13:30 every day
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
@@ -114,7 +109,7 @@ ORDER BY timestamp, fuel_category;
         )
     }
 
-    /// Look for missing days.  Does not download current day. 
+    /// Look for missing days.  Does not download current day.
     pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
         let last = Zoned::now().date();
         for day in month.days() {
@@ -131,7 +126,6 @@ ORDER BY timestamp, fuel_category;
         }
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -174,7 +168,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-
-

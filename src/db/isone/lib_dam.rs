@@ -30,7 +30,8 @@ pub fn is_rtlmp_published(date: Date) -> Result<bool, Box<dyn Error>> {
     match date.cmp(&today) {
         Greater | Equal => Ok(false),
         Less => {
-            let url = "https://www.iso-ne.com/isoexpress/web/reports/pricing/-/tree/lmps-rt-hourly-final";
+            let url =
+                "https://www.iso-ne.com/isoexpress/web/reports/pricing/-/tree/lmps-rt-hourly-final";
             let content = reqwest::blocking::get(url)?.text()?;
             let tag = format!("lmp_rt_final_{}.csv", date.strftime("%Y%m%d"));
             if content.contains(&tag) {
@@ -64,6 +65,4 @@ mod tests {
         assert!(!is_dalmp_published(date(2042, 3, 18))?);
         Ok(())
     }
-
-
 }

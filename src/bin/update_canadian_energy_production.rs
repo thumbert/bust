@@ -2,7 +2,7 @@ use std::error::Error;
 
 use bust::db::prod_db::ProdDb;
 
-/// Run this job at the beginning of every month, say on the 3rd day 
+/// Run this job at the beginning of every month, say on the 3rd day
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)

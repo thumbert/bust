@@ -91,7 +91,6 @@ ORDER BY hour_beginning, ptid;
         Ok(())
     }
 
-
     /// https://www.iso-ne.com/api/1/services/events.json?sortBy=event_start_date_gmt+asc&fromDate=2026-02-02T00:00:00&toDate=2026-02-02T23:59:59
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         super::lib_isoexpress::download_file(
@@ -107,7 +106,7 @@ ORDER BY hour_beginning, ptid;
         )
     }
 
-    /// Look for missing days.  Does not download current day. 
+    /// Look for missing days.  Does not download current day.
     pub fn download_missing_days(&self, month: Month) -> Result<(), Box<dyn Error>> {
         let last = Zoned::now().date();
         for day in month.days() {
@@ -124,7 +123,6 @@ ORDER BY hour_beginning, ptid;
         }
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -162,7 +160,3 @@ mod tests {
         Ok(())
     }
 }
-
-
-
-

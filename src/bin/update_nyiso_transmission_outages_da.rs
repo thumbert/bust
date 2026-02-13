@@ -1,8 +1,8 @@
 use std::error::Error;
 
+use bust::db::prod_db::ProdDb;
 use bust::interval::month::Month;
 use jiff::Zoned;
-use bust::db::prod_db::ProdDb;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
@@ -34,4 +34,3 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
-

@@ -1,6 +1,9 @@
 use std::{error::Error, path::Path};
 
-use bust::{db::{nyiso::dalmp::NodeType, prod_db::ProdDb}, interval::month::{Month, month}};
+use bust::{
+    db::{nyiso::dalmp::NodeType, prod_db::ProdDb},
+    interval::month::{month, Month},
+};
 use clap::Parser;
 use jiff::Zoned;
 use log::info;
