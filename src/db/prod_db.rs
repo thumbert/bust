@@ -34,7 +34,7 @@ use crate::db::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
         energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive,
         scheduled_outages::NyisoScheduledOutagesArchive,
-        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
+        transmission_outages_da::NyisoTransmissionOutagesDaArchive, zonal_uplift::NyisoZonalUpliftArchive,
     },
     statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
 };
@@ -389,6 +389,15 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/TransmissionOutages/DA".to_string(),
             duckdb_path:
                 "/home/adrian/Downloads/Archive/DuckDB/nyiso/transmission_outages_da.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn nyiso_zonal_uplift() -> NyisoZonalUpliftArchive {
+        NyisoZonalUpliftArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/ZonalUplift".to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/nyiso/zonal_uplift.duckdb"
                     .to_string(),
         }
     }

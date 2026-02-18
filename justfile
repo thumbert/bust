@@ -89,6 +89,11 @@ update_nyiso_transmission_outages_da:
     cargo build --bin update_nyiso_transmission_outages_da --release
     cp ./target/release/update_nyiso_transmission_outages_da ~/Software
 
+update_nyiso_zonal_uplift:
+    cargo test --package bust --lib -- db::nyiso::zonal_uplift::tests --show-output
+    cargo build --bin update_nyiso_zonal_uplift --release
+    cp ./target/release/update_nyiso_zonal_uplift ~/Software
+
 server_bust:
     cargo test
     cargo build --bin server_bust --release

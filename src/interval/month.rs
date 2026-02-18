@@ -40,12 +40,21 @@ impl Month {
         Month { start_date: start }
     }
 
+    
     pub fn containing(datetime: jc::DateTime) -> Month {
         Month {
             start_date: jc::date(datetime.year(), datetime.month(), 1),
         }
     }
+    
+    pub fn year(&self) -> i16 {
+        self.start_date.year()
+    }
 
+    pub fn month(&self) -> i8 {
+        self.start_date.month()
+    }
+    
     pub fn start(&self) -> jc::DateTime {
         self.start_date.at(0, 0, 0, 0)
     }

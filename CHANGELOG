@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-02-18
+- Add NYISO zonal uplift archive, api, and monthly job
+
 ## 2026-02-13
 - Switch HQ fuel mix to different URL (better resiliency).  Updated the daily job. 
 
