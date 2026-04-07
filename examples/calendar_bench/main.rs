@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use bust::{
-    holiday::{HolidayTrait, NercCalendar},
+    time::calendar::{HolidayTrait, NercCalendar},
     interval::interval_base::DateExt,
 };
 use jiff::civil::date;

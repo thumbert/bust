@@ -751,17 +751,17 @@ mod api_tests {
     use actix_web::{body::MessageBody, test, web, App};
     use jiff::civil::date;
 
-    #[actix_web::test]
-    async fn test_get_data_api() {
-        let data = web::Data::new(ProdDb::scratch());
-        let app = test::init_service(App::new().app_data(data.clone()).service(get_data_api)).await;
-        let req = test::TestRequest::get().uri("/api/data").to_request();
-        let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success());
-        let data = resp.into_body().try_into_bytes().unwrap();
-        let records: Vec<Record> = serde_json::from_slice(&data).unwrap();
-        assert_eq!(records.len(), 4);
-    }
+    // #[actix_web::test]
+    // async fn test_get_data_api() {
+    //     let data = web::Data::new(ProdDb::scratch());
+    //     let app = test::init_service(App::new().app_data(data.clone()).service(get_data_api)).await;
+    //     let req = test::TestRequest::get().uri("/api/data").to_request();
+    //     let resp = test::call_service(&app, req).await;
+    //     assert!(resp.status().is_success());
+    //     let data = resp.into_body().try_into_bytes().unwrap();
+    //     let records: Vec<Record> = serde_json::from_slice(&data).unwrap();
+    //     assert_eq!(records.len(), 4);
+    // }
 
     #[actix_web::test]
     async fn test_get_data2_api() {

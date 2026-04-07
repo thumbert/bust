@@ -35,6 +35,10 @@ impl TermTz {
             .term_type()
     }
 
+    pub fn parse(s: &str) -> Result<Self, String> {
+        Self::from_str(s)
+    }
+
     /// Return the hours in the term
     pub fn hours(&self) -> Vec<HourTz> {
         let mut hours = Vec::new();

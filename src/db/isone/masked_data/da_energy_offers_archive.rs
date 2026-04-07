@@ -158,7 +158,7 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_masked_da_energy_offers();
-        let days = date(2025, 5, 29).up_to(date(2025, 5, 31));
+        let days = date(2025, 11, 30).up_to(date(2025, 11, 30));
         for day in days {
             archive.download_file(&day)?;
         }

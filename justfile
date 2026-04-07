@@ -9,6 +9,10 @@ alert_isone_peak_load_change:
     cargo build --bin alert_isone_peak_load_change --release
     cp ./target/release/alert_isone_peak_load_change ~/Software
 
+alert_isone_prices_dam:
+    cargo build --bin alert_isone_prices_dam --release
+    cp ./target/release/alert_isone_prices_dam ~/Software
+
 update_caiso_prices_da:
     cargo build --bin update_caiso_prices_da --release 
     cp ./target/release/update_caiso_prices_da ~/Software

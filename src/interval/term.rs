@@ -49,6 +49,10 @@ impl Term {
         }
     }
 
+    pub fn parse(s: &str) -> Result<Self, ParseError> {
+        Self::from_str(s)
+    }
+
     /// Return the days in the term
     pub fn days(&self) -> Vec<Date> {
         let mut days = Vec::new();

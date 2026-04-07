@@ -122,7 +122,7 @@ async fn main() -> std::io::Result<()> {
             .service(ieso::dalmp::api_daily_prices)
             // ISONE
             .service(isone::actual_interchange::api_actual_flows)
-            .service(isone::capacity::annual_reconfiguration_bidsoffers::get_data_api)
+            // .service(isone::capacity::annual_reconfiguration_bidsoffers::get_data_api)
             .service(isone::capacity::monthly_capacity_results::participant_ids)
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)

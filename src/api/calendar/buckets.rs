@@ -1,13 +1,12 @@
 use std::time::Duration;
 
 use duckdb::{AccessMode, Connection, Result};
-use jiff::tz::TimeZone;
 use serde::Deserialize;
 
 use crate::{
-    bucket::{count_hours, Bucket},
     db::calendar::buckets::BucketsArchive,
     interval::{term::Term, term_tz::TermTz},
+    time::bucket::*,
     utils::lib_duckdb::open_with_retry,
 };
 use actix_web::{get, web, HttpResponse, Responder};
@@ -38,20 +37,28 @@ type Out = Vec<(Bucket, TermTz, i32)>;
 
 #[get("/calendar/buckets/count_hours")]
 async fn api_count_hours(query: web::Query<ApiQuery>) -> impl Responder {
-    let tz = TimeZone::get(&query.timezone);
-    if tz.is_err() {
-        return HttpResponse::BadRequest().json(Err::<Out, String>(format!(
-            "Invalid time zone specified: {}",
-            &query.timezone
-        )));
-    }
-    let tz = tz.unwrap();
     let buckets: Result<Vec<Bucket>, String> = query
         .buckets
         .split(',')
         .map(|b| b.parse::<Bucket>().map_err(|e| e.to_string()))
         .collect();
+    if buckets.is_err() {
+        return HttpResponse::BadRequest().json(Err::<Out, String>(format!(
+            "Invalid bucket specified: {}",
+            query.buckets
+        )));
+    }
 
+    // make sure all buckets have the same timezone
+    let buckets = buckets.unwrap();
+    let tz = buckets[0].timezone();
+    if !buckets.iter().all(|b| b.timezone() == tz) {
+        return HttpResponse::BadRequest().json(Err::<Out, String>(
+            "All buckets must have the same timezone".to_string(),
+        ));
+    }
+
+    // parse terms in the specified timezone
     let terms: Result<Vec<TermTz>, String> = query
         .terms
         .split(',')
@@ -63,16 +70,22 @@ async fn api_count_hours(query: web::Query<ApiQuery>) -> impl Responder {
         .collect();
 
     let pairs: Result<Vec<(Bucket, TermTz)>, String> = match (buckets, terms) {
-        (Ok(buckets), Ok(terms)) => Ok(buckets
+        (buckets, Ok(terms)) => Ok(buckets
             .into_iter()
             .flat_map(|bucket| terms.iter().cloned().map(move |term| (bucket, term)))
             .collect()),
-        (Err(e), _) | (_, Err(e)) => Err(e),
+        (_, Err(e)) => Err(e),
     };
     match pairs {
         Ok(pairs) => {
             let res = count_hours(pairs);
-            HttpResponse::Ok().json(res)
+            if res.is_err() {
+                return HttpResponse::InternalServerError().json(Err::<Out, String>(format!(
+                    "Error counting hours: {}",
+                    res.err().unwrap()
+                )));
+            }
+            HttpResponse::Ok().json(res.unwrap())
         }
         Err(e) => {
             HttpResponse::BadRequest().json(Err::<Out, String>(format!("Parse error: {}", e)))
@@ -84,7 +97,6 @@ async fn api_count_hours(query: web::Query<ApiQuery>) -> impl Responder {
 struct ApiQuery {
     pub buckets: String,
     pub terms: String,
-    pub timezone: String,
 }
 
 fn get_all(conn: &Connection) -> Result<Vec<String>> {
@@ -148,12 +160,19 @@ mod tests {
     #[test]
     fn api_count_hours_1() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
-        let url = format!("{}/calendar/buckets/count_hours?buckets=5x16,2x16H,7x8&terms=2022&timezone=America/New_York", env::var("RUST_SERVER").unwrap(),);
-        println!("URL: {}", url);
+        let url = format!(
+            "{}/calendar/buckets/count_hours?buckets=5x16,2x16H,7x8&terms=2022,Jan24",
+            env::var("RUST_SERVER").unwrap(),
+        );
         let response = reqwest::blocking::get(url)?.text()?;
         let counts: Vec<(Bucket, TermTz, i32)> = serde_json::from_str(&response).unwrap();
-        println!("Counts: {:?}", counts);
-
+        let x0 = counts
+            .iter()
+            .find(|(b, t, _)| {
+                *b == Bucket::B5x16 && *t == TermTz::parse("2022[America/New_York]").unwrap()
+            })
+            .unwrap();
+        assert_eq!(x0.2, 4080);
         Ok(())
     }
 }

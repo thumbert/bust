@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
-    bucket::Bucket,
+    time::bucket::Bucket,
     db::{ieso::da_lmp_nodes::IesoDaLmpNodalArchive, nyiso::dalmp::LmpComponent},
 };
 

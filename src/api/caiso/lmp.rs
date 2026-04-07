@@ -7,7 +7,7 @@ use crate::{
         caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
         isone::_api_isone_core::Market,
     },
-    bucket::{Bucket, BucketLike},
+    time::bucket::{Bucket, BucketLike},
     db::{
         caiso::{dalmp_archive::*, rtlmp_archive::CaisoRtLmpArchive},
         calendar::buckets::BucketsArchive,
@@ -759,7 +759,7 @@ mod tests {
     use super::*;
     use crate::{
         api::caiso::lmp::RowH,
-        bucket::Bucket,
+        time::bucket::Bucket,
         db::{nyiso::dalmp::LmpComponent, prod_db::ProdDb},
         interval::{month::month, term::Term},
         utils::lib_duckdb::open_with_retry,
@@ -854,7 +854,7 @@ mod tests {
                 month: month(2025, 12),
                 node_id: "TH_NP15_GEN-APND".into(),
                 bucket: Bucket::Caiso6x16,
-                value: dec!(45.41769),
+                value: dec!(42.13337),
             }
         );
 

@@ -4,7 +4,7 @@ use duckdb::Connection;
 use jiff::Zoned;
 
 use crate::{
-    bucket::{Bucket, BucketLike},
+    time::bucket::{Bucket, BucketLike},
     db::prod_db::ProdDb,
     elec::iso::ISONE,
     interval::{interval_base::IntervalTzLike, term::Term},
@@ -24,6 +24,7 @@ struct Row {
     b7x8: bool,
     offpeak: bool,
     atc: bool,
+    caiso_atc: bool,
     caiso_6x16: bool,
     caiso_1x16h: bool,
     caiso_7x8: bool,
@@ -45,6 +46,7 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
             b7x8: Bucket::B7x8.contains(&hour_beginning),
             offpeak: Bucket::Offpeak.contains(&hour_beginning),
             atc: true,
+            caiso_atc: true,
             caiso_6x16: Bucket::Caiso6x16.contains(&hour_beginning_caiso),
             caiso_1x16h: Bucket::Caiso1x16H.contains(&hour_beginning_caiso),
             caiso_7x8: Bucket::Caiso7x8.contains(&hour_beginning_caiso),
@@ -61,6 +63,7 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
         "7x8",
         "offpeak",
         "atc",
+        "caiso_atc",
         "caiso_6x16",
         "caiso_1x16H",
         "caiso_7x8",
@@ -77,6 +80,7 @@ pub fn generate_csv(term: Term, file_path: &str) -> Result<(), Box<dyn std::erro
             row.b7x8.to_string().to_uppercase(),
             row.offpeak.to_string().to_uppercase(),
             row.atc.to_string().to_uppercase(),
+            row.caiso_atc.to_string().to_uppercase(),
             row.caiso_6x16.to_string().to_uppercase(),
             row.caiso_1x16h.to_string().to_uppercase(),
             row.caiso_7x8.to_string().to_uppercase(),
@@ -177,7 +181,7 @@ mod tests {
             .init();
 
         let archive = ProdDb::buckets();
-        let term = "Cal10-Cal34".parse::<Term>().unwrap();
+        let term = "Cal10-Cal35".parse::<Term>().unwrap();
         let file_path = format!("{}/buckets.csv", archive.base_dir);
         generate_csv(term, file_path.as_str())?;
         info!("Generated CSV file {}", file_path);
@@ -190,7 +194,7 @@ mod tests {
     #[test]
     fn make_hour_count_file() -> Result<(), Box<dyn Error>> {
         let archive = ProdDb::buckets();
-        let term = "Cal10-Cal34".parse::<Term>().unwrap();
+        let term = "Cal10-Cal35".parse::<Term>().unwrap();
         count_hour_by_month(
             term,
             format!("{}/hour_count.csv", archive.base_dir).as_str(),

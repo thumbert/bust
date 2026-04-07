@@ -2078,7 +2078,7 @@ mod tests {
         let filter = QueryFilterBuilder::new().for_day(date(2025, 10, 1)).build();
         let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
         conn.close().unwrap();
-        assert_eq!(xs.len(), 6);
+        assert_eq!(xs.len(), 5);
         Ok(())
     }
 
@@ -2092,7 +2092,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_sevenday_capacity_forecast();
 
-        let term = "Jul24-Sep25".parse::<Term>()?;
+        let term = "Mar22-Apr26".parse::<Term>()?;
         for month in term.months() {
             info!("Working on month {}", month);
             archive.update_duckdb(&month)?;

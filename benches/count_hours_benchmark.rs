@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 use bust::{
-    bucket::{count_hours, Bucket, BucketLike},
+    time::bucket::{count_hours, Bucket, BucketLike},
     interval::term_tz::TermTz,
 };
 use criterion::{criterion_group, criterion_main, Criterion};

@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market},
-    bucket::{Bucket, BucketLike},
+    time::bucket::{Bucket, BucketLike},
     db::{
         calendar::buckets::BucketsArchive,
         isone::{dalmp_archive::IsoneDaLmpArchive, rtlmp_archive::IsoneRtLmpArchive},
@@ -365,11 +365,11 @@ pub struct Row {
         serialize_with = "serialize_zoned_as_offset",
         deserialize_with = "deserialize_zoned_assume_ny"
     )]
-    hour_beginning: Zoned,
-    ptid: u32,
-    component: LmpComponent,
+    pub hour_beginning: Zoned,
+    pub ptid: u32,
+    pub component: LmpComponent,
     #[serde(with = "rust_decimal::serde::float")]
-    price: Decimal,
+    pub price: Decimal,
 }
 
 /// Get hourly prices between a [start, end] date for a list of ptids

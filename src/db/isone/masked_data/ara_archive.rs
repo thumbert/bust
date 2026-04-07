@@ -101,76 +101,86 @@ impl IsoneAraBidsOffersArchive {
         let sql = format!(
             r#"
 CREATE TABLE IF NOT EXISTS bids_offers (
-    capability_period VARCHAR NOT NULL,
+    capacity_period VARCHAR NOT NULL, 
     auction_type ENUM('ARA1', 'ARA2', 'ARA3') NOT NULL,
     masked_resource_id UINTEGER NOT NULL,
     masked_participant_id UINTEGER NOT NULL,
-    masked_capacity_zone_id USMALLINT NOT NULL,
-    resource_type ENUM('Import', 'Generating', 'Demand') NOT NULL,
-    bid_offer ENUM('Demand_Bid', 'Supply_Offer') NOT NULL,
-    segment UTINYINT NOT NULL,
-    quantity DECIMAL(9,4) NOT NULL,
+    masked_capacity_zone_id UINTEGER NOT NULL,
+    masked_interface_id UINTEGER,
+    resource_type ENUM('Generating', 'Demand', 'Import') NOT NULL,
+    bid_type ENUM('Demand_Bid', 'Supply_Offer') NOT NULL,
+    segment UTINYINT NOT NULL, -- 0-4
+    mw DECIMAL(9,4) NOT NULL,
     price DECIMAL(9,4) NOT NULL
-);
-CREATE TEMPORARY TABLE tmp AS (
-PIVOT (
+); 
+
+CREATE TEMPORARY TABLE tmp AS
     SELECT 
-        COLUMNS(* EXCLUDE (pq)),
-        string_split(pq, '_')[1]::VARCHAR AS variable,
-        string_split(pq, '_')[2]::UTINYINT AS segment,
+        cp AS capacity_period,
+        AucType AS auction_type,
+        MaskResId AS masked_resource_id,
+        MaskLPID AS masked_participant_id,
+        MaskCzid AS masked_capacity_zone_id,
+        MaskIntfcId AS masked_interface_id,
+        ResType AS resource_type,
+        BidType AS bid_type,
+        Seg1Mw,
+        Seg1Price,
+        Seg2Mw,
+        Seg2Price,
+        Seg3Mw,
+        Seg3Price,
+        Seg4Mw,
+        Seg4Price,
+        Seg5Mw,
+        Seg5Price
     FROM (
-        UNPIVOT (
-            SELECT 
-                json_extract(aux, '$.Cp')::VARCHAR as capability_period,
-                json_extract_string(aux, '$.AucType')::ENUM('ARA1', 'ARA2', 'ARA3') AS auction_type,
-                json_extract(aux, '$.MaskResID')::UINTEGER as masked_resource_id,
-                json_extract(aux, '$.MaskLPID')::UINTEGER as  masked_participant_id,
-                json_extract(aux, '$.MaskCZID')::USMALLINT as masked_capacity_zone_id,
-                json_extract_string(aux, '$.ResType')::ENUM('Import', 'Generating', 'Demand') as resource_type,
-                json_extract_string(aux, '$.BidType')::ENUM('Demand_Bid', 'Supply_Offer') as bid_offer,
-                json_extract(aux, '$.Seg1Mw')::DECIMAL(9,4) AS quantity_1,
-                json_extract(aux, '$.Seg2Mw')::DECIMAL(9,4) AS quantity_2,
-                json_extract(aux, '$.Seg3Mw')::DECIMAL(9,4) AS quantity_3,
-                json_extract(aux, '$.Seg4Mw')::DECIMAL(9,4) AS quantity_4,
-                json_extract(aux, '$.Seg5Mw')::DECIMAL(9,4) AS quantity_5,
-                json_extract(aux, '$.Seg1Price')::DECIMAL(9,4) AS price_1,
-                json_extract(aux, '$.Seg2Price')::DECIMAL(9,4) AS price_2,
-                json_extract(aux, '$.Seg3Price')::DECIMAL(9,4) AS price_3,
-                json_extract(aux, '$.Seg4Price')::DECIMAL(9,4) AS price_4,
-                json_extract(aux, '$.Seg5Price')::DECIMAL(9,4) AS price_5
-            FROM (
-                SELECT unnest(Hbfcmaras.Hbfcmara)::JSON as aux
-                FROM read_json(
-                    '{}/Raw/{}/hbfcmara_{}_{}.json.gz'
-                )
-            )
-        ) ON price_1, quantity_1,
-        price_2, quantity_2,
-        price_3, quantity_3,
-        price_4, quantity_4,
-        price_5, quantity_5
-        INTO 
-            NAME pq
-            VALUE value
+        SELECT unnest(Hbfcmaras.Hbfcmara, recursive := true)
+        FROM read_json('{}/Raw/{}/hbfcmara_{}_{}.json.gz')
     )
-) ON variable
-USING first(value)
+;
+
+--- transpose the segments into rows, and filter out the nulls
+CREATE TEMPORARY TABLE tmp1 AS (
+    SELECT
+        w.capacity_period,
+        w.auction_type,
+        w.masked_resource_id,
+        w.masked_capacity_zone_id,
+        w.masked_participant_id,
+        w.masked_interface_id,
+        w.resource_type,
+        w.bid_type,
+        v.seg_num AS segment,
+        v.mw,
+        v.price
+    FROM tmp w
+    CROSS JOIN LATERAL (
+        VALUES
+            (0, w.Seg1Mw, w.Seg1Price),
+            (1, w.Seg2Mw, w.Seg2Price),
+            (2, w.Seg3Mw, w.Seg3Price),
+            (3, w.Seg4Mw, w.Seg4Price),
+            (4, w.Seg5Mw, w.Seg5Price)
+
+    ) AS v(seg_num, mw, price)
+    WHERE v.mw IS NOT NULL
+    ORDER BY w.capacity_period, w.auction_type, w.masked_resource_id, w.bid_type, v.seg_num
 );
 
+
 INSERT INTO bids_offers
-    SELECT * FROM tmp t
+(SELECT * FROM tmp1
 WHERE NOT EXISTS (
-    SELECT * FROM bids_offers b
-    WHERE
-        b.capability_period = t.capability_period
-        AND b.auction_type = t.auction_type
-        AND b.masked_resource_id = t.masked_resource_id
-        AND b.masked_participant_id = t.masked_participant_id
-        AND b.masked_capacity_zone_id = t.masked_capacity_zone_id
-        AND b.resource_type = t.resource_type
-        AND b.bid_offer = t.bid_offer
-        AND b.segment = t.segment
-);
+        SELECT * FROM bids_offers d
+        WHERE d.capacity_period = tmp1.capacity_period
+        AND d.auction_type = tmp1.auction_type
+        AND d.masked_resource_id = tmp1.masked_resource_id
+        AND d.segment = tmp1.segment
+        AND d.bid_type = tmp1.bid_type
+    )
+)
+ORDER BY capacity_period, auction_type, masked_resource_id, bid_type, segment;
 "#,
             self.base_dir, capability_year, capability_year, ara
         );
@@ -201,16 +211,15 @@ WHERE NOT EXISTS (
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Record {
-    pub capability_period: String,
+    pub capacity_period: String,
     pub auction_type: AuctionType,
     pub masked_resource_id: u32,
     pub masked_participant_id: u32,
-    pub masked_capacity_zone_id: u16,
+    pub masked_capacity_zone_id: u32,
+    pub masked_interface_id: Option<u32>,
     pub resource_type: ResourceType,
-    pub bid_offer: BidOffer,
+    pub bid_type: BidType,
     pub segment: u8,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
 }
@@ -322,51 +331,51 @@ impl<'de> serde::Deserialize<'de> for ResourceType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BidOffer {
+pub enum BidType {
     DemandBid,
     SupplyOffer,
 }
 
-impl std::str::FromStr for BidOffer {
+impl std::str::FromStr for BidType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_case(Case::UpperSnake).as_str() {
-            "DEMAND_BID" => Ok(BidOffer::DemandBid),
-            "SUPPLY_OFFER" => Ok(BidOffer::SupplyOffer),
-            _ => Err(format!("Invalid value for BidOffer: {}", s)),
+            "DEMAND_BID" => Ok(BidType::DemandBid),
+            "SUPPLY_OFFER" => Ok(BidType::SupplyOffer),
+            _ => Err(format!("Invalid value for BidType: {}", s)),
         }
     }
 }
 
-impl std::fmt::Display for BidOffer {
+impl std::fmt::Display for BidType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            BidOffer::DemandBid => write!(f, "Demand_Bid"),
-            BidOffer::SupplyOffer => write!(f, "Supply_Offer"),
+            BidType::DemandBid => write!(f, "Demand_Bid"),
+            BidType::SupplyOffer => write!(f, "Supply_Offer"),
         }
     }
 }
 
-impl serde::Serialize for BidOffer {
+impl serde::Serialize for BidType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         let s = match self {
-            BidOffer::DemandBid => "Demand_Bid",
-            BidOffer::SupplyOffer => "Supply_Offer",
+            BidType::DemandBid => "Demand_Bid",
+            BidType::SupplyOffer => "Supply_Offer",
         };
         serializer.serialize_str(s)
     }
 }
 
-impl<'de> serde::Deserialize<'de> for BidOffer {
+impl<'de> serde::Deserialize<'de> for BidType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        BidOffer::from_str(&s).map_err(serde::de::Error::custom)
+        BidType::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -378,37 +387,37 @@ pub fn get_data(
     let mut query = String::from(
         r#"
 SELECT
-    capability_period,
+    capacity_period,
     auction_type,
     masked_resource_id,
     masked_participant_id,
     masked_capacity_zone_id,
+    masked_interface_id,
     resource_type,
-    bid_offer,
+    bid_type,
     segment,
-    quantity,
     price
 FROM bids_offers WHERE 1=1"#,
     );
-    if let Some(capability_period) = &query_filter.capability_period {
+    if let Some(capacity_period) = &query_filter.capacity_period {
         query.push_str(&format!(
             "
-    AND capability_period = '{}'",
-            capability_period
+    AND capacity_period = '{}'",
+            capacity_period
         ));
     }
-    if let Some(capability_period_like) = &query_filter.capability_period_like {
+    if let Some(capacity_period_like) = &query_filter.capacity_period_like {
         query.push_str(&format!(
             "
-    AND capability_period LIKE '{}'",
-            capability_period_like
+    AND capacity_period LIKE '{}'",
+            capacity_period_like
         ));
     }
-    if let Some(capability_period_in) = &query_filter.capability_period_in {
+    if let Some(capacity_period_in) = &query_filter.capacity_period_in {
         query.push_str(&format!(
             "
-    AND capability_period IN ('{}')",
-            capability_period_in
+    AND capacity_period IN ('{}')",
+            capacity_period_in
                 .iter()
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
@@ -529,6 +538,38 @@ FROM bids_offers WHERE 1=1"#,
             masked_capacity_zone_id_lte
         ));
     }
+    if let Some(masked_interface_id) = &query_filter.masked_interface_id {
+        query.push_str(&format!(
+            "
+    AND masked_interface_id = {}",
+            masked_interface_id
+        ));
+    }
+    if let Some(masked_interface_id_in) = &query_filter.masked_interface_id_in {
+        query.push_str(&format!(
+            "
+    AND masked_interface_id IN ({})",
+            masked_interface_id_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    if let Some(masked_interface_id_gte) = &query_filter.masked_interface_id_gte {
+        query.push_str(&format!(
+            "
+    AND masked_interface_id >= {}",
+            masked_interface_id_gte
+        ));
+    }
+    if let Some(masked_interface_id_lte) = &query_filter.masked_interface_id_lte {
+        query.push_str(&format!(
+            "
+    AND masked_interface_id <= {}",
+            masked_interface_id_lte
+        ));
+    }
     if let Some(resource_type) = &query_filter.resource_type {
         query.push_str(&format!(
             "
@@ -547,18 +588,18 @@ FROM bids_offers WHERE 1=1"#,
                 .join("','")
         ));
     }
-    if let Some(bid_offer) = &query_filter.bid_offer {
+    if let Some(bid_type) = &query_filter.bid_type {
         query.push_str(&format!(
             "
-    AND bid_offer = '{}'",
-            bid_offer
+    AND bid_type = '{}'",
+            bid_type
         ));
     }
-    if let Some(bid_offer_in) = &query_filter.bid_offer_in {
+    if let Some(bid_type_in) = &query_filter.bid_type_in {
         query.push_str(&format!(
             "
-    AND bid_offer IN ('{}')",
-            bid_offer_in
+    AND bid_type IN ('{}')",
+            bid_type_in
                 .iter()
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
@@ -595,38 +636,6 @@ FROM bids_offers WHERE 1=1"#,
             "
     AND segment <= {}",
             segment_lte
-        ));
-    }
-    if let Some(quantity) = &query_filter.quantity {
-        query.push_str(&format!(
-            "
-    AND quantity = {}",
-            quantity
-        ));
-    }
-    if let Some(quantity_in) = &query_filter.quantity_in {
-        query.push_str(&format!(
-            "
-    AND quantity IN ({})",
-            quantity_in
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        ));
-    }
-    if let Some(quantity_gte) = &query_filter.quantity_gte {
-        query.push_str(&format!(
-            "
-    AND quantity >= {}",
-            quantity_gte
-        ));
-    }
-    if let Some(quantity_lte) = &query_filter.quantity_lte {
-        query.push_str(&format!(
-            "
-    AND quantity <= {}",
-            quantity_lte
         ));
     }
     if let Some(price) = &query_filter.price {
@@ -676,7 +685,7 @@ LIMIT {};",
 
     let mut stmt = conn.prepare(&query)?;
     let rows = stmt.query_map([], |row| {
-        let capability_period: String = row.get::<usize, String>(0)?;
+        let capacity_period: String = row.get::<usize, String>(0)?;
         let _n1 = match row.get_ref_unwrap(1).to_owned() {
             duckdb::types::Value::Enum(v) => v,
             v => panic!("Unexpected value type {v:?} for enum auction_type"),
@@ -684,36 +693,33 @@ LIMIT {};",
         let auction_type = AuctionType::from_str(&_n1).unwrap();
         let masked_resource_id: u32 = row.get::<usize, u32>(2)?;
         let masked_participant_id: u32 = row.get::<usize, u32>(3)?;
-        let masked_capacity_zone_id: u16 = row.get::<usize, u16>(4)?;
-        let _n5 = match row.get_ref_unwrap(5).to_owned() {
+        let masked_capacity_zone_id: u32 = row.get::<usize, u32>(4)?;
+        let masked_interface_id: Option<u32> = row.get::<usize, Option<u32>>(5)?;
+        let _n6 = match row.get_ref_unwrap(6).to_owned() {
             duckdb::types::Value::Enum(v) => v,
             v => panic!("Unexpected value type {v:?} for enum resource_type"),
         };
-        let resource_type = ResourceType::from_str(&_n5).unwrap();
-        let _n6 = match row.get_ref_unwrap(6).to_owned() {
+        let resource_type = ResourceType::from_str(&_n6).unwrap();
+        let _n7 = match row.get_ref_unwrap(7).to_owned() {
             duckdb::types::Value::Enum(v) => v,
-            v => panic!("Unexpected value type {v:?} for enum bid_offer"),
+            v => panic!("Unexpected value type {v:?} for enum bid_type"),
         };
-        let bid_offer = BidOffer::from_str(&_n6).unwrap();
-        let segment: u8 = row.get::<usize, u8>(7)?;
-        let quantity: Decimal = match row.get_ref_unwrap(8) {
-            duckdb::types::ValueRef::Decimal(v) => v,
-            _ => Decimal::MIN,
-        };
+        let bid_type = BidType::from_str(&_n7).unwrap();
+        let segment: u8 = row.get::<usize, u8>(8)?;
         let price: Decimal = match row.get_ref_unwrap(9) {
             duckdb::types::ValueRef::Decimal(v) => v,
             _ => Decimal::MIN,
         };
         Ok(Record {
-            capability_period,
+            capacity_period,
             auction_type,
             masked_resource_id,
             masked_participant_id,
             masked_capacity_zone_id,
+            masked_interface_id,
             resource_type,
-            bid_offer,
+            bid_type,
             segment,
-            quantity,
             price,
         })
     })?;
@@ -723,9 +729,9 @@ LIMIT {};",
 
 #[derive(Debug, Default, Deserialize)]
 pub struct QueryFilter {
-    pub capability_period: Option<String>,
-    pub capability_period_like: Option<String>,
-    pub capability_period_in: Option<Vec<String>>,
+    pub capacity_period: Option<String>,
+    pub capacity_period_like: Option<String>,
+    pub capacity_period_in: Option<Vec<String>>,
     pub auction_type: Option<AuctionType>,
     pub auction_type_in: Option<Vec<AuctionType>>,
     pub masked_resource_id: Option<u32>,
@@ -736,22 +742,22 @@ pub struct QueryFilter {
     pub masked_participant_id_in: Option<Vec<u32>>,
     pub masked_participant_id_gte: Option<u32>,
     pub masked_participant_id_lte: Option<u32>,
-    pub masked_capacity_zone_id: Option<u16>,
-    pub masked_capacity_zone_id_in: Option<Vec<u16>>,
-    pub masked_capacity_zone_id_gte: Option<u16>,
-    pub masked_capacity_zone_id_lte: Option<u16>,
+    pub masked_capacity_zone_id: Option<u32>,
+    pub masked_capacity_zone_id_in: Option<Vec<u32>>,
+    pub masked_capacity_zone_id_gte: Option<u32>,
+    pub masked_capacity_zone_id_lte: Option<u32>,
+    pub masked_interface_id: Option<u32>,
+    pub masked_interface_id_in: Option<Vec<u32>>,
+    pub masked_interface_id_gte: Option<u32>,
+    pub masked_interface_id_lte: Option<u32>,
     pub resource_type: Option<ResourceType>,
     pub resource_type_in: Option<Vec<ResourceType>>,
-    pub bid_offer: Option<BidOffer>,
-    pub bid_offer_in: Option<Vec<BidOffer>>,
+    pub bid_type: Option<BidType>,
+    pub bid_type_in: Option<Vec<BidType>>,
     pub segment: Option<u8>,
     pub segment_in: Option<Vec<u8>>,
     pub segment_gte: Option<u8>,
     pub segment_lte: Option<u8>,
-    pub quantity: Option<Decimal>,
-    pub quantity_in: Option<Vec<Decimal>>,
-    pub quantity_gte: Option<Decimal>,
-    pub quantity_lte: Option<Decimal>,
     pub price: Option<Decimal>,
     pub price_in: Option<Vec<Decimal>>,
     pub price_gte: Option<Decimal>,
@@ -761,19 +767,19 @@ pub struct QueryFilter {
 impl QueryFilter {
     pub fn to_query_url(&self) -> String {
         let mut params = HashMap::new();
-        if let Some(value) = &self.capability_period {
-            params.insert("capability_period", value.to_string());
+        if let Some(value) = &self.capacity_period {
+            params.insert("capacity_period", value.to_string());
         }
-        if let Some(value) = &self.capability_period_like {
-            params.insert("capability_period_like", value.to_string());
+        if let Some(value) = &self.capacity_period_like {
+            params.insert("capacity_period_like", value.to_string());
         }
-        if let Some(value) = &self.capability_period_in {
+        if let Some(value) = &self.capacity_period_in {
             let joined = value
                 .iter()
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
-            params.insert("capability_period_in", joined);
+            params.insert("capacity_period_in", joined);
         }
         if let Some(value) = &self.auction_type {
             params.insert("auction_type", value.to_string());
@@ -837,6 +843,23 @@ impl QueryFilter {
         if let Some(value) = &self.masked_capacity_zone_id_lte {
             params.insert("masked_capacity_zone_id_lte", value.to_string());
         }
+        if let Some(value) = &self.masked_interface_id {
+            params.insert("masked_interface_id", value.to_string());
+        }
+        if let Some(value) = &self.masked_interface_id_in {
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            params.insert("masked_interface_id_in", joined);
+        }
+        if let Some(value) = &self.masked_interface_id_gte {
+            params.insert("masked_interface_id_gte", value.to_string());
+        }
+        if let Some(value) = &self.masked_interface_id_lte {
+            params.insert("masked_interface_id_lte", value.to_string());
+        }
         if let Some(value) = &self.resource_type {
             params.insert("resource_type", value.to_string());
         }
@@ -848,16 +871,16 @@ impl QueryFilter {
                 .join(",");
             params.insert("resource_type_in", joined);
         }
-        if let Some(value) = &self.bid_offer {
-            params.insert("bid_offer", value.to_string());
+        if let Some(value) = &self.bid_type {
+            params.insert("bid_type", value.to_string());
         }
-        if let Some(value) = &self.bid_offer_in {
+        if let Some(value) = &self.bid_type_in {
             let joined = value
                 .iter()
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
-            params.insert("bid_offer_in", joined);
+            params.insert("bid_type_in", joined);
         }
         if let Some(value) = &self.segment {
             params.insert("segment", value.to_string());
@@ -875,23 +898,6 @@ impl QueryFilter {
         }
         if let Some(value) = &self.segment_lte {
             params.insert("segment_lte", value.to_string());
-        }
-        if let Some(value) = &self.quantity {
-            params.insert("quantity", value.to_string());
-        }
-        if let Some(value) = &self.quantity_in {
-            let joined = value
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            params.insert("quantity_in", joined);
-        }
-        if let Some(value) = &self.quantity_gte {
-            params.insert("quantity_gte", value.to_string());
-        }
-        if let Some(value) = &self.quantity_lte {
-            params.insert("quantity_lte", value.to_string());
         }
         if let Some(value) = &self.price {
             params.insert("price", value.to_string());
@@ -932,18 +938,18 @@ impl QueryFilterBuilder {
         self.inner
     }
 
-    pub fn capability_period<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.capability_period = Some(value.into());
+    pub fn capacity_period<S: Into<String>>(mut self, value: S) -> Self {
+        self.inner.capacity_period = Some(value.into());
         self
     }
 
-    pub fn capability_period_like(mut self, value_like: String) -> Self {
-        self.inner.capability_period_like = Some(value_like);
+    pub fn capacity_period_like(mut self, value_like: String) -> Self {
+        self.inner.capacity_period_like = Some(value_like);
         self
     }
 
-    pub fn capability_period_in(mut self, values_in: Vec<String>) -> Self {
-        self.inner.capability_period_in = Some(values_in);
+    pub fn capacity_period_in(mut self, values_in: Vec<String>) -> Self {
+        self.inner.capacity_period_in = Some(values_in);
         self
     }
 
@@ -997,23 +1003,43 @@ impl QueryFilterBuilder {
         self
     }
 
-    pub fn masked_capacity_zone_id(mut self, value: u16) -> Self {
+    pub fn masked_capacity_zone_id(mut self, value: u32) -> Self {
         self.inner.masked_capacity_zone_id = Some(value);
         self
     }
 
-    pub fn masked_capacity_zone_id_in(mut self, values_in: Vec<u16>) -> Self {
+    pub fn masked_capacity_zone_id_in(mut self, values_in: Vec<u32>) -> Self {
         self.inner.masked_capacity_zone_id_in = Some(values_in);
         self
     }
 
-    pub fn masked_capacity_zone_id_gte(mut self, value: u16) -> Self {
+    pub fn masked_capacity_zone_id_gte(mut self, value: u32) -> Self {
         self.inner.masked_capacity_zone_id_gte = Some(value);
         self
     }
 
-    pub fn masked_capacity_zone_id_lte(mut self, value: u16) -> Self {
+    pub fn masked_capacity_zone_id_lte(mut self, value: u32) -> Self {
         self.inner.masked_capacity_zone_id_lte = Some(value);
+        self
+    }
+
+    pub fn masked_interface_id(mut self, value: u32) -> Self {
+        self.inner.masked_interface_id = Some(value);
+        self
+    }
+
+    pub fn masked_interface_id_in(mut self, values_in: Vec<u32>) -> Self {
+        self.inner.masked_interface_id_in = Some(values_in);
+        self
+    }
+
+    pub fn masked_interface_id_gte(mut self, value: u32) -> Self {
+        self.inner.masked_interface_id_gte = Some(value);
+        self
+    }
+
+    pub fn masked_interface_id_lte(mut self, value: u32) -> Self {
+        self.inner.masked_interface_id_lte = Some(value);
         self
     }
 
@@ -1027,13 +1053,13 @@ impl QueryFilterBuilder {
         self
     }
 
-    pub fn bid_offer(mut self, value: BidOffer) -> Self {
-        self.inner.bid_offer = Some(value);
+    pub fn bid_type(mut self, value: BidType) -> Self {
+        self.inner.bid_type = Some(value);
         self
     }
 
-    pub fn bid_offer_in(mut self, values_in: Vec<BidOffer>) -> Self {
-        self.inner.bid_offer_in = Some(values_in);
+    pub fn bid_type_in(mut self, values_in: Vec<BidType>) -> Self {
+        self.inner.bid_type_in = Some(values_in);
         self
     }
 
@@ -1054,26 +1080,6 @@ impl QueryFilterBuilder {
 
     pub fn segment_lte(mut self, value: u8) -> Self {
         self.inner.segment_lte = Some(value);
-        self
-    }
-
-    pub fn quantity(mut self, value: Decimal) -> Self {
-        self.inner.quantity = Some(value);
-        self
-    }
-
-    pub fn quantity_in(mut self, values_in: Vec<Decimal>) -> Self {
-        self.inner.quantity_in = Some(values_in);
-        self
-    }
-
-    pub fn quantity_gte(mut self, value: Decimal) -> Self {
-        self.inner.quantity_gte = Some(value);
-        self
-    }
-
-    pub fn quantity_lte(mut self, value: Decimal) -> Self {
-        self.inner.quantity_lte = Some(value);
         self
     }
 
@@ -1108,12 +1114,19 @@ mod tests {
 
     #[test]
     fn download_file_test() -> Result<(), Box<dyn Error>> {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_masked_ara_bids_offers();
-        let capability_year = CapabilityYear::with_start_year(2023);
-        archive.download_file(&capability_year, AuctionType::Ara1)?;
-        archive.download_file(&capability_year, AuctionType::Ara2)?;
-        archive.download_file(&capability_year, AuctionType::Ara3)?;
+        let capability_year = CapabilityYear::with_start_year(2025);
+        let auctions = vec![AuctionType::Ara1, AuctionType::Ara2, AuctionType::Ara3];
+        for auction in auctions {
+            // archive.download_file(&capability_year, auction)?;
+            archive.update_duckdb(&capability_year, auction)?;
+        }
         Ok(())
     }
 

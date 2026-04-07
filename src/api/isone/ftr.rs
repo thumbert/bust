@@ -1,7 +1,7 @@
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    bucket::{Bucket, BucketLike},
+    time::bucket::{Bucket, BucketLike},
     db::{
         calendar::buckets::BucketsArchive,
         isone::{dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive},

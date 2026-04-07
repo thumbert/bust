@@ -1,9 +1,8 @@
-pub mod bucket;
 pub mod db;
 pub mod elec;
-pub mod holiday;
 pub mod interval;
 pub mod math;
+pub mod time;
 pub mod timeseries;
 pub mod utils;
 

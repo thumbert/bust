@@ -6,16 +6,14 @@ use std::str::FromStr;
 use jiff::{civil::Weekday, tz::TimeZone, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::{
-    holiday::*,
-    interval::{hour_tz::HourTz, interval_base::IntervalTzLike, term_tz::TermTz},
-};
+use crate::interval::{hour_tz::HourTz, interval_base::IntervalTzLike, term_tz::TermTz};
+use crate::time::calendar::{HolidayTrait, NERC_CALENDAR};
 
 pub trait BucketLike {
     fn name(&self) -> String;
     fn contains(&self, datetime: &Zoned) -> bool;
     fn count_hours<K: IntervalTzLike>(&self, term: &K) -> i32;
-    fn timezone(&self) -> Option<TimeZone>;
+    fn timezone(&self) -> TimeZone;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -30,6 +28,8 @@ pub enum Bucket {
     B7x8,
     #[serde(rename = "7x16")]
     B7x16,
+    #[serde(rename = "CaisoAtc")]
+    CaisoAtc,
     #[serde(rename = "Caiso1x16H")]
     Caiso1x16H,
     #[serde(rename = "Caiso6x16")]
@@ -75,7 +75,7 @@ impl<'de> Deserialize<'de> for Bucket {
 
 fn parse_bucket(s: &str) -> Result<Bucket, ParseError> {
     match s.to_uppercase().replace("_", "").as_str() {
-        "FLAT" | "ATC" => Ok(Bucket::Atc),
+        "FLAT" | "ATC" | "7X24" => Ok(Bucket::Atc),
         "5X16" | "PEAK" => Ok(Bucket::B5x16),
         "2X16H" => Ok(Bucket::B2x16H),
         "7X8" => Ok(Bucket::B7x8),
@@ -83,6 +83,7 @@ fn parse_bucket(s: &str) -> Result<Bucket, ParseError> {
         "CAISO1X16H" => Ok(Bucket::Caiso1x16H),
         "CAISO6X16" | "CAISOPEAK" => Ok(Bucket::Caiso6x16),
         "CAISO7X8" => Ok(Bucket::Caiso7x8),
+        "CAISOATC" => Ok(Bucket::CaisoAtc),
         "CAISOOFFPEAK" => Ok(Bucket::CaisoOffpeak),
         "OFFPEAK" => Ok(Bucket::Offpeak),
         _ => Err(ParseError),
@@ -98,6 +99,7 @@ impl BucketLike for Bucket {
             Bucket::B7x8 => String::from("7x8"),
             Bucket::B7x16 => String::from("7x16"),
             Bucket::Offpeak => String::from("Offpeak"),
+            Bucket::CaisoAtc => String::from("Caiso_ATC"),
             Bucket::Caiso1x16H => String::from("Caiso_1x16H"),
             Bucket::Caiso6x16 => String::from("Caiso_6x16"),
             Bucket::Caiso7x8 => String::from("Caiso_7x8"),
@@ -117,6 +119,7 @@ impl BucketLike for Bucket {
             Bucket::Caiso6x16 => contains_caiso_6x16(zoned),
             Bucket::Caiso7x8 => contains_caiso_7x8(zoned),
             Bucket::CaisoOffpeak => !contains_caiso_6x16(zoned),
+            Bucket::CaisoAtc => true,
         }
     }
 
@@ -133,15 +136,19 @@ impl BucketLike for Bucket {
         count
     }
 
-    fn timezone(&self) -> Option<TimeZone> {
+    fn timezone(&self) -> TimeZone {
         match self {
-            Bucket::Caiso1x16H | Bucket::Caiso6x16 | Bucket::Caiso7x8 | Bucket::CaisoOffpeak => {
-                Some(TimeZone::get("America/Los_Angeles").unwrap())
-            }
-            Bucket::B5x16 | Bucket::B2x16H | Bucket::B7x8 | Bucket::B7x16 | Bucket::Offpeak => {
-                Some(TimeZone::get("America/New_York").unwrap())
-            }
-            Bucket::Atc => None,
+            Bucket::Caiso1x16H
+            | Bucket::Caiso6x16
+            | Bucket::Caiso7x8
+            | Bucket::CaisoOffpeak
+            | Bucket::CaisoAtc => TimeZone::get("America/Los_Angeles").unwrap(),
+            Bucket::B5x16
+            | Bucket::B2x16H
+            | Bucket::B7x8
+            | Bucket::B7x16
+            | Bucket::Offpeak
+            | Bucket::Atc => TimeZone::get("America/New_York").unwrap(),
         }
     }
 }
@@ -167,14 +174,13 @@ pub fn count_hours(pairs: Vec<(Bucket, TermTz)>) -> Result<Vec<(Bucket, TermTz, 
     pairs
         .par_iter()
         .map(|(bucket, term)| {
-            if let Some(tz) = bucket.timezone() {
-                let term_tz = term.start().time_zone().clone();
-                if tz != term_tz {
-                    return Err(format!(
-                        "Bucket {:?} timezone {:?} does not match term timezone {:?}",
-                        bucket, tz, term_tz
-                    ));
-                }
+            let tz = bucket.timezone();
+            let term_tz = term.start().time_zone().clone();
+            if tz != term_tz {
+                return Err(format!(
+                    "Bucket {:?} timezone {:?} does not match term timezone {:?}",
+                    bucket, tz, term_tz
+                ));
             }
             let hours = bucket.count_hours(term);
             Ok((*bucket, term.clone(), hours))
@@ -244,9 +250,9 @@ mod tests {
     use jiff::civil::date;
 
     use crate::{
-        bucket::*,
         elec::iso::ISONE,
         interval::{term::Term, term_tz::TermTz},
+        time::bucket::*,
     };
 
     #[test]

@@ -386,7 +386,7 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         archive.setup()?;
 
-        let months = month(2026, 1).up_to(month(2026, 1))?;
+        let months = month(2024, 1).up_to(month(2025, 12))?;
         for month in months {
             println!("Processing month {}", month);
             archive.update_duckdb(month)?;
@@ -395,7 +395,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn get_data_test() {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::nyiso_dalmp();
