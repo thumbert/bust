@@ -9,16 +9,8 @@ use std::error::Error;
 use std::path::Path;
 use std::process::Command;
 
+use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
 use crate::interval::month::Month;
-
-#[derive(Debug, PartialEq)]
-pub struct Row {
-    hour_beginning: Zoned,
-    ptid: u32,
-    lmp: Decimal,
-    mcc: Decimal,
-    mlc: Decimal,
-}
 
 #[derive(Clone)]
 pub struct IsoneDaLmpArchive {
@@ -146,6 +138,10 @@ ORDER BY hour_beginning, ptid;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Record {
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
     pub hour_beginning: Zoned,
     pub ptid: u32,
     #[serde(with = "rust_decimal::serde::float")]
@@ -154,6 +150,18 @@ pub struct Record {
     pub mcc: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub mcl: Decimal,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RecordMcc {
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
+    pub hour_beginning: Zoned,
+    pub ptid: u32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub mcc: Decimal,
 }
 
 pub fn get_data(
@@ -320,14 +328,14 @@ FROM da_lmp WHERE 1=1"#,
         ));
     }
     query.push(';');
-    println!("query: {}", query);
+    // println!("query: {}", query);
 
     let mut stmt = conn.prepare(&query)?;
     let rows = stmt.query_map([], |row| {
         let _micros0: i64 = row.get::<usize, i64>(0)?;
         let hour_beginning = Zoned::new(
             Timestamp::from_microsecond(_micros0).unwrap(),
-            TimeZone::get("America/Los_Angeles").unwrap(),
+            TimeZone::get("America/New_York").unwrap(),
         );
         let ptid: u32 = row.get::<usize, u32>(1)?;
         let lmp: Decimal = match row.get_ref_unwrap(2) {
@@ -351,6 +359,82 @@ FROM da_lmp WHERE 1=1"#,
         })
     })?;
     let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
+    Ok(results)
+}
+
+pub fn get_data_mcc(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+) -> Result<Vec<RecordMcc>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
+SELECT
+    hour_beginning,
+    ptid,
+    mcc,
+FROM da_lmp WHERE 1=1"#,
+    );
+    if let Some(hour_beginning) = &query_filter.hour_beginning {
+        query.push_str(&format!(
+            "
+    AND hour_beginning = '{}'",
+            hour_beginning.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(hour_beginning_gte) = &query_filter.hour_beginning_gte {
+        query.push_str(&format!(
+            "
+    AND hour_beginning >= '{}'",
+            hour_beginning_gte.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(hour_beginning_lt) = &query_filter.hour_beginning_lt {
+        query.push_str(&format!(
+            "
+    AND hour_beginning < '{}'",
+            hour_beginning_lt.strftime("%Y-%m-%d %H:%M:%S.000%:z")
+        ));
+    }
+    if let Some(ptid) = query_filter.ptid {
+        query.push_str(&format!(
+            "
+    AND ptid = {}",
+            ptid
+        ));
+    }
+    if let Some(ptid_in) = &query_filter.ptid_in {
+        query.push_str(&format!(
+            "
+    AND ptid IN ({})",
+            ptid_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
+    query.push(';');
+    // println!("query: {}", query);
+
+    let mut stmt = conn.prepare(&query)?;
+    let rows = stmt.query_map([], |row| {
+        let _micros0: i64 = row.get::<usize, i64>(0)?;
+        let hour_beginning = Zoned::new(
+            Timestamp::from_microsecond(_micros0).unwrap(),
+            TimeZone::get("America/New_York").unwrap(),
+        );
+        let ptid: u32 = row.get::<usize, u32>(1)?;
+        let mcc: Decimal = match row.get_ref_unwrap(2) {
+            duckdb::types::ValueRef::Decimal(v) => v,
+            _ => Decimal::MIN,
+        };
+        Ok(RecordMcc {
+            hour_beginning,
+            ptid,
+            mcc,
+        })
+    })?;
+    let results: Vec<RecordMcc> = rows.collect::<Result<_, _>>()?;
     Ok(results)
 }
 
@@ -529,7 +613,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data2() -> Result<(), Box<dyn Error>> {
+    fn test_get_data() -> Result<(), Box<dyn Error>> {
         let config = Config::default().access_mode(AccessMode::ReadOnly)?;
         let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
         conn.execute("LOAD ICU;SET TimeZone = 'America/New_York';", [])?;
@@ -562,6 +646,46 @@ mod tests {
                 mcl: dec!(0.16),
             }
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_mcc_data() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn = Connection::open_with_flags(ProdDb::isone_dalmp().duckdb_path, config).unwrap();
+        conn.execute("LOAD ICU;SET TimeZone = 'America/New_York';", [])?;
+        let filter = QueryFilterBuilder::new()
+            .ptid_in(vec![4000, 4001])
+            .hour_beginning_gte("2025-12-01 00:00:00-05:00[America/New_York]".parse()?)
+            .hour_beginning_lt("2026-01-01 00:00:00-05:00[America/New_York]".parse()?)
+            .build();
+        let xs: Vec<RecordMcc> = get_data_mcc(&conn, &filter).unwrap();
+        conn.close().unwrap();
+        let xs0 = xs
+            .iter()
+            .find(|r| {
+                r.ptid == 4000
+                    && r.hour_beginning
+                        == date(2025, 12, 1)
+                            .at(6, 0, 0, 0)
+                            .in_tz("America/New_York")
+                            .unwrap()
+            })
+            .unwrap();
+        assert_eq!(
+            *xs0,
+            RecordMcc {
+                ptid: 4000,
+                hour_beginning: date(2025, 12, 1).at(6, 0, 0, 0).in_tz("America/New_York")?,
+                mcc: dec!(0.02),
+            }
+        );
+        // export to csv
+        let mut wtr = csv::Writer::from_path("/home/adrian/Downloads/test_output.csv")?;
+        for r in xs {
+            wtr.serialize(r)?;
+        }
+        wtr.flush()?;
         Ok(())
     }
 }

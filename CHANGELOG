@@ -12,6 +12,18 @@ TODO:
 ## 2026-03-30
 - Add a ISONE alert for negative zonal LMP prices in the DAM
 
+## 2026-04-06
+- Fixed isone sevenday_capacity_forecast by adding one column.
+- Make all tests pass
+- Assign a timezone to all buckets
+
+## 2026-03-30
+- Add a ISONE alert for negative zonal LMP prices in the DAM
+
+## 2026-03-01
+- Get all MCC data for ISONE as a csv.  Fix a bug where America/Los_Angeles 
+  was in ISONE data!
+
 ## 2026-02-18
 - Add NYISO zonal uplift archive, api, and monthly job
 
