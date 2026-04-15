@@ -94,6 +94,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::nyiso_scheduled_outages()))
             .app_data(Data::new(ProdDb::nyiso_transmission_outages_da()))
             .app_data(Data::new(ProdDb::nyiso_zonal_uplift()))
+            .app_data(Data::new(ProdDb::ui_eod_settlements_asof_date()))
             .service(hello)
             // Admin
             .service(admin::jobs::api_get_job_names)
@@ -158,6 +159,9 @@ async fn main() -> std::io::Result<()> {
             .service(nyiso::scheduled_outages::api_scheduled_outages)
             .service(nyiso::transmission_outages::api_transmission_outages_da)
             .service(nyiso::zonal_uplift::get_data_api)
+            // UI
+            .service(bust::api::ui::eod_settlements::views_asof_date::get_data_api)
+            .service(bust::api::ui::eod_settlements::views_asof_date::get_users_views)
     })
     .bind(("127.0.0.1", port))?
     // .bind(("0.0.0.0", args.port))? // use this if you want to allow all connections

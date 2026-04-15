@@ -36,7 +36,7 @@ use crate::db::{
         scheduled_outages::NyisoScheduledOutagesArchive,
         transmission_outages_da::NyisoTransmissionOutagesDaArchive, zonal_uplift::NyisoZonalUpliftArchive,
     },
-    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
+    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive, ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
 };
 
 use super::{
@@ -446,6 +446,14 @@ impl ProdDb {
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sr_rsvstl2.duckdb".to_string(),
         }
     }
+
+    pub fn ui_eod_settlements_asof_date() -> UiEodSettlementsAsOfDateArchive {
+        UiEodSettlementsAsOfDateArchive {
+            base_dir: "/home/adrian/Downloads/Archive/UI/EodSettlements".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/ui/eod_settlements/views_asof_date.duckdb".to_string(),
+        }
+    }
+
 }
 
 #[derive(Clone)]

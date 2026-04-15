@@ -4,10 +4,15 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-04-15
+- Add ui/eod_settlements endpoint
+
 ## 2026-04-06
 - Fixed isone sevenday_capacity_forecast by adding one column.
 - Make all tests pass
 - Assign a timezone to all buckets
+- Rework the masked ara bids/offers.  Nice example of CROSS JOIN LATERAL for 
+  melting columns into rows. 
 
 ## 2026-03-30
 - Add a ISONE alert for negative zonal LMP prices in the DAM

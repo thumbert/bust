@@ -7,3 +7,4 @@ pub mod nrc;
 pub mod nyiso;
 pub mod prod_db;
 pub mod statistics_canada;
+pub mod ui;
