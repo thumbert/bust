@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-04-16
+- Generate API query parameters for only user_id and view_name in ui/eod_settlements
+
 ## 2026-04-15
 - Add ui/eod_settlements endpoint
 

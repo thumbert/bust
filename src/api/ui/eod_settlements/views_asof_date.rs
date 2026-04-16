@@ -3,8 +3,6 @@ use duckdb::AccessMode;
 use serde::Deserialize;
 use std::time::Duration;
 
-use jiff::civil::Date;
-
 use crate::db::ui::eod_settlements::views_asof_date::*;
 use crate::utils::lib_duckdb::open_with_retry;
 
@@ -39,10 +37,7 @@ pub async fn get_users_views(data: web::Data<UiEodSettlementsAsOfDateArchive>) -
 }
 
 #[get("/ui/eod_settlements/asof_date")]
-pub async fn get_data_api(
-    query: web::Query<ApiQuery>,
-    data: web::Data<UiEodSettlementsAsOfDateArchive>,
-) -> impl Responder {
+pub async fn get_data_api(query: web::Query<ApiQuery>, data: web::Data<UiEodSettlementsAsOfDateArchive>) -> impl Responder {
     let conn = open_with_retry(
         &data.duckdb_path,
         8,
@@ -80,41 +75,6 @@ struct ApiQuery {
     pub view_name: Option<String>,
     pub view_name_like: Option<String>,
     pub view_name_in: Option<String>,
-    pub row_id: Option<u32>,
-    pub row_id_in: Option<String>,
-    pub row_id_gte: Option<u32>,
-    pub row_id_lte: Option<u32>,
-    pub source: Option<String>,
-    pub source_like: Option<String>,
-    pub source_in: Option<String>,
-    pub ice_category: Option<String>,
-    pub ice_category_like: Option<String>,
-    pub ice_category_in: Option<String>,
-    pub ice_hub: Option<String>,
-    pub ice_hub_like: Option<String>,
-    pub ice_hub_in: Option<String>,
-    pub ice_product: Option<String>,
-    pub ice_product_like: Option<String>,
-    pub ice_product_in: Option<String>,
-    pub endur_curve_name: Option<String>,
-    pub endur_curve_name_like: Option<String>,
-    pub endur_curve_name_in: Option<String>,
-    pub nodal_contract_name: Option<String>,
-    pub nodal_contract_name_like: Option<String>,
-    pub nodal_contract_name_in: Option<String>,
-    pub as_of_date: Option<Date>,
-    pub as_of_date_in: Option<String>,
-    pub as_of_date_gte: Option<Date>,
-    pub as_of_date_lte: Option<Date>,
-    pub strip: Option<String>,
-    pub strip_like: Option<String>,
-    pub strip_in: Option<String>,
-    pub unit_conversion: Option<String>,
-    pub unit_conversion_like: Option<String>,
-    pub unit_conversion_in: Option<String>,
-    pub label: Option<String>,
-    pub label_like: Option<String>,
-    pub label_in: Option<String>,
     pub _limit: Option<usize>,
 }
 
@@ -123,88 +83,14 @@ impl ApiQuery {
         QueryFilter {
             user_id: self.user_id.clone(),
             user_id_like: self.user_id_like.clone(),
-            user_id_in: self
-                .user_id_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            user_id_in: self.user_id_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
             view_name: self.view_name.clone(),
             view_name_like: self.view_name_like.clone(),
-            view_name_in: self
-                .view_name_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            row_id: self.row_id,
-            row_id_in: self
-                .row_id_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            row_id_gte: self.row_id_gte,
-            row_id_lte: self.row_id_lte,
-            source: self.source.clone(),
-            source_like: self.source_like.clone(),
-            source_in: self
-                .source_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            ice_category: self.ice_category.clone(),
-            ice_category_like: self.ice_category_like.clone(),
-            ice_category_in: self
-                .ice_category_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            ice_hub: self.ice_hub.clone(),
-            ice_hub_like: self.ice_hub_like.clone(),
-            ice_hub_in: self
-                .ice_hub_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            ice_product: self.ice_product.clone(),
-            ice_product_like: self.ice_product_like.clone(),
-            ice_product_in: self
-                .ice_product_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            endur_curve_name: self.endur_curve_name.clone(),
-            endur_curve_name_like: self.endur_curve_name_like.clone(),
-            endur_curve_name_in: self
-                .endur_curve_name_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            nodal_contract_name: self.nodal_contract_name.clone(),
-            nodal_contract_name_like: self.nodal_contract_name_like.clone(),
-            nodal_contract_name_in: self
-                .nodal_contract_name_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            as_of_date: self.as_of_date,
-            as_of_date_in: self.as_of_date_in.as_ref().map(|s| {
-                s.split(',')
-                    .map(|v| v.trim().parse::<Date>().unwrap())
-                    .collect()
-            }),
-            as_of_date_gte: self.as_of_date_gte,
-            as_of_date_lte: self.as_of_date_lte,
-            strip: self.strip.clone(),
-            strip_like: self.strip_like.clone(),
-            strip_in: self
-                .strip_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            unit_conversion: self.unit_conversion.clone(),
-            unit_conversion_like: self.unit_conversion_like.clone(),
-            unit_conversion_in: self
-                .unit_conversion_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
-            label: self.label.clone(),
-            label_like: self.label_like.clone(),
-            label_in: self
-                .label_in
-                .as_ref()
-                .map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
+            view_name_in: self.view_name_in.as_ref().map(|s| s.split(',').map(|v| v.trim().parse().unwrap()).collect()),
         }
     }
 }
+
 
 #[cfg(test)]
 mod api_tests {
