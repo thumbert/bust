@@ -11,3 +11,5 @@ Cargo.lock
 
 # Skip 'em
 .env
+
+payload.json

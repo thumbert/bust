@@ -7,7 +7,10 @@ use duckdb::Connection;
 use serde::{Deserialize, Serialize};
 use url::form_urlencoded;
 
-use jiff::{civil::Date, ToSpan};
+use jiff::{
+    civil::Date,
+    ToSpan,
+};
 
 #[derive(Clone)]
 pub struct UiEodSettlementsAsOfDateArchive {
@@ -32,44 +35,90 @@ pub struct Record {
     pub label: Option<String>,
 }
 
-pub fn get_data(conn: &Connection, query_filter: &QueryFilter, limit: Option<usize>) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
-   let mut query = String::from(r#"
+pub fn get_data(
+    conn: &Connection,
+    query_filter: &QueryFilter,
+    limit: Option<usize>,
+) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    let mut query = String::from(
+        r#"
 SELECT
     user_id,
-    view_name
-FROM views_asof_date WHERE 1=1"#);
+    view_name,
+    row_id,
+    source,
+    ice_category,
+    ice_hub,
+    ice_product,
+    endur_curve_name,
+    nodal_contract_name,
+    as_of_date,
+    strip,
+    unit_conversion,
+    label
+FROM views_asof_date WHERE 1=1"#,
+    );
     if let Some(user_id) = &query_filter.user_id {
-        query.push_str(&format!("
-    AND user_id = '{}'", user_id));
+        query.push_str(&format!(
+            "
+    AND user_id = '{}'",
+            user_id
+        ));
     }
     if let Some(user_id_like) = &query_filter.user_id_like {
-        query.push_str(&format!("
-    AND user_id LIKE '{}'", user_id_like));
+        query.push_str(&format!(
+            "
+    AND user_id LIKE '{}'",
+            user_id_like
+        ));
     }
     if let Some(user_id_in) = &query_filter.user_id_in {
-        query.push_str(&format!("
-    AND user_id IN ('{}')", user_id_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND user_id IN ('{}')",
+            user_id_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     if let Some(view_name) = &query_filter.view_name {
-        query.push_str(&format!("
-    AND view_name = '{}'", view_name));
+        query.push_str(&format!(
+            "
+    AND view_name = '{}'",
+            view_name
+        ));
     }
     if let Some(view_name_like) = &query_filter.view_name_like {
-        query.push_str(&format!("
-    AND view_name LIKE '{}'", view_name_like));
+        query.push_str(&format!(
+            "
+    AND view_name LIKE '{}'",
+            view_name_like
+        ));
     }
     if let Some(view_name_in) = &query_filter.view_name_in {
-        query.push_str(&format!("
-    AND view_name IN ('{}')", view_name_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
+        query.push_str(&format!(
+            "
+    AND view_name IN ('{}')",
+            view_name_in
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join("','")
+        ));
     }
     match limit {
         Some(l) => {
-            query.push_str(&format!("
-LIMIT {};", l));
-        },
+            query.push_str(&format!(
+                "
+LIMIT {};",
+                l
+            ));
+        }
         None => {
             query.push(';');
-        },
+        }
     }
 
     let mut stmt = conn.prepare(&query)?;
@@ -128,7 +177,11 @@ impl QueryFilter {
             params.insert("user_id_like", value.to_string());
         }
         if let Some(value) = &self.user_id_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("user_id_in", joined);
         }
         if let Some(value) = &self.view_name {
@@ -138,7 +191,11 @@ impl QueryFilter {
             params.insert("view_name_like", value.to_string());
         }
         if let Some(value) = &self.view_name_in {
-            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let joined = value
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             params.insert("view_name_in", joined);
         }
         form_urlencoded::Serializer::new(String::new())
@@ -194,6 +251,50 @@ impl QueryFilterBuilder {
     }
 }
 
+/// Delete all existing records for `(user_id, view_name)` and insert the provided records.
+pub fn write_records(
+    conn: &Connection,
+    user_id: &str,
+    view_name: &str,
+    records: &[Record],
+) -> Result<(), Box<dyn std::error::Error>> {
+    conn.execute(
+        "DELETE FROM views_asof_date WHERE user_id = ? AND view_name = ?",
+        duckdb::params![user_id, view_name],
+    )?;
+
+    if records.is_empty() {
+        return Ok(());
+    }
+
+    let mut stmt = conn.prepare(
+        "INSERT INTO views_asof_date \
+         (user_id, view_name, row_id, source, ice_category, ice_hub, ice_product, \
+          endur_curve_name, nodal_contract_name, as_of_date, strip, unit_conversion, label) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )?;
+
+    for record in records {
+        stmt.execute(duckdb::params![
+            record.user_id,
+            record.view_name,
+            record.row_id,
+            record.source,
+            record.ice_category,
+            record.ice_hub,
+            record.ice_product,
+            record.endur_curve_name,
+            record.nodal_contract_name,
+            record.as_of_date.to_string(),
+            record.strip,
+            record.unit_conversion,
+            record.label,
+        ])?;
+    }
+
+    Ok(())
+}
+
 pub fn users_views(conn: &Connection) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
     let query = String::from(
         r#"
@@ -218,6 +319,7 @@ mod tests {
     use super::*;
     use crate::db::prod_db::ProdDb;
     use duckdb::{AccessMode, Config, Connection};
+    use jiff::civil::date;
     use std::error::Error;
 
     #[test]
@@ -244,6 +346,38 @@ mod tests {
         assert!(!xs.is_empty());
         let users: Vec<String> = xs.iter().map(|(user, _)| user.clone()).collect();
         assert!(users.contains(&"adrian".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_insert() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadWrite)?;
+        let conn =
+            Connection::open_with_flags(ProdDb::ui_eod_settlements_asof_date().duckdb_path, config)
+                .unwrap();
+        let record = Record {
+            user_id: "joe".to_string(),
+            view_name: "mass hub".to_string(),
+            row_id: 0,
+            source: "ice".to_string(),
+            ice_category: Some("power".to_string()),
+            ice_hub: Some("Nepool MH DA (Daily)".to_string()),
+            ice_product: Some("Peak Futures".to_string()),
+            endur_curve_name: None,
+            nodal_contract_name: None,
+            as_of_date: date(2026, 3, 20),
+            strip: None,
+            unit_conversion: None,
+            label: None,
+        };
+        write_records(
+            &conn,
+            &record.user_id.clone(),
+            &record.view_name.clone(),
+            &[record],
+        )
+        .unwrap();
+        conn.close().unwrap();
         Ok(())
     }
 }

@@ -162,6 +162,7 @@ async fn main() -> std::io::Result<()> {
             // UI
             .service(bust::api::ui::eod_settlements::views_asof_date::get_data_api)
             .service(bust::api::ui::eod_settlements::views_asof_date::get_users_views)
+            .service(bust::api::ui::eod_settlements::views_asof_date::post_data_api)
     })
     .bind(("127.0.0.1", port))?
     // .bind(("0.0.0.0", args.port))? // use this if you want to allow all connections
