@@ -2,18 +2,14 @@ use crate::db::{
     caiso::{
         dalmp_archive::CaisoDaLmpArchive, public_bids_archive::CaisoPublicBidsArchive,
         rtlmp_archive::CaisoRtLmpArchive,
-    },
-    calendar::buckets::BucketsArchive,
-    hq::{
+    }, calendar::buckets::BucketsArchive, hq::{
         electricity_demand::HqTotalDemandArchive,
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    },
-    ieso::{
+    }, ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    },
-    isone::{
+    }, isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         calendar_events::IsoneEventsCalendarArchive,
         dalmp_archive::IsoneDaLmpArchive,
@@ -29,14 +25,12 @@ use crate::db::{
         rtlmp_archive::IsoneRtLmpArchive,
         sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    },
-    nyiso::{
+    }, nodal::nodal_contracts::NodalContractsArchive, nyiso::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
         energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive,
         scheduled_outages::NyisoScheduledOutagesArchive,
         transmission_outages_da::NyisoTransmissionOutagesDaArchive, zonal_uplift::NyisoZonalUpliftArchive,
-    },
-    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive, ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive, ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive
 };
 
 use super::{
@@ -326,6 +320,14 @@ impl ProdDb {
         HqFuelMixArchive {
             base_dir: "/home/adrian/Downloads/Archive/HQ/FuelMix".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/fuel_mix.duckdb".to_string(),
+        }
+    }
+
+    pub fn nodal_contracts() -> NodalContractsArchive {
+        NodalContractsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nodal/Contracts".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nodal/contracts.duckdb"
+                .to_string(),
         }
     }
 

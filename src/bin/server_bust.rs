@@ -4,7 +4,7 @@ use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{admin, caiso, epa, hq, ieso, isone, nrc, nyiso};
+use bust::api::{admin, caiso, epa, hq, ieso, isone, nodal, nrc, nyiso};
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -88,6 +88,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::sd_rtload()))
             .app_data(Data::new(ProdDb::sr_rsvcharge2()))
             .app_data(Data::new(ProdDb::sr_rsvstl2()))
+            .app_data(Data::new(ProdDb::nodal_contracts()))
             .app_data(Data::new(ProdDb::nyiso_binding_constraints_da()))
             .app_data(Data::new((ProdDb::nyiso_dalmp(), ProdDb::nyiso_rtlmp())))
             .app_data(Data::new(ProdDb::nyiso_energy_offers()))
@@ -146,6 +147,8 @@ async fn main() -> std::io::Result<()> {
             .service(isone::mis::sr_rsvstl2::api_tab_data)
             .service(isone::participant_list::participants)
             .service(isone::ttc::api_ttc_data)
+            // Nodal
+            .service(nodal::contracts::get_data_api)
             // NRC
             .service(nrc::generator_status::api_get_names)
             .service(nrc::generator_status::api_status)
