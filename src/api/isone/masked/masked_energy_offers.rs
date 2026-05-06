@@ -330,7 +330,7 @@ mod tests {
     use duckdb::{AccessMode, Config, Connection, Result};
     use jiff::civil::date;
 
-    use crate::{api::isone::masked_energy_offers::*, db::prod_db::ProdDb};
+    use crate::{api::isone::masked::masked_energy_offers::*, db::prod_db::ProdDb};
 
     #[test]
     fn test_get_offers() -> Result<()> {

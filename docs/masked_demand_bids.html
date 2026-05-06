@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>masked_demand_bids endpoints</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height:1.5; padding:20px; }
+    code { background:#f4f4f4; padding:2px 4px; border-radius:4px; }
+    pre { background:#f8f8f8; padding:10px; border-radius:6px; overflow:auto }
+    h1,h2 { color:#0b4a6f }
+    table { border-collapse:collapse; width:100% }
+    th,td { text-align:left; padding:6px; border-bottom:1px solid #eee }
+  </style>
+</head>
+<body>
+  <h1>Documentation: masked_demand_bids.rs</h1>
+  <p>This page documents the HTTP endpoints exported from <strong>masked_demand_bids.rs</strong> and gives example requests and responses based on the unit tests in the file.</p>
+
+  <h2>Endpoints</h2>
+
+  <h3>1) Get demand bids (range)</h3>
+  <p><strong>Path:</strong> <code>/isone/masked/demand_bids/start/{start}/end/{end}</code></p>
+  <p><strong>Method:</strong> GET</p>
+  <p><strong>Description:</strong> Returns DA demand bids (and virtuals) between the date range [start,end]. Dates are civil dates (YYYY-MM-DD).</p>
+
+  <h4>Query parameters</h4>
+  <ul>
+    <li><code>masked_asset_ids</code> — optional, comma-separated asset ids (e.g. <code>28934,12345</code>).</li>
+    <li><code>masked_participant_ids</code> — optional, a single masked participant id (integer).</li>
+    <li><code>bid_types</code> — optional, comma-separated bid types: <code>INC</code>, <code>DEC</code>, <code>FIXED</code>, <code>PRICE</code>.</li>
+  </ul>
+
+  <h4>Example (based on tests)</h4>
+  <p>Reqwest (blocking) example used in tests (substitute <code>RUST_SERVER</code>):</p>
+  <pre><code>GET {RUST_SERVER}/isone/masked/demand_bids/start/2025-06-01/end/2025-06-01?masked_asset_ids=28934&amp;masked_participant_ids=504170</code></pre>
+
+  <p>cURL example:</p>
+  <pre><code>curl "http://localhost:8080/isone/masked/demand_bids/start/2025-06-01/end/2025-06-01?masked_asset_ids=28934&masked_participant_ids=504170"</code></pre>
+
+  <h4>Response shape</h4>
+  <p>Array of <code>DemandBid</code> objects (fields):</p>
+  <ul>
+    <li><code>masked_participant_id</code> (u32)</li>
+    <li><code>masked_asset_id</code> (u32)</li>
+    <li><code>bid_type</code> ("INC"|"DEC"|"FIXED"|"PRICE")</li>
+    <li><code>hour_beginning</code> (tz-aware timestamp string, e.g. <code>2025-06-01 00:00:00-04:00[America/New_York]</code>)</li>
+    <li><code>segment</code> (u8)</li>
+    <li><code>quantity</code> (f32)</li>
+    <li><code>price</code> (f32)</li>
+  </ul>
+
+  <h4>Sample response (one item) — from <em>test_get_offers</em>:</h4>
+  <pre><code>[
+  {
+    "masked_participant_id": 504170,
+    "masked_asset_id": 28934,
+    "bid_type": "PRICE",
+    "hour_beginning": "2025-06-01 00:00:00-04:00[America/New_York]",
+    "segment": 0,
+    "quantity": 19.6,
+    "price": 992.0
+  }
+]</code></pre>
+
+  <hr />
+
+  <h3>2) Daily aggregated zonal demand bids (MWh) — aggregated</h3>
+  <p><strong>Path:</strong> <code>/isone/masked/demand_bids/daily/agg/start/{start}/end/{end}</code></p>
+  <p><strong>Method:</strong> GET</p>
+  <p><strong>Description:</strong> Returns daily aggregated zonal demand bids (MWh) for each participant over the date range. Aggregates over bid types FIXED and PRICE across load zones.</p>
+
+  <h4>Query parameters</h4>
+  <ul>
+    <li><code>masked_participant_ids</code> — optional, comma-separated participant ids (e.g. <code>504170,212494</code>).</li>
+  </ul>
+
+  <h4>Example (based on tests)</h4>
+  <pre><code>GET /isone/masked/demand_bids/daily/agg/start/2022-01-01/end/2022-02-01?masked_participant_ids=504170,212494</code></pre>
+
+  <h4>Response shape</h4>
+  <p>Array of rows:</p>
+  <ul>
+    <li><code>day</code> (DATE)</li>
+    <li><code>masked_participant_id</code> (u32)</li>
+    <li><code>mw</code> (f32) — daily MWh sum</li>
+  </ul>
+
+  <h4>Sample response (single item) — from <em>test_get_daily_zonal_agg</em>:</h4>
+  <pre><code>[
+  {
+    "day": "2022-01-01",
+    "masked_participant_id": 212494,
+    "mw": 8443.3
+  }
+]</code></pre>
+
+  <hr />
+
+  <h3>3) Daily zonal demand bids (per asset)</h3>
+  <p><strong>Path:</strong> <code>/isone/masked/demand_bids/daily/zonal/start/{start}/end/{end}</code></p>
+  <p><strong>Method:</strong> GET</p>
+  <p><strong>Description:</strong> Returns daily zonal demand bids aggregated per participant and per asset for the date range. Aggregates over bid types FIXED and PRICE.</p>
+
+  <h4>Query parameters</h4>
+  <ul>
+    <li><code>masked_participant_ids</code> — optional, comma-separated participant ids.</li>
+  </ul>
+
+  <h4>Example (based on tests)</h4>
+  <pre><code>GET /isone/masked/demand_bids/daily/zonal/start/2022-01-01/end/2022-02-01?masked_participant_ids=212494</code></pre>
+
+  <h4>Response shape</h4>
+  <ul>
+    <li><code>day</code> (DATE)</li>
+    <li><code>masked_participant_id</code> (u32)</li>
+    <li><code>masked_asset_id</code> (u32)</li>
+    <li><code>mw</code> (f32)</li>
+  </ul>
+
+  <h4>Sample response (single item) — from <em>test_get_daily_zonal</em>:</h4>
+  <pre><code>[
+  {
+    "day": "2022-01-01",
+    "masked_participant_id": 212494,
+    "masked_asset_id": 37894,
+    "mw": 2549.5
+  }
+]</code></pre>
+
+  <hr />
+
+  <h2>Notes &amp; comments</h2>
+  <ul>
+    <li>The file also exposes internal helper functions used by the endpoints: <code>get_demand_bids</code>, <code>get_daily_zonal_demand_bids_agg</code>, and <code>get_daily_zonal_demand_bids</code>. The unit tests in the same file exercise those functions directly.</li>
+    <li>Some tests call internal functions directly (not via HTTP). Use the same query params when constructing requests to the endpoints.</li>
+    <li>Example payloads above are taken directly from the unit tests in the file.</li>
+  </ul>
+
+  <p>File: <a href="../src/api/isone/masked/masked_demand_bids.rs">src/api/isone/masked/masked_demand_bids.rs</a></p>
+</body>
+</html>
