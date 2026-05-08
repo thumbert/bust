@@ -344,7 +344,7 @@ AND locationType = 'LOAD ZONE'"#,
         Ok(Row1 {
             day: Date::ZERO.checked_add(n.days()).unwrap(),
             masked_participant_id: row.get(1).unwrap(),
-            mw: row.get(2).unwrap(),
+            mwh: row.get(2).unwrap(),
         })
     })?;
     let data: Vec<Row1> = offers_iter.map(|e| e.unwrap()).collect();
@@ -411,7 +411,7 @@ AND locationType = 'LOAD ZONE'"#,
             day: Date::ZERO.checked_add(n.days()).unwrap(),
             masked_participant_id: row.get(1).unwrap(),
             masked_location_id: row.get(2).unwrap(),
-            mw: row.get(3).unwrap(),
+            mwh: row.get(3).unwrap(),
         })
     })?;
     let data: Vec<Row2> = offers_iter.map(|e| e.unwrap()).collect();
@@ -422,7 +422,7 @@ AND locationType = 'LOAD ZONE'"#,
 pub struct Row1 {
     day: Date,
     masked_participant_id: u32,
-    mw: f32,
+    mwh: f32,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -430,7 +430,7 @@ pub struct Row2 {
     day: Date,
     masked_participant_id: u32,
     masked_location_id: u32,
-    mw: f32,
+    mwh: f32,
 }
 
 #[cfg(test)]
@@ -464,7 +464,7 @@ mod tests {
             Row1 {
                 day: date(2022, 1, 1),
                 masked_participant_id: 212494,
-                mw: 8_443.3,
+                mwh: 8_443.3,
             }
         );
         Ok(())
@@ -495,7 +495,7 @@ mod tests {
                 day: date(2022, 1, 1),
                 masked_participant_id: 212494,
                 masked_location_id: 37894,
-                mw: 2_549.5,
+                mwh: 2_549.5,
             }
         );
         Ok(())
