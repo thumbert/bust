@@ -3,6 +3,8 @@ use std::time::Duration;
 use duckdb::{AccessMode, Connection, Result};
 use serde::{Deserialize, Serialize};
 
+use jiff::Zoned;
+
 use crate::{db::caiso::dalmp_archive::CaisoDaLmpArchive, utils::lib_duckdb::open_with_retry};
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -29,13 +31,19 @@ async fn api_get_all(db: web::Data<CaisoDaLmpArchive>) -> impl Responder {
 }
 
 fn get_all(conn: &Connection) -> Result<Vec<Row>> {
-    let query = r#"
-SELECT DISTINCT node_id 
-FROM lmp
-WHERE hour_beginning = '2025-12-01T00:00:00-08:00'
-ORDER BY node_id;    
-    "#;
-    let mut stmt = conn.prepare(query).unwrap();
+    let yesterday_noon = Zoned::now()
+        .in_tz("America/Los_Angeles")
+        .unwrap()
+        .date()
+        .at(12, 0, 0, 0)
+        .in_tz("America/Los_Angeles")
+        .unwrap();
+    let ts = yesterday_noon.strftime("%Y-%m-%dT%H:%M:%S%:z");
+    let query = format!(
+        r#"SELECT DISTINCT node_id FROM lmp WHERE hour_beginning = '{}' ORDER BY node_id;"#,
+        ts
+    );
+    let mut stmt = conn.prepare(query.as_str()).unwrap();
     let res_iter = stmt.query_map([], |row| {
         Ok(Row {
             name: row.get::<usize, String>(0).unwrap(),

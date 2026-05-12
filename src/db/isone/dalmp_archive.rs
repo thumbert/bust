@@ -50,17 +50,15 @@ CREATE TABLE IF NOT EXISTS da_lmp (
 
 CREATE TEMPORARY TABLE tmp
 AS
-    SELECT 
-        BeginDate::TIMESTAMPTZ AS hour_beginning,
-        "@LocId"::UINTEGER AS ptid,
-        LmpTotal::DECIMAL(9,4) AS "lmp",
-        CongestionComponent::DECIMAL(9,4) AS "mcc",
-        LossComponent::DECIMAL(9,4) AS "mcl" 
+    SELECT DISTINCT
+        json_extract(aux, '$.BeginDate')::TIMESTAMPTZ AS hour_beginning,
+        json_extract(aux, '$.Location.@LocId')::UINTEGER AS ptid,
+        json_extract(aux, '$.LmpTotal')::DECIMAL(9,4) AS lmp,
+        json_extract(aux, '$.CongestionComponent')::DECIMAL(9,4) AS mcc,
+        json_extract(aux, '$.LossComponent')::DECIMAL(9,4) AS mcl
     FROM (
-        SELECT DISTINCT BeginDate, "@LocId", LmpTotal, CongestionComponent, LossComponent FROM (
-            SELECT unnest(HourlyLmps.HourlyLmp, recursive := true)
-            FROM read_json('{}/Raw/{}/WW_DALMP_ISO_{}*.json.gz')
-        )
+        SELECT unnest(HourlyLmps.HourlyLmp)::JSON as aux
+        FROM read_json('{}/Raw/{}/WW_DALMP_ISO_{}*.json.gz')
     )
     ORDER BY hour_beginning, ptid
 ;
@@ -594,7 +592,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_dalmp();
 
-        let months = month(2022, 1).up_to(month(2022, 2));
+        let months = month(2022, 2).up_to(month(2026, 5));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month)?;
