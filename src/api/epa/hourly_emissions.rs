@@ -1,42 +1,84 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use actix_web::{get, web, HttpResponse, Responder};
 
 use duckdb::{
     arrow::array::StringArray,
     types::{EnumType::UInt8, ValueRef},
-    AccessMode, Config, Connection, Result, Row,
+    AccessMode, Connection, Result, Row,
 };
 use itertools::Itertools;
 use jiff::{civil::Date, ToSpan};
+use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-#[get("/epa/emissions/state/{state}/all_facilities")]
-async fn all_facilities(path: web::Path<String>) -> impl Responder {
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(path.to_string()), config).unwrap();
+use crate::utils::lib_duckdb::open_with_retry;
+
+/// Provides the DuckDB path for a given state's EPA hourly emissions database.
+/// Implement this trait to plug in different path configurations (prod, test, etc.)
+/// from any crate that registers the API routes.
+pub trait EpaEmissionsDbProvider: Send + Sync {
+    fn duckdb_path(&self, state: &str) -> String;
+}
+
+#[get("/epa/hourly_emissions/state/{state}/all_facilities")]
+async fn all_facilities(
+    path: web::Path<(String,)>,
+    provider: web::Data<dyn EpaEmissionsDbProvider>,
+) -> impl Responder {
+    let db_path = provider.duckdb_path(&path.0);
+    let conn = open_with_retry(&db_path, 8, Duration::from_millis(25), AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database at {}: {}",
+            &db_path,
+            conn.err().unwrap(),
+        ));
+    }
+    let conn = conn.unwrap();
     let names = get_units(&conn);
     HttpResponse::Ok().json(names.unwrap())
 }
 
-#[get("/epa/emissions/state/{state}/all_columns")]
-async fn all_columns(path: web::Path<String>) -> impl Responder {
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(path.to_string()), config).unwrap();
+#[get("/epa/hourly_emissions/state/{state}/all_columns")]
+async fn all_columns(
+    path: web::Path<(String,)>,
+    provider: web::Data<dyn EpaEmissionsDbProvider>,
+) -> impl Responder {
+    let db_path = provider.duckdb_path(&path.0);
+    let conn = open_with_retry(&db_path, 8, Duration::from_millis(25), AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database at {}: {}",
+            &db_path,
+            conn.err().unwrap(),
+        ));
+    }
+    let conn = conn.unwrap();
     let names = get_column_names(&conn);
     HttpResponse::Ok().json(names.unwrap())
 }
 
 /// Get generation data between a start/end date for some units as specified in the query
-/// http://127.0.0.1:8111/epa/state/ma/start/2023-01-01/end/2023-01-01?names=Mystic&columns=Facility%20Name|Unit%20ID|Date|Hour|Gross%20Load%20(MW)
-#[get("/epa/emissions/state/{state}/start/{start}/end/{end}")]
+/// http://127.0.0.1:8111/epa/state/ma/start/2023-01-01/end/2023-01-01?names=Mystic&columns=facility_name|unit_id|date|hour|gross_load_mw
+#[get("/epa/hourly_emissions/state/{state}/start/{start}/end/{end}")]
 async fn api_data(
     path: web::Path<(String, Date, Date)>,
     query: web::Query<DataQuery>,
+    provider: web::Data<dyn EpaEmissionsDbProvider>,
 ) -> impl Responder {
-    let config = Config::default().access_mode(AccessMode::ReadOnly).unwrap();
-    let conn = Connection::open_with_flags(get_path(path.0.to_string()), config).unwrap();
+    let db_path = provider.duckdb_path(&path.0);
+    let conn = open_with_retry(&db_path, 8, Duration::from_millis(25), AccessMode::ReadOnly);
+    if conn.is_err() {
+        return HttpResponse::InternalServerError().body(format!(
+            "Error opening DuckDB database at {}: {}",
+            &db_path,
+            conn.err().unwrap(),
+        ));
+    }
+    let conn = conn.unwrap();
+
     let start_date = path.1;
     let end_date = path.2;
     let unit_names: Option<Vec<String>> = query
@@ -47,6 +89,7 @@ async fn api_data(
         .columns
         .as_ref()
         .map(|ids| ids.split('|').map(|e| e.to_string()).collect());
+    println!("unit_names={:?}, columns={:?}", unit_names, columns);
     let non_null_generation_only = query.non_null_generation_only.unwrap_or(true);
     let data = get_data(
         &conn,
@@ -104,17 +147,17 @@ WHERE Date >= '{}'
 AND Date <= '{}'
 {}
 {}
-ORDER BY "Facility Name", "Unit ID", "Date", "Hour";
+ORDER BY "facility_name", "unit_id", "date", "hour";
     "#,
         ids.join("\", \""),
         start.strftime("%Y-%m-%d"),
         end.strftime("%Y-%m-%d"),
         match unit_names {
-            Some(ids) => format!("AND \"Facility Name\" in ('{}') ", ids.iter().join("', '")),
+            Some(ids) => format!("AND facility_name in ('{}') ", ids.iter().join("', '")),
             None => "".to_string(),
         },
         match not_null_generation_only {
-            true => "AND \"Gross Load (MW)\" IS NOT NULL".to_owned(),
+            true => "AND gross_load IS NOT NULL".to_owned(),
             false => "".to_owned(),
         }
     );
@@ -124,57 +167,45 @@ ORDER BY "Facility Name", "Unit ID", "Date", "Hour";
         let mut one: HashMap<String, Value> = HashMap::new();
         for (i, id) in ids.iter().enumerate() {
             let value = match id.as_str() {
-                "Facility Name"
-                | "Unit ID"
-                | "State"
-                | "Associated Stacks"
-                | "Primary Fuel Type"
-                | "Secondary Fuel Type"
-                | "SO2 Controls"
-                | "NOx Controls"
-                | "PM Controls"
-                | "Hg Controls"
-                | "Program Code" => match row.get::<usize, String>(i) {
+                "facility_name"
+                | "unit_id"
+                | "state"
+                | "associated_stacks"
+                | "primary_fuel_type"
+                | "secondary_fuel_type"
+                | "so2_controls"
+                | "nox_controls"
+                | "pm_controls"
+                | "hg_controls"
+                | "program_code" => match row.get::<usize, String>(i) {
                     Ok(v) => json!(v),
                     Err(_) => json!(Value::Null),
                 },
-                "Facility ID" => json!(row.get::<usize, usize>(i)?),
-                "Date" => json!(Date::ZERO
+                "facility_id" => json!(row.get::<usize, usize>(i)?),
+                "date" => json!(Date::ZERO
                     .checked_add((719528 + row.get::<usize, i32>(i).unwrap()).days())
                     .unwrap()
                     .to_string()),
-                "Hour" => json!(row.get::<usize, u8>(i).unwrap()),
-                "Gross Load (MW)" => match row.get::<usize, u16>(i) {
+                "hour" => json!(row.get::<usize, u8>(i).unwrap()),
+                "gross_load" => match row.get::<usize, u16>(i) {
                     Ok(v) => json!(v),
                     Err(_) => json!(Value::Null),
                 },
-                "Operating Time"
-                | "Steam Load (1000 lb/hr)"
-                | "SO2 Mass (lbs)"
-                | "SO2 Rate (lbs/mmBtu)"
-                | "CO2 Mass (short tons)"
-                | "CO2 Rate (short tons/mmBtu)"
-                | "NOx Mass (lbs)"
-                | "NOx Rate (lbs/mmBtu)"
-                | "Heat Input (mmBtu)" => match row.get_ref_unwrap(i) {
-                    ValueRef::Decimal(v) => json!(v),
-                    _ => json!(Value::Null),
-                },
-                "SO2 Mass Measure Indicator"
-                | "SO2 Rate Measure Indicator"
-                | "CO2 Mass Measure Indicator"
-                | "CO2 Rate Measure Indicator"
-                | "NOx Mass Measure Indicator"
-                | "NOx Rate Measure Indicator"
-                | "Heat Input Measure Indicator"
-                | "Unit Type" => get_enum(row, i),
-                // "NOx Mass Measure Indicator" => {
-                //     let v = row.get_ref_unwrap(i-1).to_owned();
-                //     match v {
-                //         types::Value::Enum(e) => json!(e),
-                //         _ => json!(Value::Null)
-                //     }
-                // },
+                "operating_time" | "steam_load" | "so2_mass" | "so2_rate" | "co2_mass"
+                | "co2_rate" | "nox_mass" | "nox_rate" | "heat_input" => {
+                    match row.get_ref_unwrap(i) {
+                        ValueRef::Decimal(v) => json!(v.to_f64().unwrap()),
+                        _ => json!(Value::Null),
+                    }
+                }
+                "so2_mass_measure_indicator"
+                | "so2_rate_measure_indicator"
+                | "co2_mass_measure_indicator"
+                | "co2_rate_measure_indicator"
+                | "nox_mass_measure_indicator"
+                | "nox_rate_measure_indicator"
+                | "heat_input_measure_indicator"
+                | "unit_type" => get_enum(row, i),
                 _ => json!(format!("Wrong column name {}", id)),
             };
 
@@ -206,11 +237,10 @@ fn get_enum(row: &Row, idx: usize) -> Value {
 /// Get all the names of the units in this state.  
 pub fn get_units(conn: &Connection) -> Result<Vec<String>> {
     let query = r#"
-SELECT DISTINCT "Facility Name"
+SELECT DISTINCT facility_name
 FROM emissions
-ORDER BY "Facility Name";    
+ORDER BY facility_name;    
     "#;
-    // println!("{}", query);
     let mut stmt = conn.prepare(query).unwrap();
     let names_iter = stmt.query_map([], |row| row.get(0))?;
     let names: Vec<String> = names_iter.map(|e| e.unwrap()).collect();
@@ -220,53 +250,56 @@ ORDER BY "Facility Name";
 /// Get all the column names of the table.  
 pub fn get_column_names(conn: &Connection) -> Result<Vec<String>> {
     let query = r#"SHOW emissions;"#;
-    // println!("{}", query);
     let mut stmt = conn.prepare(query).unwrap();
     let names_iter = stmt.query_map([], |row| row.get(0))?;
     let names: Vec<String> = names_iter.map(|e| e.unwrap()).collect();
     Ok(names)
 }
 
-fn get_path(state: String) -> String {
-    format!(
-        "/home/adrian/Downloads/Archive/EPA/Emissions/Hourly/epa_emissions_{}.duckdb",
-        state.to_lowercase()
-    )
-}
-
 #[cfg(test)]
 mod tests {
+    use duckdb::{AccessMode, Result};
+    use jiff::civil::date;
     use std::{collections::HashSet, env, error::Error, path::Path};
 
-    use duckdb::{AccessMode, Config, Connection, Result};
-    use jiff::civil::date;
-
-    use crate::api::epa::hourly_emissions::*;
+    use super::*;
+    use crate::db::prod_db::ProdDb;
 
     #[test]
     fn test_get_units() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path("ma".to_owned()), config).unwrap();
-        let xs = get_units(&conn)?;
-        println!("{:?}", xs);
+        let conn = open_with_retry(
+            &ProdDb::epa_hourly_emissions("MA").duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        );
+        let xs = get_units(&conn.unwrap())?;
         assert!(xs.iter().any(|e| e == "Mystic"));
         Ok(())
     }
 
     #[test]
     fn test_get_column_names() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path("ma".to_owned()), config).unwrap();
-        let xs = get_column_names(&conn)?;
-        println!("{:?}", xs);
-        assert!(xs.iter().any(|e| e == "Gross Load (MW)"));
+        let conn = open_with_retry(
+            &ProdDb::epa_hourly_emissions("MA").duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        );
+        let xs = get_column_names(&conn.unwrap())?;
+        assert!(xs.iter().any(|e| e == "gross_load"));
         Ok(())
     }
 
     #[test]
     fn test_get_data() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(get_path("ma".to_owned()), config).unwrap();
+        let conn = open_with_retry(
+            &ProdDb::epa_hourly_emissions("MA").duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        )
+        .unwrap();
         //
         // Query some columns
         //
@@ -276,11 +309,11 @@ mod tests {
             date(2023, 1, 6),
             Some(vec!["Mystic".to_string()]),
             Some(vec![
-                "Facility Name".to_string(),
-                "Unit ID".to_string(),
-                "Date".to_string(),
-                "Hour".to_string(),
-                "Gross Load (MW)".to_string(),
+                "facility_name".to_string(),
+                "unit_id".to_string(),
+                "date".to_string(),
+                "hour".to_string(),
+                "gross_load".to_string(),
             ]),
             true,
         )?;
@@ -290,11 +323,11 @@ mod tests {
         assert_eq!(
             keys,
             HashSet::from([
-                "Facility Name".to_string(),
-                "Unit ID".to_string(),
-                "Date".to_string(),
-                "Hour".to_string(),
-                "Gross Load (MW)".to_string(),
+                "facility_name".to_string(),
+                "unit_id".to_string(),
+                "date".to_string(),
+                "hour".to_string(),
+                "gross_load".to_string(),
             ])
         );
         //
@@ -311,7 +344,7 @@ mod tests {
         )?;
         // println!("{:?}", xs);
         assert_eq!(xs.len(), 91);
-        println!("{:?}", xs.first());
+        // println!("{:?}", xs.first());
         let n = xs.first().unwrap().keys().len();
         assert_eq!(n, 32);
 
@@ -322,7 +355,7 @@ mod tests {
     fn api_all_facilities() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/emissions/state/ma/all_facilities",
+            "{}/epa/hourly_emissions/state/ma/all_facilities",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
@@ -338,14 +371,14 @@ mod tests {
     fn api_all_columns() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/emissions/state/ma/all_columns",
+            "{}/epa/hourly_emissions/state/ma/all_columns",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Value = serde_json::from_str(&response).unwrap();
         if let Value::Array(xs) = &v {
             assert_eq!(xs.len(), 32);
-            assert!(xs.contains(&Value::String("Heat Input (mmBtu)".to_owned())));
+            assert!(xs.contains(&Value::String("heat_input".to_owned())));
         }
         // println!("{:?}", &v);
         Ok(())
@@ -355,10 +388,9 @@ mod tests {
     fn api_data() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/epa/emissions/state/ma/start/2023-01-01/end/2023-01-06?facility_names=Mystic&columns=Facility Name|Unit ID|Date|Hour|Gross Load (MW)&non_null_generation_only=true",
+            "{}/epa/hourly_emissions/state/ma/start/2023-01-01/end/2023-01-06?facility_names=Mystic&columns=facility_name|unit_id|date|hour|gross_load&non_null_generation_only=true",
             env::var("RUST_SERVER").unwrap(),
         );
-        println!("{}", url);
         let response = reqwest::blocking::get(url)?.text()?;
         let v: Value = serde_json::from_str(&response).unwrap();
         if let Value::Array(xs) = v {

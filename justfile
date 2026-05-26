@@ -50,6 +50,10 @@ update_isone_daas_strike_prices:
     cargo build --bin update_isone_daas_strike_prices --release
     cp ./target/release/update_isone_daas_strike_prices ~/Software
 
+update_isone_fuel_mix:
+    cargo build --bin update_isone_fuel_mix --release
+    cp ./target/release/update_isone_fuel_mix ~/Software
+
 update_isone_prices_da:
     cargo build --bin update_isone_prices_da --release 
     cp ./target/release/update_isone_prices_da ~/Software

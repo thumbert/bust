@@ -4,12 +4,16 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-05-26
+- Add a Quarter struct
+- Update the Isone fuel mix to deal with batteries
+- Cleanup some of the epa data.  Download the mats, hourly and daily data.
+
 ## 2026-05-12
 - Fixed ingestion for ISONE DA & RT lmp so that it parses timezone correctly.
   Must have introduced this bug when transitioning to DuckDB 1.5.2
 - API to get CAISO node names now uses current date to pick up all recent 
   additions.
-
 
 ## 2026-05-08
 - Changed the field in the demand_bids for the daily endpoints from mw -> mwh

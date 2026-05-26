@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
 use bust::api::{admin, caiso, epa, hq, ieso, isone, nodal, nrc, nyiso};
+use bust::api::epa::hourly_emissions::EpaEmissionsDbProvider;
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -96,6 +97,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::nyiso_transmission_outages_da()))
             .app_data(Data::new(ProdDb::nyiso_zonal_uplift()))
             .app_data(Data::new(ProdDb::ui_eod_settlements_asof_date()))
+            .app_data(Data::from(Arc::new(ProdDb {}) as Arc<dyn EpaEmissionsDbProvider>))
             .service(hello)
             // Admin
             .service(admin::jobs::api_get_job_names)

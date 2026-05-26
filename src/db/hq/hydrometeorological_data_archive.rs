@@ -317,8 +317,14 @@ impl HqHydroDataArchive {
     /// Data is updated on the website twice every day
     pub fn download_file(&self) -> Result<(), Box<dyn Error>> {
         let url = "https://www.hydroquebec.com/data/documents-donnees/donnees-ouvertes/json/Donnees_VUE_STATIONS_ET_TARAGES.json";
-        let resp = reqwest::blocking::get(url).expect("request failed");
-        let body = resp.text().expect("body invalid");
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0")
+            .build()?;
+        let resp = client.get(url).send()?;
+        if !resp.status().is_success() {
+            return Err(format!("Request failed with status {}", resp.status()).into());
+        }
+        let body = resp.text()?;
         let today: Date = Zoned::now().date();
         let path = &self.filename(&today);
         let dir = Path::new(path).parent().unwrap();

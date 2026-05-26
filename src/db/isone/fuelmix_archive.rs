@@ -35,8 +35,8 @@ impl IsoneFuelMixArchive {
 CREATE TABLE IF NOT EXISTS fuel_mix (
     timestamp TIMESTAMPTZ,
     mw INT32,
-    fuel_category_rollup ENUM('Coal', 'Hydro', 'Natural Gas', 'Nuclear', 'Oil', 'Other', 'Renewables'),
-    fuel_category ENUM( 'Coal', 'Hydro', 'Landfill Gas', 'Natural Gas', 'Nuclear', 'Oil', 'Other', 'Refuse', 'Solar', 'Wind', 'Wood'),
+    fuel_category_rollup ENUM('Batteries', 'Coal', 'Hydro', 'Natural Gas', 'Nuclear', 'Oil',  'Other', 'Renewables'),
+    fuel_category ENUM('Batteries', 'Coal', 'Hydro', 'Landfill Gas', 'Natural Gas', 'Nuclear', 'Oil', 'Other', 'Refuse', 'Solar', 'Wind', 'Wood'),
     marginal_flag BOOL
 );
 
@@ -54,7 +54,8 @@ AS
         END AS marginal_flag
         FROM (
             SELECT unnest(GenFuelMixes.GenFuelMix, recursive := true)
-            FROM read_json('{}/Raw/{}/genfuelmix_{}.json.gz')
+            FROM read_json('{}/Raw/{}/genfuelmix_{}.json.gz',
+            timestampformat := '%Y-%m-%dT%H:%M:%S%z')
     )
     ORDER BY timestamp, fuel_category
 ;
@@ -131,7 +132,7 @@ ORDER BY timestamp, fuel_category;
 #[cfg(test)]
 mod tests {
 
-    use jiff::civil::date;
+    use jiff::{Zoned, civil::date};
     use log::info;
     use std::{error::Error, path::Path};
 
@@ -147,12 +148,15 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_fuel_mix();
 
-        let months = month(2025, 1).up_to(month(2025, 9)).unwrap();
+        let months = month(2020, 1).up_to(month(2026, 5)).unwrap();
         for month in months {
-            // std::thread::sleep(std::time::Duration::from_secs(30));
             archive.download_missing_days(month)?;
             for day in month.days() {
                 info!("  updating day {}", day);
+                if day >= Zoned::now().date()  {
+                    // incomplete day, don't update
+                    continue;
+                }
                 archive.update_duckdb(&day)?;
             }
         }
@@ -164,7 +168,7 @@ mod tests {
     fn download_file() -> Result<(), Box<dyn Error>> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::isone_fuel_mix();
-        archive.download_file(date(2023, 12, 31))?;
+        archive.download_file(date(2026, 5, 14))?;
         Ok(())
     }
 }
