@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS bidsoffers (
     masked_source_id UINTEGER NOT NULL,
     masked_sink_id UINTEGER NOT NULL,
     emergency_flag BOOLEAN NOT NULL,
-    direction ENUM('IMPORT', 'EXPORT') NOT NULL,
+    direction ENUM('IMPORT', 'EXPORT', 'THROUGH') NOT NULL,
     transaction_type ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') NOT NULL,
     mw DECIMAL(9,2) NOT NULL,
     price DECIMAL(9,2),
@@ -75,7 +75,7 @@ CREATE TEMPORARY TABLE tmp AS
         json_extract(aux, '$.MaskedSourceId')::UINTEGER AS masked_source_id,
         json_extract(aux, '$.MaskedSinkId')::UINTEGER AS masked_sink_id,
         IF(json_extract(aux, '$.EmergencyFlag') = '"Y"', TRUE, FALSE) AS emergency_flag,
-        json_extract(aux, '$.Direction')::ENUM('IMPORT', 'EXPORT') AS direction,
+        json_extract(aux, '$.Direction')::ENUM('IMPORT', 'EXPORT', 'THROUGH') AS direction,
         json_extract(aux, '$.TransactionType')::ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') AS transaction_type,
         json_extract(aux, '$.Mw')::DECIMAL(9,2) AS mw,
         json_extract(aux, '$.Price')::DECIMAL(9,2) AS price
@@ -85,7 +85,7 @@ CREATE TEMPORARY TABLE tmp AS
     )
 ;
 
-INSERT INTO bidsoffers
+INSERT INTO bidsoffers BY NAME
 (SELECT * FROM tmp t
 WHERE NOT EXISTS (
     SELECT * FROM bidsoffers b
@@ -154,13 +154,13 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_import_export();
-        let days = date(2023, 1, 1).up_to(date(2023, 12, 31));
-        for day in &days {
-            println!("Processing {}", day);
-            archive.download_file(day, &Market::DA)?;
-            archive.download_file(day, &Market::RT)?;
-        }
-        let months = month(2023, 3).up_to(month(2024, 12))?;
+        // let days = date(2022, 8, 1).up_to(date(2022, 8, 31));
+        // for day in &days {
+        //     println!("Processing {}", day);
+        //     archive.download_file(day, &Market::DA)?;
+        //     archive.download_file(day, &Market::RT)?;
+        // }
+        let months = month(2022, 8).up_to(month(2022, 8))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);
             archive.update_duckdb(month)?;
