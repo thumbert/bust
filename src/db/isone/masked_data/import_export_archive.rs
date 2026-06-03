@@ -47,62 +47,64 @@ impl ImportExportArchive {
     ///  
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting DA and RT daily files from the month {} ...",
+            "inserting DA and RT daily files for the month {} ...",
             month
         );
 
         let sql = format!(
             r#"
 CREATE TABLE IF NOT EXISTS bidsoffers (
-        HourBeginning TIMESTAMPTZ NOT NULL,
-        MarketType ENUM('DA', 'RT') NOT NULL,
-        MaskedCustomerId UINTEGER NOT NULL,
-        MaskedSourceId UINTEGER NOT NULL,
-        MaskedSinkId UINTEGER NOT NULL,
-        EmergencyFlag BOOLEAN NOT NULL,
-        Direction ENUM('IMPORT', 'EXPORT') NOT NULL,
-        TransactionType ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') NOT NULL,
-        Mw DECIMAL(9,2) NOT NULL,
-        Price DECIMAL(9,2),
+    hour_beginning TIMESTAMPTZ NOT NULL,
+    market_type ENUM('DA', 'RT') NOT NULL,
+    masked_customer_id UINTEGER NOT NULL,
+    masked_source_id UINTEGER NOT NULL,
+    masked_sink_id UINTEGER NOT NULL,
+    emergency_flag BOOLEAN NOT NULL,
+    direction ENUM('IMPORT', 'EXPORT') NOT NULL,
+    transaction_type ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') NOT NULL,
+    mw DECIMAL(9,2) NOT NULL,
+    price DECIMAL(9,2),
 );
+
+LOAD icu;SET TimeZone = 'America/New_York';
 CREATE TEMPORARY TABLE tmp AS
-    SELECT unnest(HbImportExports.HbImportExport, recursive := true)
-    FROM read_json('~/Downloads/Archive/IsoExpress/PricingReports/ImportExport/Raw/{}/hbimportexport_*_{}-*.json.gz')
+    SELECT 
+        json_extract(aux, '$.BeginDate')::TIMESTAMPTZ AS hour_beginning,
+        json_extract(aux, '$.MarketType')::ENUM('DA', 'RT') AS market_type,
+        json_extract(aux, '$.MaskedCustomerId')::UINTEGER AS masked_customer_id,
+        json_extract(aux, '$.MaskedSourceId')::UINTEGER AS masked_source_id,
+        json_extract(aux, '$.MaskedSinkId')::UINTEGER AS masked_sink_id,
+        IF(json_extract(aux, '$.EmergencyFlag') = '"Y"', TRUE, FALSE) AS emergency_flag,
+        json_extract(aux, '$.Direction')::ENUM('IMPORT', 'EXPORT') AS direction,
+        json_extract(aux, '$.TransactionType')::ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') AS transaction_type,
+        json_extract(aux, '$.Mw')::DECIMAL(9,2) AS mw,
+        json_extract(aux, '$.Price')::DECIMAL(9,2) AS price
+    FROM (
+        SELECT unnest(HbImportExports.HbImportExport)::JSON as aux
+        FROM read_json('{}/Raw/{}/hbimportexport_*_{}-*.json.gz')
+    )
 ;
 
-CREATE TEMPORARY TABLE tmp1 AS
-    (SELECT 
-        BeginDate::TIMESTAMPTZ as HourBeginning,
-        MarketType::ENUM('DA', 'RT') as MarketType,
-        MaskedCustomerId::UINTEGER as MaskedCustomerId,
-        MaskedSourceId::UINTEGER as MaskedSourceId,
-        MaskedSinkId::UINTEGER as MaskedSinkId,
-        IF(EmergencyFlag = 'Y', TRUE, FALSE) as EmergencyFlag,
-        Direction::ENUM('IMPORT', 'EXPORT') as Direction,
-        TransactionType::ENUM('FIXED', 'DISPATCHABLE', 'UP-TO CONGESTION') as TransactionType,
-        Mw::DECIMAL(9,2) as Mw,
-        Price::DECIMAL(9,2) as Price
-    FROM tmp
-    ORDER BY MarketType, HourBeginning, MaskedCustomerId);
-
 INSERT INTO bidsoffers
-(SELECT * FROM tmp1 t
+(SELECT * FROM tmp t
 WHERE NOT EXISTS (
     SELECT * FROM bidsoffers b
     WHERE
-        b.HourBeginning = t.HourBeginning AND
-        b.MarketType = t.MarketType AND
-        b.MaskedCustomerId = t.MaskedCustomerId AND
-        b.MaskedSourceId = t.MaskedSourceId AND
-        b.MaskedSinkId = t.MaskedSinkId AND
-        b.EmergencyFlag = t.EmergencyFlag AND
-        b.Direction = t.Direction AND
-        b.TransactionType = t.TransactionType AND
-        b.Mw = t.Mw AND
-        b.Price = t.Price
-    )
+        b.hour_beginning = t.hour_beginning AND
+        b.market_type = t.market_type AND
+        b.masked_customer_id = t.masked_customer_id AND
+        b.masked_source_id = t.masked_source_id AND
+        b.masked_sink_id = t.masked_sink_id AND
+        b.emergency_flag = t.emergency_flag AND
+        b.direction = t.direction AND
+        b.transaction_type = t.transaction_type AND
+        b.mw = t.mw AND
+        b.price = t.price
+    )    
 )
-ORDER BY HourBeginning, MarketType, MaskedCustomerId;"#,
+ORDER BY hour_beginning, market_type, masked_customer_id;
+"#,
+            self.base_dir,
             month.start_date().year(),
             month
         );
@@ -158,7 +160,7 @@ mod tests {
             archive.download_file(day, &Market::DA)?;
             archive.download_file(day, &Market::RT)?;
         }
-        let months = month(2023, 2).up_to(month(2023, 12))?;
+        let months = month(2023, 3).up_to(month(2024, 12))?;
         for month in &months {
             println!("Updating DuckDB for month {}", month);
             archive.update_duckdb(month)?;

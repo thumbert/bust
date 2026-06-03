@@ -89,7 +89,6 @@ async fn api_data(
         .columns
         .as_ref()
         .map(|ids| ids.split('|').map(|e| e.to_string()).collect());
-    println!("unit_names={:?}, columns={:?}", unit_names, columns);
     let non_null_generation_only = query.non_null_generation_only.unwrap_or(true);
     let data = get_data(
         &conn,
