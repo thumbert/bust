@@ -8,6 +8,7 @@ TODO:
 - Fix ISONE masked import/exports SQL importing that got broken when read_json changed 
   how it dealt with date times.  There are probably other tables that need fixing!
 - Add one more enum variant to the direction column of the bidsoffers table.   
+- Fix ingestion of masked_daas_offers too
 
 ## 2026-05-26
 - Add a Quarter struct

@@ -63,16 +63,6 @@ CREATE TABLE IF NOT EXISTS offers (
 
 CREATE TEMPORARY TABLE tmp
 AS
-    SELECT * 
-    FROM (
-        SELECT unnest(isone_web_services.offer_publishing.day_ahead_ancillary_services.daas_gen_offer_data, recursive := true)
-        FROM read_json('{}/Raw/{}/hbdaasenergyoffer_{}-*.json.gz')
-    )
-    ORDER BY local_day
-;
-
-INSERT INTO offers
-(
     SELECT 
         local_day::TIMESTAMPTZ as hour_beginning,
         masked_lead_participant_id::INTEGER as masked_lead_participant_id,
@@ -81,12 +71,23 @@ INSERT INTO offers
         tmsr_offer_price::DECIMAL(9,2) as tmsr_offer_price,
         tmnsr_offer_price::DECIMAL(9,2) as tmnsr_offer_price,
         tmor_offer_price::DECIMAL(9,2) as tmor_offer_price,
-        eir_offer_price::DECIMAL(9,2) as eir_offer_price
-    FROM tmp t
-WHERE NOT EXISTS (
+        eir_offer_price::DECIMAL(9,2) as eir_offer_price 
+    FROM (
+        SELECT unnest(isone_web_services.offer_publishing.day_ahead_ancillary_services.daas_gen_offer_data, recursive := true)
+        FROM read_json('{}/Raw/{}/hbdaasenergyoffer_{}-*.json.gz',
+            timestamp_format := '%Y-%m-%dT%H:%M:%S%z'
+        )
+    )
+    ORDER BY local_day
+;
+
+INSERT INTO offers
+(
+    SELECT * FROM tmp t
+    WHERE NOT EXISTS (
         SELECT * FROM offers o
         WHERE
-            o.hour_beginning = t.local_day AND
+            o.hour_beginning = t.hour_beginning AND
             o.masked_lead_participant_id = t.masked_lead_participant_id AND
             o.masked_asset_id = t.masked_asset_id AND
             o.tmsr_offer_price = t.tmsr_offer_price AND
@@ -139,11 +140,11 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
 
         let archive = ProdDb::isone_masked_daas_offers();
-        let term = "Apr25-May25".parse::<Term>()?;
-        for day in &term.days() {
-            println!("Processing {}", day);
-            archive.download_file(day)?;
-        }
+        let term = "Oct25-Feb26".parse::<Term>()?;
+        // for day in &term.days() {
+        //     println!("Processing {}", day);
+        //     archive.download_file(day)?;
+        // }
         let months = term.months();
         for month in &months {
             println!("Updating DuckDB for month {}", month);
