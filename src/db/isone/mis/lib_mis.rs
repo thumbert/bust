@@ -235,8 +235,9 @@ pub fn extract_tab(n: isize, lines: &Vec<String>) -> Result<MisTab, Box<dyn Erro
 ///
 /// # Arguments
 /// * `date` - the report date
-/// * `hour` - ISONE represents the hour as '01', '02', '02X', '03', ... '24'.  But not
-///   always.  Sometimes the output is '1', '2', '02X', etc.  
+/// * `hour` - ISONE represents the hour ending as '01', '02', '02X', '03', ... '24'.  But not
+///   always.  Sometimes the output is '1', '2', '02X', etc.  '02X' is the repeated hour
+///   in the fall.
 ///
 /// Returned zoned is an **hour beginning** in America/New_York
 pub fn parse_hour_ending(date: &Date, hour: &str) -> Zoned {
@@ -249,6 +250,11 @@ pub fn parse_hour_ending(date: &Date, hour: &str) -> Zoned {
 
     if hour == "02X" {
         res = res.saturating_add(1.hour());
+    } else if res.hour() != h - 1 {
+        // On spring-forward days, h-1=2 (for HE "03") falls in the DST gap and
+        // compatible disambiguation shifts it forward to 3 AM EDT.
+        // Subtract 1 real hour to recover the hour beginning just before the gap.
+        res = res.saturating_sub(1.hour());
     }
 
     res
@@ -388,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn isone_hour_ending() -> Result<(), Box<dyn Error>> {
+    fn parse_hour_ending_fall() -> Result<(), Box<dyn Error>> {
         let xs = [
             ("2015-11-01", "01"),
             ("2015-11-01", "02"),
@@ -423,6 +429,41 @@ mod tests {
         assert_eq!(
             he[4],
             "2015-11-01T03:00:00-05:00[America/New_York]".parse()?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hour_ending_spring() -> Result<(), Box<dyn Error>> {
+        let xs = [
+            ("2026-03-08", "01"),
+            ("2026-03-08", "03"),
+            ("2026-03-08", "04"),
+            ("2026-03-08", "05"),
+        ];
+        let he: Vec<Zoned> = xs
+            .iter()
+            .map(|e| -> Zoned {
+                let date: Date = e.0.parse().unwrap();
+                parse_hour_ending(&date, e.1)
+            })
+            .collect();
+
+        assert_eq!(
+            he[0],
+            "2026-03-08T00:00:00-05:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[1],
+            "2026-03-08T01:00:00-05:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[2],
+            "2026-03-08T03:00:00-04:00[America/New_York]".parse()?
+        );
+        assert_eq!(
+            he[3],
+            "2026-03-08T04:00:00-04:00[America/New_York]".parse()?
         );
         Ok(())
     }
