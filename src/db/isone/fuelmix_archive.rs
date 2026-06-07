@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS fuel_mix (
 CREATE TEMPORARY TABLE tmp
 AS
     SELECT 
-        BeginDate::TIMESTAMPTZ as timestamp, 
+        make_timestamptz(epoch_us(BeginDate)) AS timestamp,
         GenMw:: INT32 as mw, 
         FuelCategoryRollup:: VARCHAR AS fuel_category_rollup, 
         FuelCategory::VARCHAR AS fuel_category,

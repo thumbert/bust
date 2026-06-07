@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS flows (
 
 CREATE TEMPORARY TABLE tmp AS
     SELECT 
-        BeginDate::TIMESTAMPTZ AS hour_beginning,
+        make_timestamptz(epoch_us(BeginDate)) AS hour_beginning,
         "@LocId"::UINTEGER AS ptid,
         ActInterchange::DECIMAL(9,2) AS Net,
         Purchase::DECIMAL(9,2) AS Purchase,

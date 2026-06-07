@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS offers (
 CREATE TEMPORARY TABLE tmp
 AS
     SELECT 
-        local_day::TIMESTAMPTZ as hour_beginning,
+        make_timestamptz(epoch_us(local_day)) as hour_beginning,
         masked_lead_participant_id::INTEGER as masked_lead_participant_id,
         masked_asset_id::INTEGER as masked_asset_id,
         offer_mw::DECIMAL(9,2) as offer_mw,
@@ -74,11 +74,9 @@ AS
         eir_offer_price::DECIMAL(9,2) as eir_offer_price 
     FROM (
         SELECT unnest(isone_web_services.offer_publishing.day_ahead_ancillary_services.daas_gen_offer_data, recursive := true)
-        FROM read_json('{}/Raw/{}/hbdaasenergyoffer_{}-*.json.gz',
-            timestamp_format := '%Y-%m-%dT%H:%M:%S%z'
-        )
+        FROM read_json('{}/Raw/{}/hbdaasenergyoffer_{}-*.json.gz')
     )
-    ORDER BY local_day
+    ORDER BY masked_lead_participant_id, masked_asset_id, hour_beginning
 ;
 
 INSERT INTO offers

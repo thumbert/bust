@@ -5,6 +5,10 @@ TODO:
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
 
+## 2026-06-07
+- Fix issue with read_json from DuckDB 1.5.3 for timestamptz fields.  
+  See src/db/isone/actual_interchange_archive.rs, etc. 
+
 ## 2026-06-03
 - Fix ISONE masked import/exports SQL importing that got broken when read_json changed 
   how it dealt with date times.  There are probably other tables that need fixing!
