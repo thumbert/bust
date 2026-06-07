@@ -10,9 +10,8 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::isone::_api_isone_core::{
-        deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market, UnitStatus,
-    },
+    utils::serde_helpers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
+    api::isone::_api_isone_core::{Market, UnitStatus},
     db::isone::masked_data::da_energy_offers_archive::IsoneDaEnergyOffersArchive,
     elec::iso::ISONE,
     utils::lib_duckdb::open_with_retry,

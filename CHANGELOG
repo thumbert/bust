@@ -8,6 +8,7 @@ TODO:
 ## 2026-06-07
 - Fix issue with read_json from DuckDB 1.5.3 for timestamptz fields.  
   See src/db/isone/actual_interchange_archive.rs, etc. 
+- Consolidate serde attr for Zoned in utils/serde_helpers.rs  
 
 ## 2026-06-03
 - Fix ISONE masked import/exports SQL importing that got broken when read_json changed 

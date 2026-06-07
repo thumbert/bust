@@ -21,6 +21,7 @@ use std::process::Command;
 use std::str::FromStr;
 
 use crate::interval::month::Month;
+use crate::utils::serde_helpers::*;
 
 #[derive(Clone)]
 pub struct NyisoBindingConstraintsDaArchive {
@@ -202,6 +203,10 @@ INSERT INTO binding_constraints
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Record {
     pub market: Market,
+    #[serde(
+        serialize_with = "serialize_zoned_as_offset",
+        deserialize_with = "deserialize_zoned_assume_ny"
+    )]
     pub hour_beginning: Zoned,
     pub limiting_facility: String,
     pub facility_ptid: i64,

@@ -14,7 +14,7 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
+    utils::serde_helpers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
     db::isone::masked_data::demand_bids_archive::DemandBidsArchive,
     elec::iso::ISONE,
 };

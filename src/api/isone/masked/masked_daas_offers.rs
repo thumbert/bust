@@ -6,7 +6,7 @@ use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
+use crate::utils::serde_helpers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
 use crate::db::isone::masked_data::daas_offers_archive::DaasOffersArchive;
 
 #[derive(Debug, Deserialize)]

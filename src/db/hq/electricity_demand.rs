@@ -22,7 +22,7 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::{
-    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
+    utils::serde_helpers::{deserialize_zoned_assume_ny, serialize_zoned_as_offset},
     interval::month::Month,
 };
 

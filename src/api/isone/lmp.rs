@@ -3,8 +3,7 @@ use std::time::Duration;
 use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
-    api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset, Market},
-    time::bucket::{Bucket, BucketLike},
+    api::isone::_api_isone_core::Market,
     db::{
         calendar::buckets::BucketsArchive,
         isone::{dalmp_archive::IsoneDaLmpArchive, rtlmp_archive::IsoneRtLmpArchive},
@@ -14,7 +13,9 @@ use crate::{
         month_tz::MonthTz,
         term::Term,
     },
+    time::bucket::{Bucket, BucketLike},
     utils::lib_duckdb::open_with_retry,
+    utils::serde_helpers::*,
 };
 use duckdb::{types::ValueRef, AccessMode, Connection, Result};
 use itertools::Itertools;

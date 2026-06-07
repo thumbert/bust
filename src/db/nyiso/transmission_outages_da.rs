@@ -15,10 +15,11 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
-use crate::api::isone::_api_isone_core::{deserialize_zoned_assume_ny, serialize_zoned_as_offset};
 use crate::db::nyiso::scheduled_outages::QueryOutages;
 use crate::elec::iso::ISONE;
 use crate::interval::month::Month;
+use crate::utils::serde_helpers::*;
+
 
 #[derive(Clone)]
 pub struct NyisoTransmissionOutagesDaArchive {
