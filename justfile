@@ -87,6 +87,11 @@ update_nyiso_prices_da:
     cp ./target/release/email_nyiso_prices_da ~/Software
     cp -r .env ~/Software
 
+update_nyiso_ptid_table:
+    cargo test --package bust --lib -- db::nyiso::ptid_table::tests --show-output
+    cargo build --bin update_nyiso_ptid_table --release
+    cp ./target/release/update_nyiso_ptid_table ~/Software
+
 update_nyiso_scheduled_outages:
     cargo test --package bust --lib -- db::nyiso::scheduled_outages::tests --show-output
     cargo build --bin update_nyiso_scheduled_outages --release

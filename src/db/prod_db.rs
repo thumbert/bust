@@ -36,11 +36,7 @@ use crate::db::{
     },
     nodal::nodal_contracts::NodalContractsArchive,
     nyiso::{
-        binding_constraints::NyisoBindingConstraintsDaArchive,
-        energy_offers::NyisoEnergyOffersArchive, rtlmp::NyisoRtlmpArchive,
-        scheduled_outages::NyisoScheduledOutagesArchive,
-        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
-        zonal_uplift::NyisoZonalUpliftArchive,
+        binding_constraints::NyisoBindingConstraintsDaArchive, energy_offers::NyisoEnergyOffersArchive, ptid_table::NyisoPtidTableArchive, rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive, zonal_uplift::NyisoZonalUpliftArchive
     },
     statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
     ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
@@ -412,6 +408,13 @@ impl ProdDb {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/EnergyOffers".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/nyiso_energy_offers.duckdb"
                 .to_string(),
+        }
+    }
+
+    pub fn nyiso_ptid_table() -> NyisoPtidTableArchive {
+        NyisoPtidTableArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/PnodeTable".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/ptid_table.duckdb".to_string(),
         }
     }
 
