@@ -1,12 +1,12 @@
 // Auto-generated Rust stub for DuckDB table: ptid_table
 // Created on 2026-06-17 with Dart package reduct
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 
 use duckdb::Connection;
 use jiff::civil::Date;
-use jiff::Zoned;
+use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use url::form_urlencoded;
 
@@ -80,9 +80,9 @@ CREATE TABLE IF NOT EXISTS ptid_table (
     zone VARCHAR NOT NULL,
     latitude DOUBLE,
     longitude DOUBLE,
-    active BOOLEAN NOT NULL
+    active BOOLEAN NOT NULL,
+    "asof" DATE NOT NULL
 );
-
 CREATE TEMPORARY TABLE tmp
 AS (
     SELECT 
@@ -98,12 +98,30 @@ AS (
             when 'Y' then true
             when 'N' then false
             else NULL
-        end AS active
+        end AS active,
+        CAST('{}' AS DATE) AS asof
     FROM read_csv('{}/Raw/generator_{}.csv.gz', 
         header = true)
 );
+INSERT INTO ptid_table
+(
+    SELECT * FROM tmp t
+    WHERE NOT EXISTS (
+        SELECT * FROM ptid_table d
+        WHERE
+            d.ptid = t.ptid
+    )
+);
+--- update the active status of existing ptids (if it has changed)
+UPDATE ptid_table p
+SET active = t.active,
+    "asof" = t.asof
+FROM tmp t
+WHERE p.ptid = t.ptid
+  AND p.active IS DISTINCT FROM t.active;
         "#,
             self.base_dir,
+            &day.strftime("%Y-%m-%d").to_string(),
             &day.strftime("%Y-%m-%d").to_string(),
         );
         let output = Command::new("duckdb")
@@ -137,6 +155,7 @@ pub struct Record {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub active: bool,
+    pub asof: Date,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -204,7 +223,8 @@ SELECT
     zone,
     latitude,
     longitude,
-    active
+    active,
+    "asof"
 FROM ptid_table WHERE 1=1"#,
     );
     if let Some(node_type) = &query_filter.node_type {
@@ -278,6 +298,8 @@ LIMIT {};",
         let latitude: Option<f64> = row.get::<usize, Option<f64>>(6)?;
         let longitude: Option<f64> = row.get::<usize, Option<f64>>(7)?;
         let active: bool = row.get::<usize, bool>(8)?;
+        let _n9 = 719528 + row.get::<usize, i32>(9)?;
+        let asof = Date::ZERO + _n9.days();
         Ok(Record {
             node_type,
             ptid,
@@ -288,6 +310,7 @@ LIMIT {};",
             latitude,
             longitude,
             active,
+            asof,
         })
     })?;
     let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
@@ -379,11 +402,41 @@ impl QueryFilterBuilder {
     }
 }
 
+/// Get new nodes that were added between day1 and day2.  Returns an error if day2 is not after day1.
+pub fn get_new_nodes(
+    conn: &Connection,
+    day1: Date,
+    day2: Date,
+) -> Result<Vec<Record>, Box<dyn Error>> {
+    if day2 <= day1 {
+        return Err(format!("day2 ({}) must be after day1 ({})", day2, day1).into());
+    }
+    let rows = get_data(conn, &QueryFilterBuilder::new().build(), None)?;
+    // get the rows that were there on day 1
+    let rows1: HashSet<i32> = rows
+        .iter()
+        .filter(|r| r.asof >= day1)
+        .map(|r| r.ptid)
+        .collect::<HashSet<_>>();
+    let rows2: HashSet<i32> = rows
+        .iter()
+        .filter(|r| r.asof >= day2)
+        .map(|r| r.ptid)
+        .collect::<HashSet<_>>();
+    // get the rows that are in day2 but not in day1 using set difference
+    let new_rows = rows2
+        .difference(&rows1)
+        .map(|ptid| rows.iter().find(|r| r.ptid == *ptid).unwrap().clone())
+        .collect::<Vec<_>>();
+    Ok(new_rows)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::prod_db::ProdDb;
     use duckdb::{AccessMode, Config, Connection};
+    use jiff::civil::date;
     use std::{error::Error, path::Path};
 
     #[test]
@@ -423,6 +476,16 @@ mod tests {
 
         let archive = ProdDb::nyiso_ptid_table();
         archive.download_file()?;
+        Ok(())
+    }
+
+    #[test]
+    fn new_nodes() -> Result<(), Box<dyn Error>> {
+        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
+        let conn =
+            Connection::open_with_flags(ProdDb::nyiso_ptid_table().duckdb_path, config).unwrap();
+        let rows = get_new_nodes(&conn, date(2026, 6, 6), date(2026, 6, 21))?;
+        assert_eq!(rows.len(), 0);
         Ok(())
     }
 }

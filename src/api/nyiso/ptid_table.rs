@@ -70,7 +70,7 @@ mod api_tests {
         let data = web::Data::new(ProdDb::nyiso_ptid_table());
         let app = test::init_service(App::new().app_data(data.clone()).service(get_data_api)).await;
         let params = QueryFilterBuilder::new().build().to_query_url();
-        let uri = format!("/nyiso/ptid_table?{}&_limit=5", params);
+        let uri = format!("/nyiso/ptid_table?{}_limit=5", params);
         let req = test::TestRequest::get().uri(&uri).to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());

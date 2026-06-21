@@ -6,6 +6,12 @@ use serde_json::json;
 /// Send an email using the Mailtrap API
 ///
 ///
+// curl --location --request POST \
+//   'https://send.api.mailtrap.io/api/send' \
+//   --header 'Api-Token: ...' \
+//   --header 'Content-Type: application/json' \
+//   --data-raw '{"from":{"email":"..."},"to":[{"email":"..."}],"subject":"Awesome!","text":"Congratulations!"}'
+//
 pub async fn send_email(
     from: String,
     to: Vec<String>,
