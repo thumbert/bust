@@ -58,6 +58,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(middleware::Compress::default())
             .app_data(Data::new(ProdDb::hq_hydro_data()))
+            .app_data(Data::new(ProdDb::hq_fuel_mix()))
             .app_data(Data::new(ProdDb::hq_total_demand()))
             .app_data(Data::new(ProdDb::buckets()))
             .app_data(Data::new(ProdDb::caiso_dalmp()))
@@ -119,6 +120,7 @@ async fn main() -> std::io::Result<()> {
             .service(epa::hourly_emissions::all_columns)
             .service(epa::hourly_emissions::api_data)
             // HQ
+            .service(hq::hq_fuel_mix::get_data_api)
             .service(hq::hq_total_demand::get_data_api)
             .service(hq::hq_water_level::api_daily_level)
             // IESO
