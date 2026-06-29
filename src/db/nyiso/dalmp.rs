@@ -296,6 +296,33 @@ impl NyisoDalmpArchive {
         Ok(())
     }
 
+    /// Get the nodes that showed up for the first time on the day `on`.
+    pub fn get_nodes_starting(
+        &self,
+        conn: &Connection,
+        on: Date,
+    ) -> Result<Vec<i32>, Box<dyn Error>> {
+        let query = format!(
+            r#"
+SELECT ptid
+FROM (
+    SELECT ptid, MIN(hour_beginning)::TIMESTAMP::DATE AS first_day
+    FROM dalmp
+    GROUP BY ptid
+) AS subquery
+WHERE first_day = '{}';
+"#,
+            on
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let res_iter = stmt.query_map([], |row| {
+            let ptid: i32 = row.get(0)?;
+            Ok(ptid)
+        })?;
+        let res: Vec<i32> = res_iter.map(|e| e.unwrap()).collect();
+        Ok(res)
+    }
+
     /// Update duckdb with published data for the month.  No checks are made to see
     /// if there are missing files.  Does not delete any existing data.  So if data
     /// is wrong for some reason, it needs to be manually deleted first!
@@ -369,11 +396,29 @@ mod tests {
     use std::{error::Error, path::Path, vec};
 
     use rust_decimal_macros::dec;
+    use std::time::Duration;
 
     use crate::{
         db::{nyiso::dalmp::*, prod_db::ProdDb},
         interval::month::month,
+        utils::lib_duckdb::open_with_retry,
     };
+
+    #[test]
+    fn get_new_nodes() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::nyiso_dalmp();
+        let conn = open_with_retry(
+            &archive.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            duckdb::AccessMode::ReadOnly,
+        )?;
+
+        let new_nodes = archive.get_nodes_starting(&conn, date(2026, 5, 1))?;
+        assert_eq!(new_nodes.len(), 3);
+        Ok(())
+    }
 
     #[ignore]
     #[test]

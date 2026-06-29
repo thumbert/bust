@@ -81,7 +81,7 @@ async fn send_email_alert(changes: Vec<Record>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// Run every month
+// Run every month on the 1st of the month
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()

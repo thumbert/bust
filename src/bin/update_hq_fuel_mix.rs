@@ -14,16 +14,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let days = start.series(1.day()).take(5).collect::<Vec<_>>();
     for day in days {
         log::info!("Downloading HQ fuel mix for {}", day);
-        archive.download_file(day)?;
+        let _ = archive.download_file(day);
     }
+    // Also download the most recent 48 hours of data, which is available from a different url
+    let _ = archive.download_file2();
 
     if Zoned::now().date().day() < 4 {
         log::info!("Updating previous month in DuckDB");
         let prev_month = Month::containing(Zoned::now().datetime()).previous();
-        archive.update_duckdb(prev_month)?;
+        let _ = archive.update_duckdb(prev_month);
     }
     let month = Month::containing(Zoned::now().datetime());
-    archive.update_duckdb(month)?;
+    let _ = archive.update_duckdb(month);
 
     Ok(())
 }

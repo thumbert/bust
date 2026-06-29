@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     api::{
-        caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
+        caiso::_api_caiso_core::LmpComponent,
         isone::_api_isone_core::Market,
     },
     time::bucket::{Bucket, BucketLike},
@@ -18,6 +18,7 @@ use crate::{
         term::Term,
     },
     utils::lib_duckdb::open_with_retry,
+    utils::serde_helpers::{serialize_zoned_as_offset, deserialize_zoned_assume_la}
 };
 use duckdb::{types::ValueRef, AccessMode, Connection, Result};
 use itertools::Itertools;
@@ -25,7 +26,6 @@ use jiff::{civil::Date, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::db::nyiso::dalmp::LmpComponent;
 
 #[get("/caiso/prices/{market}/hourly/start/{start}/end/{end}")]
 async fn api_hourly_prices(
@@ -111,6 +111,9 @@ async fn api_hourly_prices(
             .flat_map(|e| {
                 let mut out = Vec::new();
                 for component in &components {
+                    if *component == LmpComponent::Mghg && e.mghg.is_none() {
+                        continue;
+                    }
                     out.push(RowH {
                         hour_beginning: e.hour_beginning.clone(),
                         name: e.node_id.clone(),
@@ -119,6 +122,7 @@ async fn api_hourly_prices(
                             LmpComponent::Lmp => e.lmp,
                             LmpComponent::Mcc => e.mcc,
                             LmpComponent::Mcl => e.mcl,
+                            LmpComponent::Mghg => e.mghg.unwrap(),
                         },
                     });
                 }
@@ -760,7 +764,7 @@ mod tests {
     use crate::{
         api::caiso::lmp::RowH,
         time::bucket::Bucket,
-        db::{nyiso::dalmp::LmpComponent, prod_db::ProdDb},
+        db::prod_db::ProdDb,
         interval::{month::month, term::Term},
         utils::lib_duckdb::open_with_retry,
     };
@@ -906,6 +910,21 @@ mod tests {
     }
 
     #[test]
+    fn api_hourly_ghg_test() -> Result<(), reqwest::Error> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        // GHG component started on 2025-12-06, zero values
+        let url = format!(
+            "{}/caiso/prices/da/hourly/start/2025-12-05/end/2025-12-06?node_ids=0096WD_7_N001&components=mghg",
+            env::var("RUST_SERVER").unwrap(),
+        );
+        let response = reqwest::blocking::get(url)?.text()?;
+        let vs: Vec<RowH> = serde_json::from_str(&response).unwrap();
+        println!("{:?}", vs);
+        assert_eq!(vs.len(), 24);
+        Ok(())
+    }
+
+    #[test]
     fn api_daily_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
@@ -922,7 +941,7 @@ mod tests {
     fn api_monthly_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/caiso/prices/da/monthly/start/2025-12/end/2026-01?node_ids=TH_NP16_GEN-APND,TH_SP15_GEN-APND&buckets=Caiso6x16,offpeak",
+            "{}/caiso/prices/da/monthly/start/2025-12/end/2026-01?node_ids=TH_NP16_GEN-APND,TH_SP15_GEN-APND&buckets=Caiso6x16,CaisoOffpeak",
             env::var("RUST_SERVER").unwrap(),
         );
         let response = reqwest::blocking::get(url)?.text()?;
@@ -935,7 +954,7 @@ mod tests {
     fn api_term_test() -> Result<(), reqwest::Error> {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let url = format!(
-            "{}/caiso/prices/da?node_ids=TH_NP15_GEN-APND&buckets=Caiso6x16,offpeak&terms=1Dec25-10Dec25",
+            "{}/caiso/prices/da?node_ids=TH_NP15_GEN-APND&buckets=Caiso6x16,CaisoOffpeak&terms=1Dec25-10Dec25",
             env::var("RUST_SERVER").unwrap(),
         );
         // println!("{}", url);

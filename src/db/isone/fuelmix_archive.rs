@@ -54,8 +54,7 @@ AS
         END AS marginal_flag
         FROM (
             SELECT unnest(GenFuelMixes.GenFuelMix, recursive := true)
-            FROM read_json('{}/Raw/{}/genfuelmix_{}.json.gz',
-            timestampformat := '%Y-%m-%dT%H:%M:%S%z')
+            FROM read_json('{}/Raw/{}/genfuelmix_{}.json.gz')
     )
     ORDER BY timestamp, fuel_category
 ;

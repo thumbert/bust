@@ -57,10 +57,9 @@ impl CaisoDaLmpArchive {
             month
         );
 
-        let sql = format!(
+        let sql0 = format!(
             r#"
-LOAD icu;
-SET TimeZone = 'America/Los_Angeles';
+LOAD icu; SET TimeZone = 'America/Los_Angeles';
 
 CREATE TABLE IF NOT EXISTS lmp (
     node_id VARCHAR NOT NULL,
@@ -68,6 +67,7 @@ CREATE TABLE IF NOT EXISTS lmp (
     lmp DECIMAL(18,5) NOT NULL,
     mcc DECIMAL(18,5) NOT NULL,
     mcl DECIMAL(18,5) NOT NULL,
+    mghg DECIMAL(18,5) 
 );
 CREATE INDEX IF NOT EXISTS idx_lmp_node_id ON lmp(node_id);
 
@@ -105,40 +105,11 @@ AS
         "MW"::DECIMAL(18,5) as mcl
     FROM read_csv(
             '{}/Raw/{}/{}*_{}*_PRC_LMP_DAM_MCL_v12.csv.gz',
-            header = true
+            header = true,
+            union_by_name = true --needed because of issue on 2026-04
     )
     ORDER BY node_id, hour_beginning 
 ;
-
-CREATE TEMPORARY TABLE tmp 
-AS
-    SELECT 
-        l.node_id,
-        l.hour_beginning,
-        l.lmp,
-        m.mcc,
-        c.mcl
-    FROM tmp_lmp l
-    JOIN tmp_mcc m
-        ON l.node_id = m.node_id
-        AND l.hour_beginning = m.hour_beginning
-    JOIN tmp_mcl c
-        ON l.node_id = c.node_id
-        AND l.hour_beginning = c.hour_beginning
-    ORDER BY l.node_id, l.hour_beginning;
-
-
-INSERT INTO lmp
-(
-    SELECT * FROM tmp
-    WHERE NOT EXISTS 
-    (
-        SELECT 1 FROM lmp 
-        WHERE lmp.node_id = tmp.node_id 
-        AND lmp.hour_beginning = tmp.hour_beginning
-    )
-)
-ORDER BY node_id, hour_beginning;
 "#,
             self.base_dir,
             month.start_date().year(),
@@ -153,6 +124,74 @@ ORDER BY node_id, hour_beginning;
             month.start_date().strftime("%Y%m"),
             month.start_date().strftime("%Y%m"),
         );
+
+        let sql_ghg = if month >= &Month::constant(2025, 12) {
+            format!(
+                r#"
+CREATE TEMPORARY TABLE tmp_mghg 
+AS 
+    SELECT 
+        "NODE_ID"::STRING AS node_id,
+        "INTERVALSTARTTIME_GMT"::STRING AS hour_beginning,
+        "MW"::DECIMAL(18,5) as mghg
+    FROM read_csv(
+            '{}/Raw/{}/{}*_{}*_PRC_LMP_DAM_MGHG_v12.csv.gz',
+            header = true
+    )
+    ORDER BY node_id, hour_beginning 
+;
+"#,
+                self.base_dir,
+                month.start_date().year(),
+                month.start_date().strftime("%Y%m"),
+                month.start_date().strftime("%Y%m"),
+            )
+        } else {
+            r#"
+CREATE TEMPORARY TABLE tmp_mghg (
+    node_id VARCHAR,
+    hour_beginning VARCHAR,
+    mghg DECIMAL(18,5)
+);"#
+            .to_string()
+        };
+
+        let sql_end = r#"
+CREATE TEMPORARY TABLE tmp 
+AS
+    SELECT 
+        l.node_id,
+        l.hour_beginning,
+        l.lmp,
+        m.mcc,
+        c.mcl,
+        g.mghg
+    FROM tmp_lmp l
+    LEFT JOIN tmp_mcc m
+        ON l.node_id = m.node_id
+        AND l.hour_beginning = m.hour_beginning
+    LEFT JOIN tmp_mcl c
+        ON l.node_id = c.node_id
+        AND l.hour_beginning = c.hour_beginning
+    LEFT JOIN tmp_mghg g
+        ON l.node_id = g.node_id
+        AND l.hour_beginning = g.hour_beginning
+    ORDER BY l.node_id, l.hour_beginning;
+
+
+INSERT INTO lmp
+(
+    SELECT * FROM tmp
+    WHERE NOT EXISTS 
+    (
+        SELECT 1 FROM lmp 
+        WHERE lmp.node_id = tmp.node_id 
+        AND lmp.hour_beginning = tmp.hour_beginning
+    )
+)
+ORDER BY node_id, hour_beginning;"#;
+
+        let sql = format!("{}{}{}", sql0, sql_ghg, sql_end);
 
         let output = Command::new("duckdb")
             .arg("-c")
@@ -278,6 +317,8 @@ pub struct Record {
     pub mcc: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub mcl: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
+    pub mghg: Option<Decimal>,
 }
 
 pub fn get_data(
@@ -291,7 +332,8 @@ SELECT
     hour_beginning,
     lmp,
     mcc,
-    mcl
+    mcl,
+    mghg
 FROM lmp WHERE 1=1"#,
     );
     if let Some(node_id) = &query_filter.node_id {
@@ -453,12 +495,17 @@ FROM lmp WHERE 1=1"#,
             duckdb::types::ValueRef::Decimal(v) => v,
             _ => Decimal::MIN,
         };
+        let mghg: Option<Decimal> = match row.get_ref_unwrap(5) {
+            duckdb::types::ValueRef::Decimal(v) => Some(v),
+            _ => None,
+        };
         Ok(Record {
             node_id,
             hour_beginning,
             lmp,
             mcc,
             mcl,
+            mghg,
         })
     })?;
     let results: Vec<Record> = rows.collect::<Result<_, _>>()?;
@@ -596,19 +643,24 @@ impl QueryFilterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use duckdb::{AccessMode, Config, Connection};
+    use duckdb::AccessMode;
     use jiff::civil::date;
     use log::info;
     use rust_decimal_macros::dec;
-    use std::{error::Error, path::Path};
+    use std::{error::Error, path::Path, time::Duration};
 
     use super::*;
-    use crate::{db::prod_db::ProdDb, interval::month::month};
+    use crate::{db::prod_db::ProdDb, interval::month::month, utils::lib_duckdb::open_with_retry};
 
     #[test]
     fn test_get_data() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::caiso_dalmp().duckdb_path, config).unwrap();
+        // get one node
+        let conn = open_with_retry(
+            &ProdDb::caiso_dalmp().duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        )?;
         conn.execute("LOAD ICU;SET TimeZone = 'America/Los_Angeles';", [])?;
         let filter = QueryFilterBuilder::new()
             .node_id("TH_NP15_GEN_ONPEAK-APND")
@@ -636,6 +688,7 @@ mod tests {
                 lmp: dec!(65.50000),
                 mcc: dec!(-0.36631),
                 mcl: dec!(-1.05060),
+                mghg: None,
             }
         );
         Ok(())
@@ -643,8 +696,13 @@ mod tests {
 
     #[test]
     fn test_get_data2() -> Result<(), Box<dyn Error>> {
-        let config = Config::default().access_mode(AccessMode::ReadOnly)?;
-        let conn = Connection::open_with_flags(ProdDb::caiso_dalmp().duckdb_path, config).unwrap();
+        // get two nodes
+        let conn = open_with_retry(
+            &ProdDb::caiso_dalmp().duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        )?;
         conn.execute("LOAD ICU;SET TimeZone = 'America/Los_Angeles';", [])?;
         let filter = QueryFilterBuilder::new()
             .node_id_in(vec![
@@ -686,6 +744,7 @@ mod tests {
                 lmp: dec!(65.50000),
                 mcc: dec!(-0.36631),
                 mcl: dec!(-1.05060),
+                mghg: None,
             }
         );
         Ok(())
@@ -701,7 +760,7 @@ mod tests {
         dotenvy::from_path(Path::new(".env/test.env")).unwrap();
         let archive = ProdDb::caiso_dalmp();
 
-        let months = month(2026, 1).up_to(month(2026, 1));
+        let months = month(2026, 4).up_to(month(2026, 4));
         for month in months.unwrap() {
             info!("Working on month {}", month);
             archive.download_missing_days(month).await?;

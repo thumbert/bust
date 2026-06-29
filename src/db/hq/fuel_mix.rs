@@ -73,7 +73,19 @@ AS
     )
     WHERE total != 0
     ORDER BY zoned
-;"#,
+;
+INSERT INTO fuel_mix
+(
+    SELECT * FROM tmp t
+    WHERE NOT EXISTS (
+        SELECT * FROM fuel_mix d
+        WHERE
+            d.zoned = t.zoned AND
+            d.total = t.total AND
+            d.hydro = t.hydro
+    )
+) ORDER BY zoned; 
+"#,
             self.base_dir,
             month.start_date().year(),
             month.strftime("%Y-%m")
@@ -98,10 +110,8 @@ AS
         Ok(())
     }
 
+    // I switched to this url which has data from 2024-01-01.  Issues with data at DST, some missing days, etc. 
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
-        // this url has only the most recent 48 records, so not good for backfilling.
-        // let _ = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/production-electricite-quebec/records?limit=100&order_by=date";
-        // I switched to this url which has data from 2024-01-01
         let url = format!(
             "https://electricite-quebec.info/api/generation?start_date={}&end_date={}",
             date, date,
@@ -152,6 +162,55 @@ AS
 
         Ok(())
     }
+
+    /// Different url, only 48 hours of current data available
+    pub fn download_file2(&self) -> Result<(), Box<dyn Error>> {
+        // this url has only the most recent 48 records, so not good for backfilling.
+        // let _ = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/production-electricite-quebec/records?limit=100&order_by=date";
+        // I switched to this url which has data from 2024-01-01
+        let url = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/production-electricite-quebec/records?limit=100&order_by=date";
+        info!(
+            "Downloading HQ fuel mix data from url: {}",
+            url
+        );
+        let client = reqwest::blocking::Client::builder()
+            .danger_accept_invalid_certs(false)
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("Failed to build HTTP client");
+        let resp = client
+            .get(url)
+            .send()
+            .expect("request failed");
+
+        // let resp = reqwest::blocking::get(url).expect("request failed");
+        let body = resp.text().expect("body invalid");
+        let day = Zoned::now().date();
+        let path =         self.base_dir.to_owned()
+            + "/Raw2/"
+            + &day.year().to_string()
+            + "/fuel_mix_"
+            + &day.to_string()
+            + ".json"
+;
+        let dir = Path::new(&path).parent().unwrap();
+        let _ = fs::create_dir_all(dir);
+        let mut out = File::create(&path).expect("failed to create file");
+        io::copy(&mut body.as_bytes(), &mut out).expect("failed to copy content");
+
+        // gzip it
+        Command::new("gzip")
+            .args(["-f", &path])
+            .current_dir(dir)
+            .spawn()
+            .unwrap()
+            .wait()
+            .expect("gzip failed");
+
+        Ok(())
+    }
+
+
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

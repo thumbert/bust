@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Err(e) => error!("{:?}", e),
             }
         }
-        archive.update_duckdb(&date)?;
+        let _ = archive.update_duckdb(&date);
     }
 
     Ok(())

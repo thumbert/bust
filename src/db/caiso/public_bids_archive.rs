@@ -22,7 +22,7 @@ use tokio_util::io::StreamReader;
 use url::form_urlencoded;
 
 use crate::{
-    api::caiso::_api_caiso_core::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
+    utils::serde_helpers::{deserialize_zoned_assume_la, serialize_zoned_as_offset},
     interval::month::Month,
 };
 
