@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-06-29
+- Redeploy update_caiso_prices_da to add the GHG component.
+
 ## 2026-06-28
 - Add marginal GHG costs to Caiso DA LMP DuckDB files.
 

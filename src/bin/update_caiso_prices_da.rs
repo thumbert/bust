@@ -49,9 +49,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if tomorrow.day() < 5 {
         let prev_month = current_month.previous();
         archive.download_missing_days(prev_month).await?;
-        archive.update_duckdb(&prev_month)?;
+        let _ = archive.update_duckdb(&prev_month);
     }
-    archive.update_duckdb(&current_month)?;
+    let _ = archive.update_duckdb(&current_month);
 
     Ok(())
 }
