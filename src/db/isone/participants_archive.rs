@@ -5,7 +5,9 @@ use duckdb::Connection;
 use serde::{Deserialize, Serialize};
 
 use jiff::{civil::Date, ToSpan};
-use std::str::FromStr;
+use url::form_urlencoded;
+use std::{collections::HashMap, str::FromStr};
+use convert_case::{Case, Casing};
 
 #[derive(Clone)]
 pub struct IsoneParticipantsArchive {
@@ -35,19 +37,19 @@ pub struct Record {
     pub termination_date: Option<Date>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
     Active,
     Suspended,
 }
 
 impl std::str::FromStr for Status {
-    type Err = ();
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_case(Case::UpperSnake).as_str() {
             "ACTIVE" => Ok(Status::Active),
             "SUSPENDED" => Ok(Status::Suspended),
-            _ => Err(()),
+            _ => Err(format!("Invalid value for Status: {}", s)),
         }
     }
 }
@@ -61,7 +63,30 @@ impl std::fmt::Display for Status {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+impl serde::Serialize for Status {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            Status::Active => "ACTIVE",
+            Status::Suspended => "SUSPENDED",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Status {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Status::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Sector {
     AlternativeResources,
     EndUser,
@@ -74,18 +99,18 @@ pub enum Sector {
 }
 
 impl std::str::FromStr for Sector {
-    type Err = ();
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Alternative Resources" => Ok(Sector::AlternativeResources),
-            "End User" => Ok(Sector::EndUser),
-            "Generation" => Ok(Sector::Generation),
-            "Market Participant" => Ok(Sector::MarketParticipant),
-            "Not applicable" => Ok(Sector::NotApplicable),
-            "Publicly-Owned Entity" => Ok(Sector::PubliclyOwnedEntity),
-            "Supplier" => Ok(Sector::Supplier),
-            "Transmission" => Ok(Sector::Transmission),
-            _ => Err(()),
+        match s.to_case(Case::UpperSnake).as_str() {
+            "ALTERNATIVE_RESOURCES" => Ok(Sector::AlternativeResources),
+            "END_USER" => Ok(Sector::EndUser),
+            "GENERATION" => Ok(Sector::Generation),
+            "MARKET_PARTICIPANT" => Ok(Sector::MarketParticipant),
+            "NOT_APPLICABLE" => Ok(Sector::NotApplicable),
+            "PUBLICLY_OWNED_ENTITY" => Ok(Sector::PubliclyOwnedEntity),
+            "SUPPLIER" => Ok(Sector::Supplier),
+            "TRANSMISSION" => Ok(Sector::Transmission),
+            _ => Err(format!("Invalid value for Sector: {}", s)),
         }
     }
 }
@@ -105,7 +130,36 @@ impl std::fmt::Display for Sector {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+impl serde::Serialize for Sector {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            Sector::AlternativeResources => "Alternative Resources",
+            Sector::EndUser => "End User",
+            Sector::Generation => "Generation",
+            Sector::MarketParticipant => "Market Participant",
+            Sector::NotApplicable => "Not applicable",
+            Sector::PubliclyOwnedEntity => "Publicly-Owned Entity",
+            Sector::Supplier => "Supplier",
+            Sector::Transmission => "Transmission",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Sector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Sector::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ParticipantType {
     NonParticipant,
     Participant,
@@ -113,13 +167,13 @@ pub enum ParticipantType {
 }
 
 impl std::str::FromStr for ParticipantType {
-    type Err = ();
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Non-Participant" => Ok(ParticipantType::NonParticipant),
-            "Participant" => Ok(ParticipantType::Participant),
-            "Pool Operator" => Ok(ParticipantType::PoolOperator),
-            _ => Err(()),
+        match s.to_case(Case::UpperSnake).as_str() {
+            "NON_PARTICIPANT" => Ok(ParticipantType::NonParticipant),
+            "PARTICIPANT" => Ok(ParticipantType::Participant),
+            "POOL_OPERATOR" => Ok(ParticipantType::PoolOperator),
+            _ => Err(format!("Invalid value for ParticipantType: {}", s)),
         }
     }
 }
@@ -134,7 +188,31 @@ impl std::fmt::Display for ParticipantType {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+impl serde::Serialize for ParticipantType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            ParticipantType::NonParticipant => "Non-Participant",
+            ParticipantType::Participant => "Participant",
+            ParticipantType::PoolOperator => "Pool Operator",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ParticipantType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        ParticipantType::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Classification {
     GovernanceOnly,
     GroupMember,
@@ -146,17 +224,17 @@ pub enum Classification {
 }
 
 impl std::str::FromStr for Classification {
-    type Err = ();
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Governance Only" => Ok(Classification::GovernanceOnly),
-            "Group Member" => Ok(Classification::GroupMember),
-            "Local Control Center" => Ok(Classification::LocalControlCenter),
-            "Market Participant" => Ok(Classification::MarketParticipant),
-            "Other" => Ok(Classification::Other),
-            "Public Utility Commission" => Ok(Classification::PublicUtilityCommission),
-            "Transmission Only" => Ok(Classification::TransmissionOnly),
-            _ => Err(()),
+        match s.to_case(Case::UpperSnake).as_str() {
+            "GOVERNANCE_ONLY" => Ok(Classification::GovernanceOnly),
+            "GROUP_MEMBER" => Ok(Classification::GroupMember),
+            "LOCAL_CONTROL_CENTER" => Ok(Classification::LocalControlCenter),
+            "MARKET_PARTICIPANT" => Ok(Classification::MarketParticipant),
+            "OTHER" => Ok(Classification::Other),
+            "PUBLIC_UTILITY_COMMISSION" => Ok(Classification::PublicUtilityCommission),
+            "TRANSMISSION_ONLY" => Ok(Classification::TransmissionOnly),
+            _ => Err(format!("Invalid value for Classification: {}", s)),
         }
     }
 }
@@ -175,12 +253,36 @@ impl std::fmt::Display for Classification {
     }
 }
 
-pub fn get_data(
-    conn: &Connection,
-    query_filter: &QueryFilter,
-) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
-    let mut query = String::from(
-        r#"
+impl serde::Serialize for Classification {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            Classification::GovernanceOnly => "Governance Only",
+            Classification::GroupMember => "Group Member",
+            Classification::LocalControlCenter => "Local Control Center",
+            Classification::MarketParticipant => "Market Participant",
+            Classification::Other => "Other",
+            Classification::PublicUtilityCommission => "Public Utility Commission",
+            Classification::TransmissionOnly => "Transmission Only",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Classification {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Classification::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+pub fn get_data(conn: &Connection, query_filter: &QueryFilter, limit: Option<usize>) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+   let mut query = String::from(r#"
 SELECT
     as_of,
     id,
@@ -200,85 +302,25 @@ SELECT
     sub_classification,
     has_voting_rights,
     termination_date
-FROM participants WHERE 1=1
-   "#,
-    );
-    if let Some(as_of) = query_filter.as_of {
-        query.push_str(&format!("AND as_of = '{}'", as_of));
+FROM participants WHERE 1=1"#);
+    if let Some(status) = &query_filter.status {
+        query.push_str(&format!("
+    AND status = '{}'", status));
     }
-    if let Some(as_of_gte) = query_filter.as_of_gte {
-        query.push_str(&format!("AND as_of_gte >= '{}'", as_of_gte));
+    if let Some(status_in) = &query_filter.status_in {
+        query.push_str(&format!("
+    AND status IN ('{}')", status_in.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("','")));
     }
-    if let Some(as_of_lte) = query_filter.as_of_lte {
-        query.push_str(&format!("AND as_of_lte <= '{}'", as_of_lte));
+    match limit {
+        Some(l) => {
+            query.push_str(&format!("
+LIMIT {};", l));
+        },
+        None => {
+            query.push(';');
+        },
     }
-    if let Some(id) = query_filter.id {
-        query.push_str(&format!("AND id = '{}'", id));
-    }
-    if let Some(customer_name) = &query_filter.customer_name {
-        query.push_str(&format!("AND customer_name = '{}'", customer_name));
-    }
-    if let Some(address1) = &query_filter.address1 {
-        query.push_str(&format!("AND address1 = '{}'", address1));
-    }
-    if let Some(address2) = &query_filter.address2 {
-        query.push_str(&format!("AND address2 = '{}'", address2));
-    }
-    if let Some(address3) = &query_filter.address3 {
-        query.push_str(&format!("AND address3 = '{}'", address3));
-    }
-    if let Some(city) = &query_filter.city {
-        query.push_str(&format!("AND city = '{}'", city));
-    }
-    if let Some(state) = &query_filter.state {
-        query.push_str(&format!("AND state = '{}'", state));
-    }
-    if let Some(zip) = &query_filter.zip {
-        query.push_str(&format!("AND zip = '{}'", zip));
-    }
-    if let Some(country) = &query_filter.country {
-        query.push_str(&format!("AND country = '{}'", country));
-    }
-    if let Some(phone) = &query_filter.phone {
-        query.push_str(&format!("AND phone = '{}'", phone));
-    }
-    if let Some(status) = query_filter.status {
-        query.push_str(&format!("AND status = '{}'", status));
-    }
-    if let Some(sector) = query_filter.sector {
-        query.push_str(&format!("AND sector = '{}'", sector));
-    }
-    if let Some(participant_type) = query_filter.participant_type {
-        query.push_str(&format!("AND participant_type = '{}'", participant_type));
-    }
-    if let Some(classification) = query_filter.classification {
-        query.push_str(&format!("AND classification = '{}'", classification));
-    }
-    if let Some(sub_classification) = &query_filter.sub_classification {
-        query.push_str(&format!(
-            "AND sub_classification = '{}'",
-            sub_classification
-        ));
-    }
-    if let Some(has_voting_rights) = query_filter.has_voting_rights {
-        query.push_str(&format!("AND has_voting_rights = '{}'", has_voting_rights));
-    }
-    if let Some(termination_date) = query_filter.termination_date {
-        query.push_str(&format!("AND termination_date = '{}'", termination_date));
-    }
-    if let Some(termination_date_gte) = query_filter.termination_date_gte {
-        query.push_str(&format!(
-            "AND termination_date_gte >= '{}'",
-            termination_date_gte
-        ));
-    }
-    if let Some(termination_date_lte) = query_filter.termination_date_lte {
-        query.push_str(&format!(
-            "AND termination_date_lte <= '{}'",
-            termination_date_lte
-        ));
-    }
-    query.push(';');
+
     let mut stmt = conn.prepare(&query)?;
     let rows = stmt.query_map([], |row| {
         let _n0 = 719528 + row.get::<usize, i32>(0)?;
@@ -295,29 +337,29 @@ FROM participants WHERE 1=1
         let phone: Option<String> = row.get::<usize, Option<String>>(10)?;
         let _n11 = match row.get_ref_unwrap(11).to_owned() {
             duckdb::types::Value::Enum(v) => v,
-            _ => panic!("Unexpected value type for enum"),
+            v => panic!("Unexpected value type {v:?} for enum status"),
         };
         let status = Status::from_str(&_n11).unwrap();
         let _n12 = match row.get_ref_unwrap(12).to_owned() {
             duckdb::types::Value::Enum(v) => v,
-            _ => panic!("Unexpected value type for enum"),
+            v => panic!("Unexpected value type {v:?} for enum sector"),
         };
         let sector = Sector::from_str(&_n12).unwrap();
         let _n13 = match row.get_ref_unwrap(13).to_owned() {
             duckdb::types::Value::Enum(v) => v,
-            _ => panic!("Unexpected value type for enum"),
+            v => panic!("Unexpected value type {v:?} for enum participant_type"),
         };
         let participant_type = ParticipantType::from_str(&_n13).unwrap();
         let _n14 = match row.get_ref_unwrap(14).to_owned() {
             duckdb::types::Value::Enum(v) => v,
-            _ => panic!("Unexpected value type for enum"),
+            v => panic!("Unexpected value type {v:?} for enum classification"),
         };
         let classification = Classification::from_str(&_n14).unwrap();
         let sub_classification: Option<String> = row.get::<usize, Option<String>>(15)?;
         let has_voting_rights: Option<bool> = row.get::<usize, Option<bool>>(16)?;
         let termination_date = row
             .get::<usize, Option<i32>>(17)?
-            .map(|n| Date::ZERO + (719528 + n).days());
+            .map(|n| {Date::ZERO + (719528 + n).days() });
         Ok(Record {
             as_of,
             id,
@@ -343,30 +385,26 @@ FROM participants WHERE 1=1
     Ok(results)
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct QueryFilter {
-    pub as_of: Option<Date>,
-    pub as_of_gte: Option<Date>,
-    pub as_of_lte: Option<Date>,
-    pub id: Option<i64>,
-    pub customer_name: Option<String>,
-    pub address1: Option<String>,
-    pub address2: Option<String>,
-    pub address3: Option<String>,
-    pub city: Option<String>,
-    pub state: Option<String>,
-    pub zip: Option<String>,
-    pub country: Option<String>,
-    pub phone: Option<String>,
     pub status: Option<Status>,
-    pub sector: Option<Sector>,
-    pub participant_type: Option<ParticipantType>,
-    pub classification: Option<Classification>,
-    pub sub_classification: Option<String>,
-    pub has_voting_rights: Option<bool>,
-    pub termination_date: Option<Date>,
-    pub termination_date_gte: Option<Date>,
-    pub termination_date_lte: Option<Date>,
+    pub status_in: Option<Vec<Status>>,
+}
+
+impl QueryFilter {
+    pub fn to_query_url(&self) -> String {
+        let mut params = HashMap::new();
+        if let Some(value) = &self.status {
+            params.insert("status", value.to_string());
+        }
+        if let Some(value) = &self.status_in {
+            let joined = value.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            params.insert("status_in", joined);
+        }
+        form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(&params)
+            .finish()
+    }
 }
 
 #[derive(Default)]
@@ -385,116 +423,17 @@ impl QueryFilterBuilder {
         self.inner
     }
 
-    pub fn as_of(mut self, value: Date) -> Self {
-        self.inner.as_of = Some(value);
-        self
-    }
-
-    pub fn as_of_gte(mut self, value: Date) -> Self {
-        self.inner.as_of_gte = Some(value);
-        self
-    }
-
-    pub fn as_of_lte(mut self, value: Date) -> Self {
-        self.inner.as_of_lte = Some(value);
-        self
-    }
-
-    pub fn id(mut self, value: i64) -> Self {
-        self.inner.id = Some(value);
-        self
-    }
-
-    pub fn customer_name<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.customer_name = Some(value.into());
-        self
-    }
-
-    pub fn address1<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.address1 = Some(value.into());
-        self
-    }
-
-    pub fn address2<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.address2 = Some(value.into());
-        self
-    }
-
-    pub fn address3<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.address3 = Some(value.into());
-        self
-    }
-
-    pub fn city<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.city = Some(value.into());
-        self
-    }
-
-    pub fn state<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.state = Some(value.into());
-        self
-    }
-
-    pub fn zip<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.zip = Some(value.into());
-        self
-    }
-
-    pub fn country<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.country = Some(value.into());
-        self
-    }
-
-    pub fn phone<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.phone = Some(value.into());
-        self
-    }
-
     pub fn status(mut self, value: Status) -> Self {
         self.inner.status = Some(value);
         self
     }
 
-    pub fn sector(mut self, value: Sector) -> Self {
-        self.inner.sector = Some(value);
-        self
-    }
-
-    pub fn participant_type(mut self, value: ParticipantType) -> Self {
-        self.inner.participant_type = Some(value);
-        self
-    }
-
-    pub fn classification(mut self, value: Classification) -> Self {
-        self.inner.classification = Some(value);
-        self
-    }
-
-    pub fn sub_classification<S: Into<String>>(mut self, value: S) -> Self {
-        self.inner.sub_classification = Some(value.into());
-        self
-    }
-
-    pub fn has_voting_rights(mut self, value: bool) -> Self {
-        self.inner.has_voting_rights = Some(value);
-        self
-    }
-
-    pub fn termination_date(mut self, value: Date) -> Self {
-        self.inner.termination_date = Some(value);
-        self
-    }
-
-    pub fn termination_date_gte(mut self, value: Date) -> Self {
-        self.inner.termination_date_gte = Some(value);
-        self
-    }
-
-    pub fn termination_date_lte(mut self, value: Date) -> Self {
-        self.inner.termination_date_lte = Some(value);
+    pub fn status_in(mut self, values_in: Vec<Status>) -> Self {
+        self.inner.status_in = Some(values_in);
         self
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -509,7 +448,7 @@ mod tests {
             Connection::open_with_flags(ProdDb::isone_participants_archive().duckdb_path, config)
                 .unwrap();
         let filter = QueryFilterBuilder::new().build();
-        let xs: Vec<Record> = get_data(&conn, &filter).unwrap();
+        let xs: Vec<Record> = get_data(&conn, &filter, Some(5)).unwrap();
         conn.close().unwrap();
         assert_eq!(xs.len(), 590);
         Ok(())

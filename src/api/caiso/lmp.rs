@@ -75,6 +75,7 @@ async fn api_hourly_prices(
             LmpComponent::Lmp,
             LmpComponent::Mcc,
             LmpComponent::Mcl,
+            LmpComponent::Mghg
         ]);
 
     let mut filter = QueryFilterBuilder::new()

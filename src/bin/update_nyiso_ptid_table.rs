@@ -90,8 +90,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let asof = Zoned::now().date();
     let archive = ProdDb::nyiso_ptid_table();
-    let _ = archive.download_file();
-    let _ = archive.update_duckdb(asof);
+    tokio::task::block_in_place(|| -> Result<(), Box<dyn Error>> {
+        archive.download_file()?;
+        archive.update_duckdb(asof)?;
+        Ok(())
+    })?;
 
     // check if there are new nodes
     let day1 = asof.first_of_month().checked_sub(1.month())?;
@@ -104,7 +107,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match rows.as_slice() {
         [] => {
             info!("No new nodes found between {} and {}", day1, asof);
-            panic!("No new nodes found between {} and {}", day1, asof);
         }
         _ => {
             send_email_alert(rows).await?;

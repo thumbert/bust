@@ -17,7 +17,8 @@ day_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2} ~ "-" ~ ASCII_DIGIT{2}}
 day_txt = {dd ~ mon ~ (year | yy)}
 day_us = {ASCII_DIGIT{1,2} ~ "/" ~ ASCII_DIGIT{1,2} ~ "/" ~ (year | yy)}
 
-month = {month_iso | month_txt | month_abb | month_us}
+month = {month_iso | month_txt | month_abb | month_us | month_yyyymm}
+month_yyyymm = {ASCII_DIGIT{6}}
 month_iso = {ASCII_DIGIT{4} ~ "-" ~ ASCII_DIGIT{2}}
 month_txt = {mon ~ " "? ~ (year | yy)}
 month_abb = {("F" | "G" | "H" | "J" | "K" | "M" | "N" | "Q" | "U" | "V" | "X" | "Z") ~ yy}

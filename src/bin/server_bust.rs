@@ -152,7 +152,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::mis::sr_rsvcharge2::api_tab_data)
             .service(isone::mis::sr_rsvstl2::api_daily_credits)
             .service(isone::mis::sr_rsvstl2::api_tab_data)
-            .service(isone::participant_list::participants)
+            .service(isone::participant_list::get_data_api)
             .service(isone::ttc::api_ttc_data)
             // Nodal
             .service(nodal::contracts::get_data_api)

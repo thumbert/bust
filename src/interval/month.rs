@@ -40,13 +40,12 @@ impl Month {
         Month { start_date: start }
     }
 
-    
     pub fn containing(datetime: jc::DateTime) -> Month {
         Month {
             start_date: jc::date(datetime.year(), datetime.month(), 1),
         }
     }
-    
+
     pub fn year(&self) -> i16 {
         self.start_date.year()
     }
@@ -54,7 +53,7 @@ impl Month {
     pub fn month(&self) -> i8 {
         self.start_date.month()
     }
-    
+
     pub fn start(&self) -> jc::DateTime {
         self.start_date.at(0, 0, 0, 0)
     }
@@ -125,6 +124,15 @@ impl Month {
         self.start_date.strftime(format)
     }
 
+    /// Convert an integer in `YYYYMM` format (e.g. `202603`) into a `Month`.
+    pub fn from_yyyymm(n: i32) -> Result<Month, Box<dyn Error>> {
+        let year = (n / 100) as i16;
+        let month = (n % 100) as i8;
+        Ok(Month {
+            start_date: jc::Date::new(year, month, 1)?,
+        })
+    }
+
     pub fn with_tz(&self, tz: &str) -> MonthTz {
         MonthTz::containing(self.start().in_tz(tz).unwrap())
     }
@@ -161,6 +169,18 @@ impl FromStr for Month {
     }
 }
 
+/// Convert an integer in `YYYYMM` format (e.g. `202603`) into a `Month`.
+/// Example:
+/// ```
+/// let m = Month::from(202603);
+/// assert_eq!(m, month(2026, 3));
+/// ```
+impl From<i32> for Month {
+    fn from(n: i32) -> Self {
+        Month::from_yyyymm(n).unwrap()
+    }
+}
+
 impl IntervalLike for Month {
     fn start(&self) -> jc::DateTime {
         self.start_date.at(0, 0, 0, 0)
@@ -194,7 +214,7 @@ impl<'de> Deserialize<'de> for Month {
 }
 
 /// Parse various formats for a month:
-/// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04"
+/// "Apr23", "J23", "April2023", "4/2023", "4/23", "2023-04", "202304"
 fn parse_month(input: &str) -> Result<Month, ParseError> {
     let token = TermParser::parse(Rule::month, input)
         .unwrap()
@@ -210,7 +230,19 @@ pub fn process_month(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
         Rule::month_txt => process_month_txt(record), // "Apr23", "APR23", "April2023"
         Rule::month_abb => process_month_abb(record), // "J23"
         Rule::month_us => process_month_us(record),   // "4/2023", "4/23"
+        Rule::month_yyyymm => process_month_yyyymm(record), // "202603"
         _ => unreachable!(),
+    }
+}
+
+/// Parse "202603" like strings.
+pub fn process_month_yyyymm(token: Pair<'_, Rule>) -> Result<Month, ParseError> {
+    let s = token.as_str();
+    let year = s[..4].parse::<i16>().unwrap();
+    let m = s[4..].parse::<i8>().unwrap();
+    match jc::Date::new(year, m, 1) {
+        Ok(dt) => Ok(Month { start_date: dt }),
+        Err(e) => Err(ParseError(format!("{}", e))),
     }
 }
 
@@ -352,6 +384,7 @@ mod tests {
         assert_eq!("3/24".parse::<Month>()?, month(2024, 3));
         assert_eq!("3/2024".parse::<Month>()?, month(2024, 3));
         assert_eq!("03/2024".parse::<Month>()?, month(2024, 3));
+        assert_eq!("202603".parse::<Month>()?, month(2026, 3));
         Ok(())
     }
 
@@ -397,6 +430,17 @@ mod tests {
         assert!(start < month(2025, 9));
         assert!(start <= month(2025, 9));
         assert!(start == month(2024, 9));
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_yyyymm() -> Result<(), Box<dyn Error>> {
+        assert_eq!(Month::from_yyyymm(202603)?, month(2026, 3));
+        assert_eq!(Month::from_yyyymm(200001)?, month(2000, 1));
+        assert_eq!(Month::from_yyyymm(199912)?, month(1999, 12));
+        // From<i32> trait
+        assert_eq!(Month::from(202603i32), month(2026, 3));
+        assert_eq!(Into::<Month>::into(199912i32), month(1999, 12));
         Ok(())
     }
 }

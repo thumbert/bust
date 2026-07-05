@@ -4,6 +4,12 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-07-05
+- Convert ISONE participant list to latest reduct
+
+## 2026-07-01
+- Fix bin/update_nyiso_ptid_table.rs.  Example of how to use block_in_place() with tokio. 
+
 ## 2026-06-29
 - Redeploy update_caiso_prices_da to add the GHG component.
 
