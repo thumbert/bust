@@ -79,6 +79,10 @@ update_nyiso_binding_constraints:
     cargo build --bin update_nyiso_binding_constraints --release 
     cp ./target/release/update_nyiso_binding_constraints ~/Software
 
+update_nyiso_capacity_prices_monthly:
+    cargo build --bin update_nyiso_capacity_prices_monthly --release 
+    cp ./target/release/update_nyiso_capacity_prices_monthly ~/Software
+
 update_nyiso_masked_dbs:
     cargo build --bin update_nyiso_masked_dbs --release 
     cp ./target/release/update_nyiso_masked_dbs ~/Software

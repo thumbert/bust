@@ -1,5 +1,7 @@
 pub mod binding_constraints;
 pub mod capacity_offers;
+pub mod capacity_prices_monthly;
+pub mod capacity_seasons;
 pub mod dalmp;
 pub mod energy_offers;
 pub mod ptid_table;

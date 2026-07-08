@@ -2,17 +2,22 @@ use crate::db::{
     caiso::{
         dalmp_archive::CaisoDaLmpArchive, public_bids_archive::CaisoPublicBidsArchive,
         rtlmp_archive::CaisoRtLmpArchive,
-    }, calendar::buckets::BucketsArchive, epa::{
+    },
+    calendar::buckets::BucketsArchive,
+    epa::{
         emissions_daily::EpaDailyEmissionsArchive, emissions_hourly::EpaHourlyEmissionsArchive,
         mats::EpaMatsArchive,
-    }, hq::{
+    },
+    hq::{
         electricity_demand::HqTotalDemandArchive,
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    }, ieso::{
+    },
+    ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    }, isone::{
+    },
+    isone::{
         actual_interchange_archive::IsoneActualInterchangeArchive,
         calendar_events::IsoneEventsCalendarArchive,
         dalmp_archive::IsoneDaLmpArchive,
@@ -28,9 +33,20 @@ use crate::db::{
         rtlmp_archive::IsoneRtLmpArchive,
         sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
         total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    }, nodal::nodal_contracts::NodalContractsArchive, nyiso::{
-        binding_constraints::NyisoBindingConstraintsDaArchive, capacity_offers::NyisoCapacityOffersArchive, energy_offers::NyisoEnergyOffersArchive, ptid_table::NyisoPtidTableArchive, rtlmp::NyisoRtlmpArchive, scheduled_outages::NyisoScheduledOutagesArchive, transmission_outages_da::NyisoTransmissionOutagesDaArchive, zonal_uplift::NyisoZonalUpliftArchive
-    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive, ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
+    },
+    nodal::nodal_contracts::NodalContractsArchive,
+    nyiso::{
+        binding_constraints::NyisoBindingConstraintsDaArchive,
+        capacity_offers::NyisoCapacityOffersArchive,
+        capacity_prices_monthly::NyisoCapacityPricesMonthlyArchive,
+        capacity_seasons::NyisoCapacitySeasonsArchive, energy_offers::NyisoEnergyOffersArchive,
+        ptid_table::NyisoPtidTableArchive, rtlmp::NyisoRtlmpArchive,
+        scheduled_outages::NyisoScheduledOutagesArchive,
+        transmission_outages_da::NyisoTransmissionOutagesDaArchive,
+        zonal_uplift::NyisoZonalUpliftArchive,
+    },
+    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
+    ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
 };
 
 use super::{
@@ -395,6 +411,23 @@ impl ProdDb {
         }
     }
 
+    pub fn nyiso_capacity_prices_monthly() -> NyisoCapacityPricesMonthlyArchive {
+        NyisoCapacityPricesMonthlyArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Nyiso/CapacityPrices/Monthly".to_string(),
+            duckdb_path:
+                "/home/adrian/Downloads/Archive/DuckDB/nyiso/capacity_prices_monthly.duckdb"
+                    .to_string(),
+        }
+    }
+
+    pub fn nyiso_capacity_seasons() -> NyisoCapacitySeasonsArchive {
+        NyisoCapacitySeasonsArchive {
+            base_dir: "".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/capacity_seasons.duckdb"
+                .to_string(),
+        }
+    }
+
     pub fn nyiso_dalmp() -> NyisoDalmpArchive {
         NyisoDalmpArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/DaLmpHourly".to_string(),
@@ -413,7 +446,8 @@ impl ProdDb {
     pub fn nyiso_ptid_table() -> NyisoPtidTableArchive {
         NyisoPtidTableArchive {
             base_dir: "/home/adrian/Downloads/Archive/Nyiso/PnodeTable".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/ptid_table.duckdb".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/nyiso/ptid_table.duckdb"
+                .to_string(),
         }
     }
 
@@ -505,13 +539,11 @@ impl ProdDb {
     }
 }
 
-
 impl crate::api::epa::hourly_emissions::EpaEmissionsDbProvider for ProdDb {
     fn duckdb_path(&self, state: &str) -> String {
         ProdDb::epa_hourly_emissions(state).duckdb_path
     }
 }
-
 
 #[derive(Clone)]
 pub struct ScratchArchive {
