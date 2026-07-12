@@ -120,17 +120,9 @@ pub struct SrRsvcharge2Archive {
     pub duckdb_path: String,
 }
 
-impl SrRsvcharge2Archive {
-    // /// Which months to archive.  Default implementation.
-    // fn get_months(&self) -> Vec<Month> {
-    //     MisArchiveDuckDB::get_months(self)
-    //         .into_iter()
-    //         .filter(|e| e >= &self.first_month())
-    //         .collect()
-    // }
-}
+impl SrRsvcharge2Archive {}
 
-impl MisArchiveDuckDB for SrRsvcharge2Archive {
+impl MisArchive for SrRsvcharge2Archive {
     fn report_name(&self) -> String {
         "SR_RSVCHARGE2".to_string()
     }
@@ -138,7 +130,7 @@ impl MisArchiveDuckDB for SrRsvcharge2Archive {
     fn first_month(&self) -> crate::interval::month::Month {
         month(2025, 3)
     }
-
+    
     /// Path to the monthly CSV file with the ISO report for a given tab
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()

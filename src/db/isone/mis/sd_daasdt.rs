@@ -420,17 +420,9 @@ pub struct SdDaasdtArchive {
     pub duckdb_path: String,
 }
 
-impl SdDaasdtArchive {
-    // /// Which months to archive.  Default implementation.
-    // fn get_months(&self) -> Vec<Month> {
-    //     MisArchiveDuckDB::get_months(self)
-    //         .into_iter()
-    //         .filter(|e| e >= &self.first_month())
-    //         .collect()
-    // }
-}
+impl SdDaasdtArchive {}
 
-impl MisArchiveDuckDB for SdDaasdtArchive {
+impl MisArchive for SdDaasdtArchive {
     fn report_name(&self) -> String {
         "SD_DAASDT".to_string()
     }
@@ -438,7 +430,7 @@ impl MisArchiveDuckDB for SdDaasdtArchive {
     fn first_month(&self) -> crate::interval::month::Month {
         month(2025, 3)
     }
-
+    
     /// Path to the monthly CSV file with the ISO report for a given tab
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()

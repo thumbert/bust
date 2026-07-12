@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::{error::Error, thread, time::Duration};
 
-use bust::db::{isone::mis::lib_mis::MisArchiveDuckDB, prod_db::ProdDb};
+use bust::db::{isone::mis::lib_mis::MisArchive, prod_db::ProdDb};
 use log::info;
 
 /// Run this job every day at 10AM
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Starting ...");
 
-    let archives: Vec<Arc<Mutex<dyn MisArchiveDuckDB>>> = vec![
+    let archives: Vec<Arc<Mutex<dyn MisArchive>>> = vec![
         Arc::new(Mutex::new(ProdDb::sd_daasdt())),
         Arc::new(Mutex::new(ProdDb::sd_rtload())),
     ];

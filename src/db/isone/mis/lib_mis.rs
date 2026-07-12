@@ -13,9 +13,10 @@ use jiff::{
     Timestamp, ToSpan, Zoned,
 };
 
-use crate::interval::month::{month, Month};
+use crate::{interval::month::{Month, month}};
 
-pub trait MisArchiveDuckDB: Send + Sync {
+
+pub trait MisArchive: Send + Sync {
     fn report_name(&self) -> String;
 
     /// Which months to archive.  Default implementation.
@@ -36,7 +37,6 @@ pub trait MisArchiveDuckDB: Send + Sync {
     fn last_month(&self) -> Month {
         month(2199, 12)
     }
-
     /// Path to the temporary CSV file with the ISO report for a given tab,
     /// that will be inserted into DuckDB as is.
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
