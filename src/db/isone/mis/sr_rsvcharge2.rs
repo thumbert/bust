@@ -120,7 +120,12 @@ pub struct SrRsvcharge2Archive {
     pub duckdb_path: String,
 }
 
-impl SrRsvcharge2Archive {}
+impl SrRsvcharge2Archive {    
+    /// Path to the monthly CSV file with the ISO report for a given tab
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
+        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
+    }
+}
 
 impl MisArchive for SrRsvcharge2Archive {
     fn report_name(&self) -> String {
@@ -129,11 +134,6 @@ impl MisArchive for SrRsvcharge2Archive {
 
     fn first_month(&self) -> crate::interval::month::Month {
         month(2025, 3)
-    }
-    
-    /// Path to the monthly CSV file with the ISO report for a given tab
-    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
-        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {

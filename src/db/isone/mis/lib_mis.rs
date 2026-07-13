@@ -37,9 +37,6 @@ pub trait MisArchive: Send + Sync {
     fn last_month(&self) -> Month {
         month(2199, 12)
     }
-    /// Path to the temporary CSV file with the ISO report for a given tab,
-    /// that will be inserted into DuckDB as is.
-    fn filename(&self, tab: u8, info: &MisReportInfo) -> String;
 
     fn setup(&self) -> Result<(), Box<dyn Error>>;
 

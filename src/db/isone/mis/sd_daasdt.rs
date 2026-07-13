@@ -420,7 +420,13 @@ pub struct SdDaasdtArchive {
     pub duckdb_path: String,
 }
 
-impl SdDaasdtArchive {}
+impl SdDaasdtArchive {
+    /// Path to the temporary CSV file with the ISO report for a given tab,
+    /// that will be inserted into DuckDB as is.
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
+        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
+    }
+}
 
 impl MisArchive for SdDaasdtArchive {
     fn report_name(&self) -> String {
@@ -429,11 +435,6 @@ impl MisArchive for SdDaasdtArchive {
 
     fn first_month(&self) -> crate::interval::month::Month {
         month(2025, 3)
-    }
-    
-    /// Path to the monthly CSV file with the ISO report for a given tab
-    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
-        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {

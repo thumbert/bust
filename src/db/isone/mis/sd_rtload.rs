@@ -153,7 +153,11 @@ pub struct SdRtloadArchive {
     pub duckdb_path: String,
 }
 
-impl SdRtloadArchive {}
+impl SdRtloadArchive {    
+    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
+        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
+    }
+}
 
 impl MisArchive for SdRtloadArchive {
     fn report_name(&self) -> String {
@@ -162,10 +166,6 @@ impl MisArchive for SdRtloadArchive {
 
     fn first_month(&self) -> crate::interval::month::Month {
         month(2001, 1)
-    }
-    
-    fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
-        self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
 
     fn setup(&self) -> Result<(), Box<dyn Error>> {
