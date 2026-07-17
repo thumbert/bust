@@ -6,6 +6,7 @@ TODO:
 
 ## 2026-07-17
 - Upgrade to Rust 1.97.1.  Some small fixes regarding the format! macro.
+- Fix a bug in process_quarter function in term.rs!
 
 ## 2026-07-13
 - Move filename method out of MisArchive. 

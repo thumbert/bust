@@ -214,16 +214,16 @@ impl fmt::Display for Term {
                 self.end.strftime("%y")
             );
         }
-        if self.is_quarter_range() {
-            return write!(
-                f,
-                "Q{},{}-Q{},{}",
-                (self.start.month() - 1) / 3 + 1,
-                self.start.strftime("%y"),
-                (self.end.month() - 1) / 3 + 1,
-                self.end.strftime("%y")
-            );
-        }
+        // if self.is_quarter_range() {
+        //     return write!(
+        //         f,
+        //         "Q{},{}-Q{},{}",
+        //         (self.start.month() - 1) / 3 + 1,
+        //         self.start.strftime("%y"),
+        //         (self.end.month() - 1) / 3 + 1,
+        //         self.end.strftime("%y")
+        //     );
+        // }
         if self.is_month_range() {
             return write!(
                 f,
@@ -440,7 +440,11 @@ fn process_quarter(token: Pair<'_, Rule>) -> Result<Term, ParseError> {
         _ => unreachable!(),
     };
     let start = date(year, (q - 1) * 3 + 1, 1);
-    let end = date(year, q * 3 + 1, 1).yesterday().unwrap();
+    let end = if q == 4 {
+        date(year, 12, 31)
+    } else {
+        date(year, q * 3 + 1, 1).yesterday().unwrap()
+    };
     Ok(Term { start, end })
 }
 
@@ -675,6 +679,10 @@ mod tests {
         );
         assert_eq!("2024-04".parse::<Term>().unwrap().to_string(), "Apr24");
         assert_eq!("Q2,24".parse::<Term>().unwrap().to_string(), "Q2,24");
+        assert_eq!(
+            "Q2,24-Q4,24".parse::<Term>().unwrap().to_string(),
+            "Apr24-Dec24"
+        ); // prefer this
         assert_eq!("Cal24".parse::<Term>().unwrap().to_string(), "Cal24");
         assert_eq!(
             "Cal24-Cal26".parse::<Term>().unwrap().to_string(),
