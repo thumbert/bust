@@ -1,24 +1,24 @@
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 
-use duckdb::Connection;
-use jiff::civil::Date;
-use serde::{Deserialize, Serialize};
-use url::form_urlencoded;
+// use duckdb::Connection;
+// use jiff::civil::Date;
+// use serde::{Deserialize, Serialize};
+// use url::form_urlencoded;
 
-use convert_case::{Case, Casing};
-use jiff::Timestamp;
-use jiff::{tz::TimeZone, Zoned};
+// use convert_case::{Case, Casing};
+// use jiff::Timestamp;
+// use jiff::{tz::TimeZone, Zoned};
 use log::{error, info};
-use rust_decimal::Decimal;
+// use rust_decimal::Decimal;
 use std::fs::{self, File};
 use std::io::Read;
 use std::process::Command;
-use std::str::FromStr;
+// use std::str::FromStr;
 
 use crate::interval::month::Month;
-use crate::utils::serde_helpers::*;
+// use crate::utils::serde_helpers::*;
 
 #[derive(Clone)]
 pub struct NyisoCapacityOffersArchive {
@@ -182,7 +182,7 @@ INSERT INTO binding_constraints
         "#,
             self.base_dir,
             month.start_date().year(),
-            &month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
         );
         let output = Command::new("duckdb")
             .arg("-c")
@@ -208,7 +208,7 @@ INSERT INTO binding_constraints
 mod tests {
     use super::*;
     use crate::{db::prod_db::ProdDb, interval::month::month};
-    use duckdb::{AccessMode, Config, Connection};
+    // use duckdb::{AccessMode, Config, Connection};
     use std::error::Error;
 
     // #[test]

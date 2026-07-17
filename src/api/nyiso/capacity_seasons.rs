@@ -17,7 +17,7 @@ pub async fn get_data_api(query: web::Query<ApiQuery>, data: web::Data<NyisoCapa
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
             "Error opening DuckDB database at {}: {}",
-            &data.duckdb_path,
+            data.duckdb_path,
             conn.err().unwrap(),
         ));
     }

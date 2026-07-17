@@ -365,10 +365,10 @@ WHERE first_day = '{}';
         "#,
             self.base_dir,
             month.start_date().year(),
-            &month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
             self.base_dir,
             month.start_date().year(),
-            &month.start_date().strftime("%Y%m"),
+            month.start_date().strftime("%Y%m"),
         );
         let output = Command::new("duckdb")
             .arg("-c")

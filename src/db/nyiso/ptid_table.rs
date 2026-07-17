@@ -120,9 +120,9 @@ FROM tmp t
 WHERE p.ptid = t.ptid
   AND p.active IS DISTINCT FROM t.active;
         "#,
-            &day.strftime("%Y-%m-%d").to_string(),
+            day.strftime("%Y-%m-%d"),
             self.base_dir,
-            &day.strftime("%Y-%m-%d").to_string(),
+            day.strftime("%Y-%m-%d"),
         );
         let output = Command::new("duckdb")
             .arg("-c")

@@ -32,7 +32,7 @@ async fn all_facilities(
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
             "Error opening DuckDB database at {}: {}",
-            &db_path,
+            db_path,
             conn.err().unwrap(),
         ));
     }
@@ -51,7 +51,7 @@ async fn all_columns(
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
             "Error opening DuckDB database at {}: {}",
-            &db_path,
+            db_path,
             conn.err().unwrap(),
         ));
     }
@@ -73,7 +73,7 @@ async fn api_data(
     if conn.is_err() {
         return HttpResponse::InternalServerError().body(format!(
             "Error opening DuckDB database at {}: {}",
-            &db_path,
+            db_path,
             conn.err().unwrap(),
         ));
     }

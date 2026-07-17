@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-07-17
+- Upgrade to Rust 1.97.1.  Some small fixes regarding the format! macro.
+
 ## 2026-07-13
 - Move filename method out of MisArchive. 
 

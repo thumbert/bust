@@ -143,8 +143,8 @@ impl MisArchive for SrRsvcharge2Archive {
         }
         if !fs::exists(&self.base_dir)? {
             fs::create_dir_all(&self.base_dir)?;
-            fs::create_dir_all(format!("{}/Raw", &self.base_dir))?;
-            fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
+            fs::create_dir_all(format!("{}/Raw", self.base_dir))?;
+            fs::create_dir_all(format!("{}/tmp", self.base_dir))?;
         }
         let conn = Connection::open(self.duckdb_path.clone())?;
         conn.execute_batch(
@@ -177,8 +177,8 @@ impl MisArchive for SrRsvcharge2Archive {
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
         // get all reports in the db first
         let existing = self.get_reports_duckdb(5, &self.duckdb_path).unwrap();
-        fs::remove_dir_all(format!("{}/tmp", &self.base_dir))?;
-        fs::create_dir_all(format!("{}/tmp", &self.base_dir))?;
+        fs::remove_dir_all(format!("{}/tmp", self.base_dir))?;
+        fs::create_dir_all(format!("{}/tmp", self.base_dir))?;
 
         for filename in files.iter() {
             let info = &MisReportInfo::from(filename.clone());

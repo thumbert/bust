@@ -1,8 +1,8 @@
 // Auto-generated Rust stub for DuckDB table: capacity_prices_monthly
 // Created on 2026-07-06 with Dart package reduct
 
-use std::{collections::HashMap, process::Command};
 use std::error::Error;
+use std::{collections::HashMap, process::Command};
 
 use duckdb::Connection;
 use log::{error, info};
@@ -66,9 +66,9 @@ INSERT INTO capacity_prices_monthly
     )
 );
         "#,
-            &month.strftime("%Y").to_string(),
             self.base_dir,
-            &month.strftime("%Y-%m").to_string(),
+            month.strftime("%Y"),
+            month.strftime("%Y-%m"),
         );
         let output = Command::new("duckdb")
             .arg("-c")
