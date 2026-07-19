@@ -1,5 +1,6 @@
 pub mod _api_isone_core;
 pub mod actual_interchange;
+pub mod binding_constraints_da;
 pub mod capacity;
 pub mod ftr;
 pub mod lmp;

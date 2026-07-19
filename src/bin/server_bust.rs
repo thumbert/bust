@@ -79,6 +79,7 @@ async fn main() -> std::io::Result<()> {
                 ProdDb::buckets(),
                 ProdDb::isone_ftr_cleared_prices(),
             )))
+            .app_data(Data::new(ProdDb::isone_da_binding_constraints()))
             .app_data(Data::new(ProdDb::isone_mra_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_ara_bids_offers()))
             .app_data(Data::new(ProdDb::isone_masked_daas_offers()))
@@ -131,7 +132,7 @@ async fn main() -> std::io::Result<()> {
             .service(ieso::dalmp::api_daily_prices)
             // ISONE
             .service(isone::actual_interchange::api_actual_flows)
-            // .service(isone::capacity::annual_reconfiguration_bidsoffers::get_data_api)
+            .service(isone::binding_constraints_da::get_data_api)
             .service(isone::capacity::monthly_capacity_results::participant_ids)
             .service(isone::capacity::monthly_capacity_results::results_interface)
             .service(isone::capacity::monthly_capacity_results::results_zone)

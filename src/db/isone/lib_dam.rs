@@ -2,6 +2,8 @@ use jiff::{civil::Date, Zoned};
 use std::cmp::Ordering::*;
 use std::error::Error;
 
+/// Check if the Day-Ahead LMP file (DALMP) for the given date has been published 
+/// on the public isone website.
 pub fn is_dalmp_published(date: Date) -> Result<bool, Box<dyn Error>> {
     let tomorrow = Zoned::now().date().tomorrow()?;
     match date.cmp(&tomorrow) {

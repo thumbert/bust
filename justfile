@@ -42,6 +42,10 @@ update_isone_actual_interchange:
     cargo build --bin update_isone_actual_interchange --release 
     cp ./target/release/update_isone_actual_interchange ~/Software
 
+update_isone_binding_constraints:
+    cargo build --bin update_isone_binding_constraints --release 
+    cp ./target/release/update_isone_binding_constraints ~/Software
+
 update_isone_daas_data:
     cargo build --bin update_isone_daas_data --release
     cp ./target/release/update_isone_daas_data ~/Software

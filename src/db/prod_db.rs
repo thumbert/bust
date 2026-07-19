@@ -2,40 +2,24 @@ use crate::db::{
     caiso::{
         dalmp_archive::CaisoDaLmpArchive, public_bids_archive::CaisoPublicBidsArchive,
         rtlmp_archive::CaisoRtLmpArchive,
-    },
-    calendar::buckets::BucketsArchive,
-    epa::{
+    }, calendar::buckets::BucketsArchive, epa::{
         emissions_daily::EpaDailyEmissionsArchive, emissions_hourly::EpaHourlyEmissionsArchive,
         mats::EpaMatsArchive,
-    },
-    hq::{
+    }, hq::{
         electricity_demand::HqTotalDemandArchive,
         electricity_demand_final::HqFinalizedTotalDemandArchive,
         electricity_demand_prelim::HqPrelimTotalDemandArchive, fuel_mix::HqFuelMixArchive,
-    },
-    ieso::{
+    }, ieso::{
         da_lmp_area::IesoDaLmpAreaArchive, generation_output_by_fuel::IesoGenOutputByFuelArchive,
         vgforecast_summary::IesoVGForecastSummaryArchive,
-    },
-    isone::{
-        actual_interchange_archive::IsoneActualInterchangeArchive,
-        calendar_events::IsoneEventsCalendarArchive,
-        dalmp_archive::IsoneDaLmpArchive,
-        ftr_prices_archive::IsoneFtrPricesArchive,
-        fuelmix_archive::IsoneFuelMixArchive,
-        masked_data::{
+    }, isone::{
+        actual_interchange_archive::IsoneActualInterchangeArchive, binding_constraints_da::IsoneDaBindingConstraintsArchive, calendar_events::IsoneEventsCalendarArchive, dalmp_archive::IsoneDaLmpArchive, ftr_prices_archive::IsoneFtrPricesArchive, fuelmix_archive::IsoneFuelMixArchive, masked_data::{
             ara_archive::IsoneAraBidsOffersArchive,
             da_energy_offers_archive::IsoneDaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
             import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
-        },
-        participants_archive::IsoneParticipantsArchive,
-        rtlmp_archive::IsoneRtLmpArchive,
-        sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive,
-        total_transfer_capability_archive::TotalTransferCapabilityArchive,
-    },
-    nodal::nodal_contracts::NodalContractsArchive,
-    nyiso::{
+        }, participants_archive::IsoneParticipantsArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive,
+    }, nodal::nodal_contracts::NodalContractsArchive, nyiso::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
         capacity_offers::NyisoCapacityOffersArchive,
         capacity_prices_monthly::NyisoCapacityPricesMonthlyArchive,
@@ -44,9 +28,7 @@ use crate::db::{
         scheduled_outages::NyisoScheduledOutagesArchive,
         transmission_outages_da::NyisoTransmissionOutagesDaArchive,
         zonal_uplift::NyisoZonalUpliftArchive,
-    },
-    statistics_canada::electricity_production::StatisticsCanadaGenerationArchive,
-    ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
+    }, statistics_canada::electricity_production::StatisticsCanadaGenerationArchive, ui::eod_settlements::views_asof_date::UiEodSettlementsAsOfDateArchive,
 };
 
 use super::{
@@ -184,6 +166,14 @@ impl ProdDb {
         IsoneActualInterchangeArchive {
             base_dir: "/home/adrian/Downloads/Archive/IsoExpress/ActualInterchange".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/actual_interchange.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_da_binding_constraints() -> IsoneDaBindingConstraintsArchive {
+        IsoneDaBindingConstraintsArchive {
+            base_dir: "/home/adrian/Downloads/Archive/IsoExpress/GridReports/DaBindingConstraints".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/binding_constraints_da.duckdb"
                 .to_string(),
         }
     }

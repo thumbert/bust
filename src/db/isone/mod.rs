@@ -1,4 +1,5 @@
 pub mod actual_interchange_archive;
+pub mod binding_constraints_da;
 pub mod calendar_events;
 pub mod daas_reserve_data_archive;
 pub mod daas_strike_prices_archive;

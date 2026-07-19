@@ -47,13 +47,65 @@ pub async fn send_email(
     Ok(response)
 }
 
+/// Blocking version of `send_email`
+pub fn send_email_blocking(
+    from: String,
+    to: Vec<String>,
+    subject: String,
+    text: String,
+    html: Option<String>,
+) -> Result<reqwest::blocking::Response, reqwest::Error> {
+    dotenvy::from_path(Path::new(".env/prod.env")).unwrap();
+    let api_url = "https://send.api.mailtrap.io/api/send";
+    let api_key = env::var("MAILTRAP_API_KEY").unwrap();
+
+    let to_ = to
+        .iter()
+        .map(|email| json!({"email": email}))
+        .collect::<Vec<_>>();
+    let email_payload = json!({
+        "from": {"email" : from},
+        "to": to_,
+        "subject": subject,
+        "text": text,
+        "html": html,
+    });
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .post(api_url)
+        .header("Content-Type", "application/json")
+        .header("Api-Token", api_key)
+        .body(email_payload.to_string())
+        .send()?;
+
+    Ok(response)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{env, error::Error, path::Path};
 
     use build_html::{Html, Table};
 
-    use super::send_email;
+    use super::*;
+
+    #[ignore]
+    #[test]
+    fn email_test_blocking() -> Result<(), Box<dyn Error>> {
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+
+        let res = send_email_blocking(
+            env::var("EMAIL_FROM").unwrap(),
+            vec![env::var("EMAIL_MAIN").unwrap()],
+            "Plain email test".into(),
+            "This is a test email using Rust and Mailtrap API!".into(),
+            None,
+        )?;
+        println!("{:?}", res);
+
+        Ok(())
+    }
 
     #[ignore]
     #[tokio::test]
