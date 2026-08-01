@@ -2,8 +2,8 @@ use std::{env, error::Error, path::Path, time::Duration};
 
 use build_html::{Html, HtmlContainer, HtmlPage};
 use bust::{
-    db::{nyiso::dalmp::NodeType, prod_db::ProdDb},
-    interval::month::{Month, month},
+    db::{nyiso::dalmp::NodeType, nyiso::lib_dam::is_dalmp_published, prod_db::ProdDb},
+    interval::month::{month, Month},
     utils::{lib_duckdb::open_with_retry, send_email::send_email},
 };
 use clap::Parser;
@@ -20,7 +20,10 @@ struct Args {
 
 async fn send_email_alert(ptids: Vec<i32>, asof: jiff::civil::Date) -> Result<(), Box<dyn Error>> {
     let page = HtmlPage::new()
-        .with_paragraph(format!("The following new nodes were found in the NYISO DA LMP file for {}:", asof))
+        .with_paragraph(format!(
+            "The following new nodes were found in the NYISO DA LMP file for {}:",
+            asof
+        ))
         .with_paragraph(format!("{:?}", ptids));
     let html = page.to_html_string();
 
@@ -43,7 +46,6 @@ async fn send_email_alert(ptids: Vec<i32>, asof: jiff::civil::Date) -> Result<()
     Ok(())
 }
 
-/// Run this job every day at 10:30AM
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -53,10 +55,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
 
-    let mut asof = Zoned::now().date();
-    if Zoned::now().hour() >= 10 {
-        asof = asof.tomorrow().unwrap();
+    let asof = Zoned::now().date().tomorrow()?;
+
+    // check if the DALMP file for the asof date has been published
+    // if not, sleep for 10 minutes and check again, until it is published
+    while !tokio::task::block_in_place(|| is_dalmp_published(asof))? {
+        info!(
+            "DALMP file for {} is not published yet.  Sleeping for 10 minutes...",
+            asof
+        );
+        tokio::time::sleep(Duration::from_secs(600)).await;
     }
+
     info!("Updating NYISO DALMP for asof date: {}", asof);
 
     let current_month = month(asof.year(), asof.month());

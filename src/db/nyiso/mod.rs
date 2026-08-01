@@ -4,6 +4,7 @@ pub mod capacity_prices_monthly;
 pub mod capacity_seasons;
 pub mod dalmp;
 pub mod energy_offers;
+pub mod lib_dam;
 pub mod ptid_table;
 pub mod rtlmp;
 pub mod scheduled_outages;

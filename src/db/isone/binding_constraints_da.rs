@@ -362,6 +362,38 @@ WHERE first_appearance = getvariable('asof_date');
     Ok(results)
 }
 
+/// Get a list of the last n constraints to appear in the DB.
+pub fn get_first_appearance(
+    conn: &Connection,
+    n: u8,
+) -> Result<Vec<(String, Zoned)>, Box<dyn std::error::Error>> {
+    conn.execute("LOAD icu;", [])?;
+    let query = format!(
+        r#"
+SELECT 
+    constraint_name, 
+    MIN(hour_beginning)::DATE AS first_appearance
+FROM constraints
+GROUP BY constraint_name
+ORDER BY first_appearance DESC
+LIMIT {};
+"#,
+        n
+    );
+    let mut stmt = conn.prepare(&query)?;
+    let rows = stmt.query_map([], |row| {
+        let constraint_name: String = row.get::<usize, String>(0)?;
+        let _micros1: i64 = row.get::<usize, i64>(1)?;
+        let hour_beginning = Zoned::new(
+            Timestamp::from_microsecond(_micros1).unwrap(),
+            TimeZone::get("America/New_York").unwrap(),
+        );
+        Ok((constraint_name, hour_beginning))
+    })?;
+    let results: Vec<(String, Zoned)> = rows.collect::<Result<_, _>>()?;
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use duckdb::AccessMode;
@@ -374,6 +406,28 @@ mod tests {
         interval::{month::month, term::Term},
         utils::lib_duckdb::open_with_retry,
     };
+
+    #[test]
+    fn test_first_appearance() -> Result<(), Box<dyn Error>> {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+        dotenvy::from_path(Path::new(".env/test.env")).unwrap();
+        let archive = ProdDb::isone_da_binding_constraints();
+        let conn = open_with_retry(
+            &archive.duckdb_path,
+            8,
+            Duration::from_millis(25),
+            AccessMode::ReadOnly,
+        )?;
+
+        let xs = get_first_appearance(&conn, 15)?;
+        println!("{:?}", xs);
+        // assert_eq!(first_appearance[0].0, "WOBURN365ALN".to_string());
+        Ok(())
+    }
+
 
     #[test]
     fn test_new_constraints() -> Result<(), Box<dyn Error>> {
