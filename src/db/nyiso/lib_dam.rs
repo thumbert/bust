@@ -33,7 +33,7 @@ mod tests {
     #[ignore]
     #[test]
     fn check_status_da() -> Result<(), Box<dyn Error>> {
-        assert!(is_dalmp_published(date(2026, 8, 2))?);
+        assert!(is_dalmp_published(date(2026, 8, 15))?);
         assert!(!is_dalmp_published(date(2042, 3, 18))?);
         Ok(())
     }

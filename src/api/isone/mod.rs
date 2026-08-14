@@ -7,4 +7,5 @@ pub mod lmp;
 pub mod masked;
 pub mod mis;
 pub mod participant_list;
+pub mod ptid_table;
 pub mod ttc;

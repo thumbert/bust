@@ -17,9 +17,11 @@ To run one benchmark:
 
 To release a new version:
  * Run `cargo test`
- * Run `cargo build --release`  Took 13m 44s!
- * cp ./target/release/server_bust ~/Software
- * Launch `~/Software/server_bust` 
+ ```bash
+ cargo build --release
+ cp ./target/release/server_bust ~/Software
+ ~/Software/server_bust
+ ``` 
 
 
 To check which process uses the 8111 port:

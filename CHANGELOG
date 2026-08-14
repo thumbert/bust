@@ -4,6 +4,11 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-08-14
+- Fix email_nyiso_prices_da.rs.  Remove the check on hour, just run it.  
+  The report will error if data is not in the database.
+- Add isone_ptid_table archive and endpoint.   
+
 ## 2026-08-01
 - Check when NYISO publishes the DA LMP file in the daily job.
 

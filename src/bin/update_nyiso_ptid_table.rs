@@ -102,6 +102,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::default().access_mode(AccessMode::ReadOnly)?;
     let conn = Connection::open_with_flags(ProdDb::nyiso_ptid_table().duckdb_path, config).unwrap();
     let rows = get_new_nodes(&conn, day1, asof)?;
+    info!("Found {} new nodes between {} and {}", rows.len(), day1, asof);
 
     // email new nodes
     match rows.as_slice() {

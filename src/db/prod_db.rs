@@ -18,7 +18,7 @@ use crate::db::{
             da_energy_offers_archive::IsoneDaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
             import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
-        }, participants_archive::IsoneParticipantsArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive,
+        }, participants_archive::IsoneParticipantsArchive, ptid_table_archive::IsonePtidTableArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, total_transfer_capability_archive::TotalTransferCapabilityArchive,
     }, nodal::nodal_contracts::NodalContractsArchive, nyiso::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
         capacity_offers::NyisoCapacityOffersArchive,
@@ -273,6 +273,14 @@ impl ProdDb {
         IsoneParticipantsArchive {
             base_dir: "/home/adrian/Downloads/Archive/Isone/Participants".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/participants.duckdb"
+                .to_string(),
+        }
+    }
+
+    pub fn isone_ptid_table_archive() -> IsonePtidTableArchive {
+        IsonePtidTableArchive {
+            base_dir: "/home/adrian/Downloads/Archive/PtidTable".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/isone/ptid_table.duckdb"
                 .to_string(),
         }
     }

@@ -52,9 +52,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
-
     dotenvy::from_path(Path::new(format!(".env/{}.env", args.env).as_str())).unwrap();
-
     let asof = Zoned::now().date().tomorrow()?;
 
     // check if the DALMP file for the asof date has been published
@@ -66,7 +64,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
         tokio::time::sleep(Duration::from_secs(600)).await;
     }
-
     info!("Updating NYISO DALMP for asof date: {}", asof);
 
     let current_month = month(asof.year(), asof.month());
@@ -78,7 +75,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Updating NYISO DALMP for months: {:?}", months);
 
     let archive = ProdDb::nyiso_dalmp();
-
     tokio::task::block_in_place(|| -> Result<(), Box<dyn Error>> {
         for month in months {
             archive.download_file(month, NodeType::Gen)?;
@@ -96,7 +92,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         duckdb::AccessMode::ReadOnly,
     )?;
     let new_ptids = tokio::task::block_in_place(|| archive.get_nodes_starting(&conn, asof))?;
-
     if new_ptids.is_empty() {
         info!("No new nodes found.");
     } else {
