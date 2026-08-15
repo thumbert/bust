@@ -87,6 +87,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::isone_masked_da_energy_offers()))
             .app_data(Data::new(ProdDb::isone_participants_archive()))
             .app_data(Data::new(ProdDb::isone_ptid_table_archive()))
+            .app_data(Data::new(ProdDb::isone_ttc()))
             .app_data(Data::new(ProdDb::nrc_generator_status()))
             .app_data(Data::new(ProdDb::sd_daasdt()))
             .app_data(Data::new(ProdDb::sd_rtload()))
@@ -158,7 +159,7 @@ async fn main() -> std::io::Result<()> {
             .service(isone::mis::sr_rsvstl2::api_tab_data)
             .service(isone::participant_list::get_data_api)
             .service(isone::ptid_table::get_data_api)
-            .service(isone::ttc::api_ttc_data)
+            .service(isone::ttc::get_data_api)
             // Nodal
             .service(nodal::contracts::get_data_api)
             // NRC

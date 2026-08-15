@@ -17,4 +17,4 @@ pub mod rtlmp_archive;
 pub mod sevenday_capacity_forecast_archive;
 pub mod sevenday_solar_forecast_archive;
 pub mod single_source_contingency_archive;
-pub mod total_transfer_capability_archive;
+pub mod ttc_archive;
