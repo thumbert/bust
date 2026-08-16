@@ -6,6 +6,7 @@ TODO:
 
 ## 2026-08-16
 - Support parsing of MIS report metadata from gzipped filenames.
+- Support reading gzipped MIS reports in lib_mis.rs
 
 ## 2026-08-15
 - Modernize isone ttc archive using reduct.  Set up the daily job. 

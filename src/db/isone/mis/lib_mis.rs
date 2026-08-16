@@ -4,10 +4,12 @@ use std::{
     fmt::Display,
     fs,
     hash::{Hash, Hasher},
+    io::Read,
     path::Path,
 };
 
 use duckdb::Connection;
+use flate2::read::GzDecoder;
 use jiff::{
     civil::{Date, Time},
     Timestamp, ToSpan, Zoned,
@@ -123,7 +125,7 @@ impl From<String> for MisReportInfo {
     /// Extract the report name, account id, report date, and version from the filename.
     ///
     /// # Arguments
-    /// * filename - a fully qualified path, or a relative path.  It can be a gzipped CSV file 
+    /// * filename - a fully qualified path, or a relative path.  It can be a gzipped CSV file
     ///   or a simple CSV file.  The filename is assumed to be in the format:
     ///   <report_name>_<account_id>_<report_date>_<version>.CSV
     ///
@@ -269,9 +271,20 @@ pub fn parse_hour_ending(date: &Date, hour: &str) -> Zoned {
 }
 
 /// Read the report and return the lines as strings
+/// Support gzipped files as well as plain text files.  If the file is empty, return an error.
 pub fn read_report(filename: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut contents = String::new();
+    if Path::new(filename)
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("gz"))
+    {
+        GzDecoder::new(fs::File::open(filename)?).read_to_string(&mut contents)?;
+    } else {
+        contents = fs::read_to_string(filename)?;
+    }
+
     let mut lines = Vec::new();
-    for line in fs::read_to_string(filename).unwrap().lines() {
+    for line in contents.lines() {
         lines.push(line.to_string());
     }
     if lines.is_empty() {
@@ -290,17 +303,12 @@ pub struct MisTab {
     pub lines: Vec<String>,
 }
 
-// fn get_nth_settlement<K,F>(vs: Vec<K>, n: u8, func: F) -> Result<Vec<K>, Box<dyn Error>>
-//     where F: Fn(K) -> K
-// {
-
-//     Ok(vs)
-// }
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use std::{error::Error, io::Write};
 
+    use flate2::{write::GzEncoder, Compression};
     use itertools::Itertools;
     use jiff::{civil::Date, Timestamp, Zoned};
 
@@ -326,6 +334,21 @@ mod tests {
         // println!("{:?}", tab0.as_ref().unwrap().header);
         // assert_eq!(tab0.as_ref().unwrap().lines.len(), 57);
 
+        Ok(())
+    }
+
+    #[test]
+    fn read_gzipped_report() -> Result<(), Box<dyn Error>> {
+        let path =
+            std::env::temp_dir().join(format!("bust_read_report_{}.csv.gz", std::process::id()));
+        let mut encoder = GzEncoder::new(fs::File::create(&path)?, Compression::default());
+        encoder.write_all(b"first line\nsecond line\n")?;
+        encoder.finish()?;
+
+        let lines = read_report(path.to_str().unwrap())?;
+        fs::remove_file(path)?;
+
+        assert_eq!(lines, vec!["first line", "second line"]);
         Ok(())
     }
 
