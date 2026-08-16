@@ -13,8 +13,7 @@ use jiff::{
     Timestamp, ToSpan, Zoned,
 };
 
-use crate::{interval::month::{Month, month}};
-
+use crate::interval::month::{month, Month};
 
 pub trait MisArchive: Send + Sync {
     fn report_name(&self) -> String;
@@ -121,11 +120,23 @@ impl Display for MisReportInfo {
 }
 
 impl From<String> for MisReportInfo {
+    /// Extract the report name, account id, report date, and version from the filename.
+    ///
     /// # Arguments
-    /// * filename - a fully qualified path, or a relative path
+    /// * filename - a fully qualified path, or a relative path.  It can be a gzipped CSV file 
+    ///   or a simple CSV file.  The filename is assumed to be in the format:
+    ///   <report_name>_<account_id>_<report_date>_<version>.CSV
     ///
     fn from(filename: String) -> Self {
         let path = Path::new(&filename);
+        let path = if path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("gz"))
+        {
+            Path::new(path.file_stem().unwrap())
+        } else {
+            path
+        };
         let filename_iso = path.file_stem().unwrap().to_str().unwrap();
         let mut parts: Vec<&str> = filename_iso.split("_").collect();
         parts.reverse();
@@ -468,6 +479,17 @@ mod tests {
     #[test]
     fn from_filename() -> Result<(), Box<dyn Error>> {
         let filename = "SD_RTLOAD_000000003_2017060100_20190205151707.CSV";
+        let report = MisReportInfo::from(filename.to_string());
+        assert_eq!(report.report_name, "SD_RTLOAD".to_string());
+        assert_eq!(report.account_id, 3);
+        assert_eq!(report.report_date, "2017-06-01".parse::<Date>()?);
+        assert_eq!(report.version, "2019-02-05T15:17:07Z".parse::<Timestamp>()?);
+        Ok(())
+    }
+
+    #[test]
+    fn from_gzipped_filename() -> Result<(), Box<dyn Error>> {
+        let filename = "SD_RTLOAD_000000003_2017060100_20190205151707.CSV.gz";
         let report = MisReportInfo::from(filename.to_string());
         assert_eq!(report.report_name, "SD_RTLOAD".to_string());
         assert_eq!(report.account_id, 3);

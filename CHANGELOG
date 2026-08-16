@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-08-16
+- Support parsing of MIS report metadata from gzipped filenames.
+
 ## 2026-08-15
 - Modernize isone ttc archive using reduct.  Set up the daily job. 
 
