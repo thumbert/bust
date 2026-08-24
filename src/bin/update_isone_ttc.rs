@@ -4,18 +4,26 @@ use bust::{
     db::{isone::ttc_archive::*, prod_db::ProdDb},
     interval::{interval_base::DateExt, month::month},
 };
+use jiff::Zoned;
 use log::info;
 
-/// Run this job every day at 10:35PM
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
     dotenvy::from_path(Path::new(".env/prod.env")).unwrap();
     let archive = ProdDb::isone_ttc();
+    let today = Zoned::now().date();
+    let yesterday = today.yesterday()?;
 
-    // look at the current reports published
-    let info = get_ttc_reports_info()?;
+    // Only interested in the reports published today and yesterday
+    let mut info = get_ttc_reports_info()?;
+    info.retain(|(_, timestamp)| timestamp.date() == today || timestamp.date() == yesterday);
+    if info.is_empty() {
+        info!("No reports published today or yesterday.");
+        return Ok(());
+    }
+
     let start_date = info
         .iter()
         .map(|(report_date, _)| report_date)
