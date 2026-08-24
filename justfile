@@ -74,6 +74,10 @@ update_isone_sevenday_solar_forecast_archive:
     cargo build --bin update_isone_sevenday_solar_forecast_archive --release 
     cp ./target/release/update_isone_sevenday_solar_forecast_archive ~/Software
 
+update_isone_ttc:
+    cargo build --bin update_isone_ttc --release 
+    cp ./target/release/update_isone_ttc ~/Software
+
 update_nrc_generator_status:
     cargo test --package bust --lib -- db::nrc::update_nrc_generator_status::tests --show-output
     cargo build --bin update_nrc_generator_status --release 
