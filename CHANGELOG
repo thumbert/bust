@@ -7,6 +7,10 @@ TODO:
 ## 2026-09-15
 - Experiment with sr_dalocsum and sr_rtlocsum reports. 
 
+## 2026-08-16
+- Support parsing of MIS report metadata from gzipped filenames.
+- Support reading gzipped MIS reports in lib_mis.rs
+
 ## 2026-08-15
 - Modernize isone ttc archive using reduct.  Set up the daily job. 
 
