@@ -13,8 +13,7 @@ use jiff::{
     Timestamp, ToSpan, Zoned,
 };
 
-use crate::{interval::month::{Month, month}};
-
+use crate::interval::month::{month, Month};
 
 pub trait MisArchive: Send + Sync {
     fn report_name(&self) -> String;
@@ -277,6 +276,15 @@ pub struct MisTab {
     pub header_info: Vec<String>,
     /// each element is an unprocessed (not split) data line
     pub lines: Vec<String>,
+}
+
+/// Parse a CSV field into `Option<f64>`, treating an empty string as `None`.
+pub fn parse_opt_f64(s: &str) -> Result<Option<f64>, Box<dyn Error>> {
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s.parse::<f64>()?))
+    }
 }
 
 // fn get_nth_settlement<K,F>(vs: Vec<K>, n: u8, func: F) -> Result<Vec<K>, Box<dyn Error>>
