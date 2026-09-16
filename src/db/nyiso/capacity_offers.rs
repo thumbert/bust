@@ -125,18 +125,14 @@ impl NyisoCapacityOffersArchive {
         Ok(())
     }
 
-    /// Update duckdb with published data for the month.  No checks are made to see
-    /// if there are missing files.  Does not delete any existing data.  So if data
-    /// is wrong for some reason, it needs to be manually deleted first!
-    ///
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting da binding constraint files for the month {} ...",
+            "inserting capacity offer files for the month {} ...",
             month
         );
         let sql = format!(
             r#"
-CREATE TABLE IF NOT EXISTS binding_constraints (
+CREATE TABLE IF NOT EXISTS capacity_offers (
     market ENUM('DA', 'RT') NOT NULL,
     hour_beginning TIMESTAMPTZ NOT NULL,
     limiting_facility VARCHAR NOT NULL,

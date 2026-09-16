@@ -361,7 +361,7 @@ impl ProdDb {
     pub fn hq_hydro_data() -> HqHydroDataArchive {
         HqHydroDataArchive {
             base_dir: "/home/adrian/Downloads/Archive/HQ/HydroMeteorologicalData".to_string(),
-            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq_water_level.duckdb".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/hq/hq_water_level.duckdb".to_string(),
         }
     }
 

@@ -58,6 +58,10 @@ update_isone_fuel_mix:
     cargo build --bin update_isone_fuel_mix --release
     cp ./target/release/update_isone_fuel_mix ~/Software
 
+update_isone_masked_dbs:
+    cargo build --bin update_isone_masked_dbs --release 
+    cp ./target/release/update_isone_masked_dbs ~/Software
+
 update_isone_prices_da:
     cargo build --bin update_isone_prices_da --release 
     cp ./target/release/update_isone_prices_da ~/Software

@@ -44,7 +44,7 @@ impl DaasOffersArchive {
     ///  
     pub fn update_duckdb(&self, month: &Month) -> Result<(), Box<dyn Error>> {
         info!(
-            "inserting daily DAAS energy offers files for month {} ...",
+            "inserting daily DAAS offers files for month {} ...",
             month
         );
 
