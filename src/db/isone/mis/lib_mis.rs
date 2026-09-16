@@ -303,6 +303,24 @@ pub struct MisTab {
     pub lines: Vec<String>,
 }
 
+<<<<<<< HEAD
+/// Parse a CSV field into `Option<f64>`, treating an empty string as `None`.
+pub fn parse_opt_f64(s: &str) -> Result<Option<f64>, Box<dyn Error>> {
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s.parse::<f64>()?))
+    }
+}
+
+// fn get_nth_settlement<K,F>(vs: Vec<K>, n: u8, func: F) -> Result<Vec<K>, Box<dyn Error>>
+//     where F: Fn(K) -> K
+// {
+
+//     Ok(vs)
+// }
+=======
+>>>>>>> 803b97185de3561ac7924bc3d6c3ad120143fa20
 
 #[cfg(test)]
 mod tests {
