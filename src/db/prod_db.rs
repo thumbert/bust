@@ -18,7 +18,7 @@ use crate::db::{
             da_energy_offers_archive::IsoneDaEnergyOffersArchive,
             daas_offers_archive::DaasOffersArchive, demand_bids_archive::DemandBidsArchive,
             import_export_archive::ImportExportArchive, mra_archive::IsoneMraBidsOffersArchive,
-        }, mis::{sr_dalocsum::SrDalocsumArchive, sr_rtlocsum::SrRtlocsumArchive}, participants_archive::IsoneParticipantsArchive, ptid_table_archive::IsonePtidTableArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, ttc_archive::IsoneTtcArchive,
+        }, mis::{sd_dacleared::SdDaclearedArchive, sr_dalocsum::SrDalocsumArchive, sr_rtlocsum::SrRtlocsumArchive}, participants_archive::IsoneParticipantsArchive, ptid_table_archive::IsonePtidTableArchive, rtlmp_archive::IsoneRtLmpArchive, sevenday_capacity_forecast_archive::SevendayCapacityForecastArchive, ttc_archive::IsoneTtcArchive,
     }, nodal::nodal_contracts::NodalContractsArchive, nyiso::{
         binding_constraints::NyisoBindingConstraintsDaArchive,
         capacity_offers::NyisoCapacityOffersArchive,
@@ -505,6 +505,13 @@ impl ProdDb {
         SdDaasdtArchive {
             base_dir: "/home/adrian/Downloads/Archive/Mis/SD_DAASDT".to_string(),
             duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sd_daasdt.duckdb".to_string(),
+        }
+    }
+
+    pub fn sd_dacleared() -> SdDaclearedArchive {
+        SdDaclearedArchive {
+            base_dir: "/home/adrian/Downloads/Archive/Mis/SD_DACLEARED".to_string(),
+            duckdb_path: "/home/adrian/Downloads/Archive/DuckDB/sd_dacleared.duckdb".to_string(),
         }
     }
 

@@ -5,6 +5,9 @@ TODO:
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
 ## 2026-09-15
+- Add sd_dacleared report.
+
+## 2026-09-15
 - Experiment with sr_dalocsum and sr_rtlocsum reports. 
 
 ## 2026-08-16
