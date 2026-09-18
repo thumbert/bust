@@ -4,10 +4,9 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::process::Command;
 
 use duckdb::Connection;
-use log::{error, info};
+use log::info;
 use serde::{Deserialize, Serialize};
 use url::form_urlencoded;
 
@@ -29,6 +28,7 @@ pub struct SrDalocsumArchive {
 impl SrDalocsumArchive {
     /// Path to the temporary CSV file with the ISO report for a given tab,
     /// that will be inserted into DuckDB as is.
+    #[allow(dead_code)]
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
@@ -44,96 +44,7 @@ impl MisArchive for SrDalocsumArchive {
     }
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
-//         let sql = format!(
-//             r#"
-// CREATE TABLE IF NOT EXISTS public_bids_da (
-//     hour_beginning TIMESTAMPTZ NOT NULL,
-//     resource_type ENUM('GENERATOR','INTERTIE', 'LOAD') NOT NULL,
-//     scheduling_coordinator_seq UINTEGER NOT NULL,
-//     resource_bid_seq UINTEGER NOT NULL,
-//     time_interval_start TIMESTAMPTZ,
-//     time_interval_end TIMESTAMPTZ,
-//     product_bid_desc VARCHAR,
-//     product_bid_mrid VARCHAR,
-//     market_product_desc VARCHAR,
-//     market_product_type VARCHAR,
-//     self_sched_mw DECIMAL(9,4),
-//     sch_bid_time_interval_start TIMESTAMPTZ,
-//     sch_bid_time_interval_end TIMESTAMPTZ,
-//     sch_bid_xaxis_data DECIMAL(9,4),
-//     sch_bid_y1axis_data DECIMAL(9,4),
-//     sch_bid_y2axis_data DECIMAL(9,4),
-//     sch_bid_curve_type ENUM('BIDPRICE'),
-//     min_eoh_state_of_charge DECIMAL(9,4),
-//     max_eoh_state_of_charge DECIMAL(9,4),
-// );
-
-// LOAD icu; SET TimeZone = 'America/Los_Angeles';
-// CREATE TEMPORARY TABLE tmp 
-// AS 
-//     SELECT 
-//         "STARTTIME" AS hour_beginning,
-//         "RESOURCE_TYPE"::ENUM('GENERATOR','INTERTIE', 'LOAD') AS resource_type,
-//         "SCHEDULINGCOORDINATOR_SEQ"::UINTEGER AS scheduling_coordinator_seq,
-//         "RESOURCEBID_SEQ"::UINTEGER AS resource_bid_seq,
-//         "TIMEINTERVALSTART" AS time_interval_start,
-//         "TIMEINTERVALEND" AS time_interval_end,
-//         "PRODUCTBID_DESC" AS product_bid_desc,
-//         "PRODUCTBID_MRID" AS product_bid_mrid,
-//         "MARKETPRODUCT_DESC" AS market_product_desc,
-//         "MARKETPRODUCTTYPE" AS market_product_type,
-//         "SELFSCHEDMW"::DECIMAL(9,4) AS self_sched_mw,
-//         "SCH_BID_TIMEINTERVALSTART" AS sch_bid_time_interval_start,
-//         "SCH_BID_TIMEINTERVALSTOP" AS sch_bid_time_interval_end,
-//         "SCH_BID_XAXISDATA"::DECIMAL(9,4) AS sch_bid_xaxis_data,
-//         "SCH_BID_Y1AXISDATA"::DECIMAL(9,4) AS sch_bid_y1axis_data,
-//         "SCH_BID_Y2AXISDATA"::DECIMAL(9,4) AS sch_bid_y2axis_data,
-//         "SCH_BID_CURVETYPE"::ENUM('BIDPRICE') AS sch_bid_curve_type,
-//         "MINEOHSTATEOFCHARGE"::DECIMAL(9,4) AS min_eoh_state_of_charge,
-//         "MAXEOHSTATEOFCHARGE"::DECIMAL(9,4) AS max_eoh_state_of_charge
-//     FROM read_csv(
-//         '{}/Raw/{}/{}*_{}*_PUB_BID_DAM_v3.csv.gz',
-//         header = true,
-//         types = {{'SCH_BID_Y2AXISDATA': 'DECIMAL(9,4)', 'SCH_BID_Y1AXISDATA': 'DECIMAL(9,4)', 'SCH_BID_XAXISDATA': 'DECIMAL(9,4)', 'SELFSCHEDMW': 'DECIMAL(9,4)', 'RESOURCEBID_SEQ': 'UINTEGER', 'SCHEDULINGCOORDINATOR_SEQ': 'UINTEGER'}},
-//         timestampformat = 'YYYY-MM-DD HH:MM:SS.000'
-//     )
-//     ORDER BY hour_beginning, resource_bid_seq 
-// ;
-
-// INSERT INTO public_bids_da
-// (
-//     SELECT * FROM tmp
-//     WHERE NOT EXISTS (
-//         SELECT 1 FROM public_bids_da AS pb
-//         WHERE pb.hour_beginning = tmp.hour_beginning
-//           AND pb.resource_bid_seq = tmp.resource_bid_seq
-//           AND pb.scheduling_coordinator_seq = tmp.scheduling_coordinator_seq
-//     )
-// );
-// "#,
-//             self.base_dir,
-//             month.start_date().year(),
-//             month.start_date().strftime("%Y%m"),
-//             month.start_date().strftime("%Y%m"),
-//         );
-//         // println!("{}", sql);
-
-//         let output = Command::new("duckdb")
-//             .arg("-c")
-//             .arg(&sql)
-//             .arg(&self.duckdb_path)
-//             .output()
-//             .expect("Failed to invoke duckdb command");
-
-//         let stdout = String::from_utf8_lossy(&output.stdout);
-//         let stderr = String::from_utf8_lossy(&output.stderr);
-//         if output.status.success() {
-//             info!("{}", stdout);
-//             info!("done");
-//         } else {
-//             error!("Failed to update duckdb for month {}: {}", month, stderr);
-//         }
-
+        info!("Updating DuckDB with files: {:?}", files);
         Ok(())
     }
 
@@ -395,6 +306,7 @@ pub struct SrDalocsumReport {
 impl MisReport for SrDalocsumReport {}
 
 impl SrDalocsumReport {
+    #[allow(dead_code)]
     fn process_tab1(&self) -> Result<Vec<Record>, Box<dyn Error>> {
         let mut out: Vec<Record> = Vec::new();
         let tab1 = extract_tab(1, &self.lines).unwrap();

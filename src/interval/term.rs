@@ -1,5 +1,5 @@
-use std::fmt;
 use std::str::FromStr;
+use std::{fmt, ops::Sub};
 
 use jiff::{
     civil::{date, Date, DateTime},
@@ -51,6 +51,28 @@ impl Term {
 
     pub fn parse(s: &str) -> Result<Self, ParseError> {
         Self::from_str(s)
+    }
+
+    /// Split a term into two parts at the given date. The first part ends
+    /// the day before the given date, and the second part starts at the given date.
+    /// If the date is outside the term, both parts are `None`.
+    pub fn split_at(&self, date: Date) -> (Option<Term>, Option<Term>) {
+        if date <= self.start {
+            return (None, Some(*self));
+        }
+        if date > self.end {
+            return (Some(*self), None);
+        }
+        (
+            Some(Term {
+                start: self.start,
+                end: date.sub(1.day()),
+            }),
+            Some(Term {
+                start: date,
+                end: self.end,
+            }),
+        )
     }
 
     /// Return the days in the term
@@ -1026,6 +1048,65 @@ mod tests {
                 end: date(2024, 12, 31),
             },
         )
+    }
+
+    #[test]
+    fn test_split_at() {
+        let term = "10Jan24-20Jan24".parse::<Term>().unwrap();
+
+        assert_eq!(
+            term.split_at(date(2024, 1, 15)),
+            (
+                Some(Term {
+                    start: date(2024, 1, 10),
+                    end: date(2024, 1, 14),
+                }),
+                Some(Term {
+                    start: date(2024, 1, 15),
+                    end: date(2024, 1, 20),
+                }),
+            )
+        );
+
+        assert_eq!(
+            term.split_at(date(2024, 1, 10)),
+            (
+                None,
+                Some(Term {
+                    start: date(2024, 1, 10),
+                    end: date(2024, 1, 20),
+                }),
+            )
+        );
+
+        assert_eq!(
+            term.split_at(date(2024, 1, 20)),
+            (
+                Some(Term {
+                    start: date(2024, 1, 10),
+                    end: date(2024, 1, 19),
+                }),
+                Some(Term {
+                    start: date(2024, 1, 20),
+                    end: date(2024, 1, 20),
+                }),
+            )
+        );
+
+        assert_eq!(term.split_at(date(2024, 1, 5)), (None, Some(term)));
+        assert_eq!(term.split_at(date(2024, 1, 21)), (Some(term), None));
+
+        let single_day = "15Jan24".parse::<Term>().unwrap();
+        assert_eq!(
+            single_day.split_at(date(2024, 1, 15)),
+            (
+                None,
+                Some(Term {
+                    start: date(2024, 1, 15),
+                    end: date(2024, 1, 15),
+                })
+            )
+        );
     }
 
     #[test]

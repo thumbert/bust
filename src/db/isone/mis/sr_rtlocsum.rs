@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use duckdb::Connection;
+use log::info;
 use serde::{Deserialize, Serialize};
 use url::form_urlencoded;
 
@@ -26,6 +27,7 @@ pub struct SrRtlocsumArchive {
 impl SrRtlocsumArchive {
     /// Path to the temporary CSV file with the ISO report for a given tab,
     /// that will be inserted into DuckDB as is.
+    #[allow(dead_code)]
     fn filename(&self, tab: u8, info: &MisReportInfo) -> String {
         self.base_dir.to_owned() + "/tmp/" + &format!("tab{}_", tab) + &info.filename_iso()
     }
@@ -45,7 +47,8 @@ impl MisArchive for SrRtlocsumArchive {
     }
 
     fn update_duckdb(&self, files: Vec<String>) -> Result<(), Box<dyn Error>> {
-        todo!()
+        info!("Updating DuckDB with files: {:?}", files);
+        Ok(())
     }
 }
 
@@ -57,64 +60,65 @@ pub struct SrRtlocsumReport {
 impl MisReport for SrRtlocsumReport {}
 
 impl SrRtlocsumReport {
+    #[allow(dead_code)]
     fn process_tab1(&self) -> Result<Vec<Record>, Box<dyn Error>> {
-        let mut out: Vec<Record> = Vec::new();
-        let tab1 = extract_tab(1, &self.lines).unwrap();
-        let data = tab1.lines.join("\n");
-        let mut rdr = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(data.as_bytes());
-        for result in rdr.records() {
-            let record = result?;
+        let out: Vec<Record> = Vec::new();
+        // let tab1 = extract_tab(1, &self.lines).unwrap();
+        // let data = tab1.lines.join("\n");
+        // let mut rdr = csv::ReaderBuilder::new()
+        //     .has_headers(false)
+        //     .from_reader(data.as_bytes());
+        // for result in rdr.records() {
+        //     let record = result?;
 
-            let hour_beginning = parse_hour_ending(&self.info.report_date, &record[3]);
-            let asset_id: u32 = record[2].parse()?;
-            let asset_name: String = record[3].to_owned();
-            let subaccount_id: u32 = record[1].parse()?;
-            let subaccount_name: String = record[2].to_owned();
+        //     let hour_beginning = parse_hour_ending(&self.info.report_date, &record[3]);
+        //     let asset_id: u32 = record[2].parse()?;
+        //     let asset_name: String = record[3].to_owned();
+        //     let subaccount_id: u32 = record[1].parse()?;
+        //     let subaccount_name: String = record[2].to_owned();
 
-            out.push(Record {
-                account_id: self.info.account_id as u32,
-                report_date: self.info.report_date,
-                version: self.info.version,
-                hour_beginning,
-                subaccount_id,
-                subaccount_name,
-                location_id: record[4].parse()?,
-                location_name: record[5].to_owned(),
-                location_type: record[6].parse()?,
-                revenue_metered_generation: todo!(),
-                scheduled_imports: todo!(),
-                rt_generation_obligation: todo!(),
-                revenue_metered_load: todo!(),
-                scheduled_exports: todo!(),
-                internal_bilateral_for_load: todo!(),
-                rt_load_obligation: todo!(),
-                rt_internal_bilateral_for_market_purchases: todo!(),
-                rt_internal_bilateral_for_market_sales: todo!(),
-                rt_adjusted_load_obligation: todo!(),
-                rt_adjusted_net_interchange: todo!(),
-                adjusted_net_interchange_deviation: todo!(),
-                rt_energy_component: todo!(),
-                rt_congestion_component: todo!(),
-                rt_marginal_loss_component: todo!(),
-                rt_energy_charge_or_credit: todo!(),
-                rt_congestion_charge_or_credit: todo!(),
-                rt_loss_charge_or_credit: todo!(),
-                rt_internal_bilateral_for_market_purchases_impacting_mlrlo: todo!(),
-                rt_internal_bilateral_for_market_sales_impacting_mlrlo: todo!(),
-                marginal_loss_revenue_load_obligation: todo!(),
-                rt_generation_obligation_for_charge_allocation: todo!(),
-                rt_load_obligation_for_charge_allocation: todo!(),
-                rt_adjusted_net_interchange_for_charge_allocation: todo!(),
-                rt_demand_reduction_obligation: todo!(),
-                rt_load_obligation_for_demand_reduction_allocation: todo!(),
-                demand_reduction_obligation_deviation: todo!(),
-                rt_demand_reduction_credit: todo!(),
-                rt_demand_reduction_charge: todo!(),
-                rt_satoa_obligation: todo!(),
-            });
-        }
+        //     out.push(Record {
+        //         account_id: self.info.account_id as u32,
+        //         report_date: self.info.report_date,
+        //         version: self.info.version,
+        //         hour_beginning,
+        //         subaccount_id,
+        //         subaccount_name,
+        //         location_id: record[4].parse()?,
+        //         location_name: record[5].to_owned(),
+        //         location_type: record[6].parse()?,
+        //         revenue_metered_generation: todo!(),
+        //         scheduled_imports: todo!(),
+        //         rt_generation_obligation: todo!(),
+        //         revenue_metered_load: todo!(),
+        //         scheduled_exports: todo!(),
+        //         internal_bilateral_for_load: todo!(),
+        //         rt_load_obligation: todo!(),
+        //         rt_internal_bilateral_for_market_purchases: todo!(),
+        //         rt_internal_bilateral_for_market_sales: todo!(),
+        //         rt_adjusted_load_obligation: todo!(),
+        //         rt_adjusted_net_interchange: todo!(),
+        //         adjusted_net_interchange_deviation: todo!(),
+        //         rt_energy_component: todo!(),
+        //         rt_congestion_component: todo!(),
+        //         rt_marginal_loss_component: todo!(),
+        //         rt_energy_charge_or_credit: todo!(),
+        //         rt_congestion_charge_or_credit: todo!(),
+        //         rt_loss_charge_or_credit: todo!(),
+        //         rt_internal_bilateral_for_market_purchases_impacting_mlrlo: todo!(),
+        //         rt_internal_bilateral_for_market_sales_impacting_mlrlo: todo!(),
+        //         marginal_loss_revenue_load_obligation: todo!(),
+        //         rt_generation_obligation_for_charge_allocation: todo!(),
+        //         rt_load_obligation_for_charge_allocation: todo!(),
+        //         rt_adjusted_net_interchange_for_charge_allocation: todo!(),
+        //         rt_demand_reduction_obligation: todo!(),
+        //         rt_load_obligation_for_demand_reduction_allocation: todo!(),
+        //         demand_reduction_obligation_deviation: todo!(),
+        //         rt_demand_reduction_credit: todo!(),
+        //         rt_demand_reduction_charge: todo!(),
+        //         rt_satoa_obligation: todo!(),
+        //     });
+        // }
 
         Ok(out)
     }
