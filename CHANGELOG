@@ -6,6 +6,8 @@ TODO:
 
 ## 2026-09-18
 - Add a split_at method for Term.
+- Add code to deal with parsing of intra-hourly timestamps in MIS reports.  
+  E.g. parse '01:35:00X' and '09:20:00'.  
 
 ## 2026-09-15
 - Add sd_dacleared report.

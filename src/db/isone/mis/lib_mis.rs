@@ -270,6 +270,31 @@ pub fn parse_hour_ending(date: &Date, hour: &str) -> Zoned {
     res
 }
 
+/// Parse a tuple of (date, hhmmss) into a zoned datetime in America/New_York.
+///
+/// # Arguments
+/// * `date` - the report date
+/// * `hhmmss` - a string representing the time in HH:MM:SS format
+///
+/// During a fall daylight savings transition, the `hhmmss` string will have an extra X appended to it,
+/// for example 01:35:00X.  
+///
+/// Returned zoned is in America/New_York timezone.
+pub fn parse_zoned(date: &Date, hhmmss: &str) -> Zoned {
+    let is_repeated = hhmmss.ends_with('X');
+    let time = hhmmss.trim_end_matches('X');
+    let mut iter = time.split(':');
+    let h = iter.next().unwrap().parse::<i8>().unwrap();
+    let m = iter.next().unwrap().parse::<i8>().unwrap();
+    let s = iter.next().unwrap().parse::<i8>().unwrap();
+
+    let mut res = date.at(h, m, s, 0).in_tz("America/New_York").unwrap();
+    if is_repeated {
+        res = res.saturating_add(1.hour());
+    }
+    res
+}
+
 /// Read the report and return the lines as strings
 /// Support gzipped files as well as plain text files.  If the file is empty, return an error.
 pub fn read_report(filename: &str) -> Result<Vec<String>, Box<dyn Error>> {
@@ -510,6 +535,22 @@ mod tests {
         assert_eq!(
             he[3],
             "2026-03-08T04:00:00-04:00[America/New_York]".parse()?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_zoned_handles_standard_and_repeated_times() -> Result<(), Box<dyn Error>> {
+        let date: Date = "2024-01-15".parse()?;
+        assert_eq!(
+            parse_zoned(&date, "01:35:00"),
+            "2024-01-15T01:35:00-05:00[America/New_York]".parse()?
+        );
+
+        let fall_back: Date = "2015-11-01".parse()?;
+        assert_eq!(
+            parse_zoned(&fall_back, "01:35:00X"),
+            "2015-11-01T01:35:00-05:00[America/New_York]".parse()?
         );
         Ok(())
     }
