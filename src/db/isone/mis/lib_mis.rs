@@ -128,7 +128,11 @@ impl From<String> for MisReportInfo {
     /// * filename - a fully qualified path, or a relative path.  It can be a gzipped CSV file
     ///   or a simple CSV file.  The filename is assumed to be in the format:
     ///   <report_name>_<account_id>_<report_date>_<version>.CSV
-    ///
+    ///   
+    /// Also support filenames with a `.CSV.gz` extension.  
+    /// 
+    /// Files can also contain a subaccount identifier after the version part. 
+    /// 
     fn from(filename: String) -> Self {
         let path = Path::new(&filename);
         let path = if path
@@ -141,6 +145,13 @@ impl From<String> for MisReportInfo {
         };
         let filename_iso = path.file_stem().unwrap().to_str().unwrap();
         let mut parts: Vec<&str> = filename_iso.split("_").collect();
+        if parts.len() >= 5
+            && parts.get(parts.len() - 2).is_some_and(|part| {
+                part.len() == 14 && part.bytes().all(|byte| byte.is_ascii_digit())
+            })
+        {
+            parts.pop();
+        }
         parts.reverse();
 
         // timestamp is from parts[0]
@@ -558,6 +569,17 @@ mod tests {
     #[test]
     fn from_filename() -> Result<(), Box<dyn Error>> {
         let filename = "SD_RTLOAD_000000003_2017060100_20190205151707.CSV";
+        let report = MisReportInfo::from(filename.to_string());
+        assert_eq!(report.report_name, "SD_RTLOAD".to_string());
+        assert_eq!(report.account_id, 3);
+        assert_eq!(report.report_date, "2017-06-01".parse::<Date>()?);
+        assert_eq!(report.version, "2019-02-05T15:17:07Z".parse::<Timestamp>()?);
+        Ok(())
+    }
+
+    #[test]
+    fn from_filename_subaccount() -> Result<(), Box<dyn Error>> {
+        let filename = "SD_RTLOAD_000000003_2017060100_20190205151707_000001246.CSV";
         let report = MisReportInfo::from(filename.to_string());
         assert_eq!(report.report_name, "SD_RTLOAD".to_string());
         assert_eq!(report.account_id, 3);
