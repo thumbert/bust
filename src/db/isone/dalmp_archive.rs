@@ -6,6 +6,7 @@ use log::{error, info};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
@@ -102,6 +103,7 @@ ORDER BY hour_beginning, ptid;
     /// Data is usually published before 13:30 every day
     pub fn download_file(&self, date: Date) -> Result<(), Box<dyn Error>> {
         let yyyymmdd = date.strftime("%Y%m%d");
+        let file_path = self.filename(&date);
         super::lib_isoexpress::download_file(
             format!(
                 "https://webservices.iso-ne.com/api/v1.1/hourlylmp/da/final/day/{}",
@@ -109,9 +111,22 @@ ORDER BY hour_beginning, ptid;
             ),
             true,
             Some("application/json".to_string()),
-            Path::new(&self.filename(&date)),
+            Path::new(&file_path),
             true,
-        )
+        )?;
+
+        let compressed_path = format!("{}.gz", file_path);
+        let size = fs::metadata(&compressed_path)?.len();
+        if size <= 10_000 {
+            fs::remove_file(&compressed_path)?;
+            return Err(format!(
+                "Downloaded file {} is too small ({} bytes; expected more than 10000 bytes)",
+                compressed_path, size
+            )
+            .into());
+        }
+
+        Ok(())
     }
 
     /// Look for missing days

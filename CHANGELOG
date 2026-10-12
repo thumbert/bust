@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-10-12
+- Fail if the gz file for the ISONE DA LMP is < 10kB. 
+
 ## 2026-10-07
 - Support MIS filenames with subaccount info after the version field. 
 
