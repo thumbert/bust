@@ -2,12 +2,15 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 use crate::{
     api::isone::_api_isone_core::Market,
-    time::bucket::{Bucket, BucketLike},
-    db::nyiso::{dalmp::NyisoDalmpArchive, rtlmp::NyisoRtlmpArchive},
+    db::{
+        calendar::buckets::BucketsArchive,
+        nyiso::{dalmp::NyisoDalmpArchive, rtlmp::NyisoRtlmpArchive},
+    },
     interval::{
         month::{month, Month},
         month_tz::MonthTz,
     },
+    time::bucket::{Bucket, BucketLike},
     utils::serde_helpers::*,
 };
 use duckdb::{types::ValueRef, AccessMode, Config, Connection, Result};
@@ -16,7 +19,7 @@ use jiff::{civil::Date, tz::TimeZone, Timestamp, ToSpan, Zoned};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::db::{nyiso::dalmp::LmpComponent, prod_db::ProdDb};
+use crate::db::nyiso::dalmp::LmpComponent;
 
 #[derive(Debug, Deserialize)]
 struct LmpQuery {
@@ -110,7 +113,7 @@ struct LmpQuery2 {
 async fn api_daily_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery2>,
-    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
@@ -142,7 +145,13 @@ async fn api_daily_prices(
     let statistic = query.statistic.clone().unwrap_or("mean".into());
 
     let prices = get_daily_prices(
-        &conn, start_date, end_date, ptids, component, buckets, statistic,
+        &conn,
+        (start_date, end_date),
+        ptids,
+        component,
+        buckets,
+        statistic,
+        &db.2.duckdb_path,
     )
     .unwrap();
     HttpResponse::Ok().json(prices)
@@ -152,7 +161,7 @@ async fn api_daily_prices(
 async fn api_monthly_prices(
     path: web::Path<(Market, Month, Month)>,
     query: web::Query<LmpQuery2>,
-    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_month = path.1;
@@ -186,12 +195,12 @@ async fn api_monthly_prices(
 
     let prices = get_monthly_prices(
         &conn,
-        start_month,
-        end_month,
+        (start_month, end_month),
         ptids,
         component,
         buckets,
         statistic,
+        &db.2.duckdb_path,
     )
     .unwrap();
     HttpResponse::Ok().json(prices)
@@ -341,18 +350,18 @@ FROM (
 
 pub fn get_daily_prices(
     conn: &Connection,
-    start: Date,
-    end: Date,
+    start_end: (Date, Date),
     ptids: Option<Vec<i32>>,
     component: LmpComponent,
     buckets: Vec<Bucket>,
     statistic: String,
+    buckets_db_path: &str,
 ) -> Result<Vec<RowD>> {
     conn.execute_batch(
         format!(
             r"LOAD icu;
               ATTACH '{}' AS buckets;",
-            ProdDb::buckets().duckdb_path
+            buckets_db_path
         )
         .as_str(),
     )?;
@@ -361,8 +370,8 @@ pub fn get_daily_prices(
     for bucket in buckets {
         let mut ps = get_daily_prices_bucket(
             conn,
-            start,
-            end,
+            start_end.0,
+            start_end.1,
             ptids.clone(),
             bucket,
             component,
@@ -452,18 +461,18 @@ pub struct RowD {
 
 pub fn get_monthly_prices(
     conn: &Connection,
-    start: Month,
-    end: Month,
+    start_end: (Month, Month),
     ptids: Option<Vec<i32>>,
     component: LmpComponent,
     buckets: Vec<Bucket>,
     statistic: String,
+    buckets_db_path: &str,
 ) -> Result<Vec<RowM>> {
     conn.execute_batch(
         format!(
             r"LOAD icu;
               ATTACH '{}' AS buckets;",
-            ProdDb::buckets().duckdb_path
+            buckets_db_path
         )
         .as_str(),
     )?;
@@ -472,8 +481,8 @@ pub fn get_monthly_prices(
     for bucket in buckets {
         let mut ps = get_monthly_prices_bucket(
             conn,
-            start,
-            end,
+            start_end.0,
+            start_end.1,
             ptids.clone(),
             component,
             bucket,
@@ -623,8 +632,7 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 10, 15),
-            date(2025, 10, 16),
+            (date(2025, 10, 15), date(2025, 10, 16)),
             Some(vec![61758]),
             LmpComponent::Lmp,
             vec![
@@ -635,6 +643,7 @@ mod tests {
                 Bucket::Offpeak,
             ],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         // println!("{:?}", data);
@@ -657,12 +666,12 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
+            (date(2025, 7, 1), date(2025, 7, 14)),
             Some(vec![61758]),
             LmpComponent::Lmp,
             vec![Bucket::B5x16],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(
@@ -683,12 +692,12 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_daily_prices(
             &conn,
-            date(2025, 7, 1),
-            date(2025, 7, 14),
+            (date(2025, 7, 1), date(2025, 7, 14)),
             Some(vec![61758]),
             LmpComponent::Lmp,
             vec![Bucket::B2x16H],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(data.len(), 5); // only 2x16H days
@@ -710,8 +719,7 @@ mod tests {
         let conn = Connection::open_with_flags(ProdDb::nyiso_dalmp().duckdb_path, config).unwrap();
         let data = get_monthly_prices(
             &conn,
-            month(2025, 1),
-            month(2025, 7),
+            (month(2025, 1), month(2025, 7)),
             Some(vec![61758]),
             LmpComponent::Lmp,
             vec![
@@ -722,6 +730,7 @@ mod tests {
                 Bucket::Offpeak,
             ],
             "mean".into(),
+            ProdDb::buckets().duckdb_path.as_str(),
         )
         .unwrap();
         assert_eq!(

@@ -281,7 +281,7 @@ mod tests {
     use std::{error::Error, str::FromStr};
 
     use crate::db::{
-        isone::mis::{lib_mis::*, sd_rtload::*},
+        isone::mis::sd_rtload::*,
         prod_db::ProdDb,
     };
 

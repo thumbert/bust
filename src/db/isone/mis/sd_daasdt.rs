@@ -748,7 +748,7 @@ mod tests {
     use jiff::{civil::date, Zoned};
 
     use crate::db::{
-        isone::mis::{lib_mis::*, sd_daasdt::*},
+        isone::mis::sd_daasdt::*,
         prod_db::ProdDb,
     };
 

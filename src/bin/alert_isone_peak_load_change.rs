@@ -245,15 +245,13 @@ fn html_table(data: Vec<PeakLoadWithChange>) -> build_html::Table {
                 .report_timestamp
                 .strftime("%Y-%m-%d %H:%M:%S %Z")
                 .to_string(),
-            format!(
-                "{}",
-                record
-                    .mw
-                    .round()
-                    .to_i64()
-                    .unwrap()
-                    .to_formatted_string(&Locale::en)
-            ),
+            record
+                .mw
+                .round()
+                .to_i64()
+                .unwrap()
+                .to_formatted_string(&Locale::en)
+                .to_string(),
             change_str,
         ]);
     }

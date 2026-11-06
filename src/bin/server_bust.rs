@@ -4,8 +4,8 @@ use actix_cors::Cors;
 use actix_web::middleware::{self, Logger};
 use actix_web::web::Data;
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
-use bust::api::{admin, caiso, epa, hq, ieso, isone, nodal, nrc, nyiso};
 use bust::api::epa::hourly_emissions::EpaEmissionsDbProvider;
+use bust::api::{admin, caiso, epa, hq, ieso, isone, nodal, nrc, nyiso};
 use bust::db::prod_db::ProdDb;
 use clap::Parser;
 use env_logger::Env;
@@ -98,14 +98,20 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(ProdDb::nyiso_binding_constraints_da()))
             .app_data(Data::new(ProdDb::nyiso_capacity_prices_monthly()))
             .app_data(Data::new(ProdDb::nyiso_capacity_seasons()))
-            .app_data(Data::new((ProdDb::nyiso_dalmp(), ProdDb::nyiso_rtlmp())))
+            .app_data(Data::new((
+                ProdDb::nyiso_dalmp(),
+                ProdDb::nyiso_rtlmp(),
+                ProdDb::buckets(),
+            )))
             .app_data(Data::new(ProdDb::nyiso_energy_offers()))
             .app_data(Data::new(ProdDb::nyiso_ptid_table()))
             .app_data(Data::new(ProdDb::nyiso_scheduled_outages()))
             .app_data(Data::new(ProdDb::nyiso_transmission_outages_da()))
             .app_data(Data::new(ProdDb::nyiso_zonal_uplift()))
             .app_data(Data::new(ProdDb::ui_eod_settlements_asof_date()))
-            .app_data(Data::from(Arc::new(ProdDb {}) as Arc<dyn EpaEmissionsDbProvider>))
+            .app_data(Data::from(
+                Arc::new(ProdDb {}) as Arc<dyn EpaEmissionsDbProvider>
+            ))
             .service(hello)
             // Admin
             .service(admin::jobs::api_get_job_names)
