@@ -44,7 +44,7 @@ struct LmpQuery {
 async fn api_hourly_prices(
     path: web::Path<(Market, Date, Date)>,
     query: web::Query<LmpQuery>,
-    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive)>,
+    db: web::Data<(NyisoDalmpArchive, NyisoRtlmpArchive, BucketsArchive)>,
 ) -> impl Responder {
     let market = path.0;
     let start_date = path.1;
