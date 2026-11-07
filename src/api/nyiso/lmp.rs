@@ -84,8 +84,8 @@ async fn api_hourly_prices(
                 .body(prices)
         }
         _ => {
-            let offers = get_hourly_prices(&conn, start_date, end_date, ptids, components).unwrap();
-            HttpResponse::Ok().json(offers)
+            let prices = get_hourly_prices(&conn, start_date, end_date, ptids, components).unwrap();
+            HttpResponse::Ok().json(prices)
         }
     }
 }

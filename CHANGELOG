@@ -4,6 +4,10 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-11-07
+- Fix treatment of DST in NYISO LMP data once and for all!  The DuckDB ingestion 
+  was broken. 
+
 ## 2026-11-06
 - Pass the buckets table to the NYISO LMP endpoints. 
 

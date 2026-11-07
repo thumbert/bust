@@ -331,37 +331,52 @@ WHERE first_day = '{}';
         info!("inserting zone + gen files for the month {} ...", month);
         let sql = format!(
             r#"
-        CREATE TEMPORARY TABLE tmp1 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_zone.csv.gz';
-        CREATE TEMPORARY TABLE tmp2 AS SELECT * FROM '{}/Raw/{}/{}*damlbmp_gen.csv.gz';
+CREATE TEMPORARY TABLE tmp1 AS SELECT row_number() OVER () AS rn, * FROM '{}/Raw/{}/{}*damlbmp_zone.csv.gz';
+CREATE TEMPORARY TABLE tmp2 AS SELECT row_number() OVER () AS rn, * FROM '{}/Raw/{}/{}*damlbmp_gen.csv.gz';
 
-        CREATE TEMPORARY TABLE tmp AS
-        (SELECT
-            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
-            ptid::INTEGER AS ptid,
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp1
-        )
-        UNION
-        (SELECT
-            strptime("Time Stamp" || ' America/New_York' , '%m/%d/%Y %H:%M %Z')::TIMESTAMPTZ AS "hour_beginning",
-            ptid::INTEGER AS ptid,
-            "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
-            "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
-            "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
-        FROM tmp2
-        )
-        ORDER BY hour_beginning, ptid;
+DROP TABLE IF EXISTS tmp;
+CREATE TEMPORARY TABLE tmp AS
+(
+SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
+FROM (
+    SELECT 
+        strptime("Time Stamp"[0:10] || ' America/New_York', '%m/%d/%Y %Z')::TIMESTAMPTZ AS "day",
+        ptid::INTEGER AS ptid,
+        row_number() OVER (
+            PARTITION BY ptid, "Time Stamp"[0:10]
+            ORDER BY strptime("Time Stamp", '%m/%d/%Y %H:%M'), rn) - 1 AS idx, -- 0 to 22/23/24 for each day
+        "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+        "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+        "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+    FROM tmp1
+    )
+)
+UNION 
+(
+SELECT day + INTERVAL (idx) HOUR AS hour_beginning, ptid, lmp, mlc, mcc
+FROM (
+    SELECT 
+        strptime("Time Stamp"[0:10] || ' America/New_York', '%m/%d/%Y %Z')::TIMESTAMPTZ AS "day",
+        ptid::INTEGER AS ptid,
+        row_number() OVER (
+            PARTITION BY ptid, "Time Stamp"[0:10]
+            ORDER BY strptime("Time Stamp", '%m/%d/%Y %H:%M'), rn) - 1 AS idx, -- 0 to 22/23/24 for each day
+        "LBMP ($/MWHr)"::DECIMAL(9,2) AS "lmp",
+        "Marginal Cost Losses ($/MWHr)"::DECIMAL(9,2) AS "mlc",
+        "Marginal Cost Congestion ($/MWHr)"::DECIMAL(9,2) AS "mcc"
+    FROM tmp2
+    )
+)
+ORDER BY hour_beginning, ptid;
 
-        INSERT INTO dalmp
-        (SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
-        WHERE NOT EXISTS (
-            SELECT * FROM dalmp d
-            WHERE d.hour_beginning = tmp.hour_beginning
-            AND d.ptid = tmp.ptid
-        ))
-        ORDER BY hour_beginning, ptid;
+INSERT INTO dalmp
+(SELECT hour_beginning, ptid, lmp, mlc, mcc FROM tmp
+WHERE NOT EXISTS (
+    SELECT * FROM dalmp d
+    WHERE d.hour_beginning = tmp.hour_beginning
+    AND d.ptid = tmp.ptid
+))
+ORDER BY hour_beginning, ptid;
         "#,
             self.base_dir,
             month.start_date().year(),
@@ -431,7 +446,7 @@ mod tests {
         let archive = ProdDb::nyiso_dalmp();
         archive.setup()?;
 
-        let months = month(2024, 1).up_to(month(2025, 12))?;
+        let months = month(2024, 1).up_to(month(2026, 11))?;
         for month in months {
             println!("Processing month {}", month);
             archive.update_duckdb(month)?;
