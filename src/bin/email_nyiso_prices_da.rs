@@ -154,6 +154,7 @@ fn calc_cells(
     let npx_g = calc_cells_spread(&g, &npx, component);
     let c_a = calc_cells_spread(&a, &c, component);
     let g_a = calc_cells_spread(&a, &g, component);
+    let k_j = calc_cells_spread(&j, &k, component);
 
     table_cells.push(nm1_c);
     table_cells.push(nm2_c);
@@ -161,6 +162,7 @@ fn calc_cells(
     table_cells.push(ginna_b);
     table_cells.push(c_a);
     table_cells.push(g_a);
+    table_cells.push(k_j);
     table_cells.push(npx_g);
     table_cells.push(a);
     table_cells.push(b);

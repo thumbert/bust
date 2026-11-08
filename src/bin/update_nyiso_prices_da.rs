@@ -18,6 +18,7 @@ struct Args {
     env: String,
 }
 
+/// Send an email if new NYISO nodes found in the DA LMP file for the `asof` date.
 async fn send_email_alert(ptids: Vec<i32>, asof: jiff::civil::Date) -> Result<(), Box<dyn Error>> {
     let page = HtmlPage::new()
         .with_paragraph(format!(
