@@ -4,6 +4,9 @@ TODO:
 - Experiment connecting Dart to Rust via FFI 
 - Fix ISONE TTC api, don't like it.  Make it work for NECEC too. 
 
+## 2026-11-14
+- Update to Rust 1.100.  Fix 3 lints.
+
 ## 2026-11-08
 - Add the K/J spread in the NYISO email with prices
 

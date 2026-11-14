@@ -15,10 +15,7 @@ pub fn is_dalmp_published(date: Date) -> Result<bool, Box<dyn Error>> {
             let tag = format!("{}damlbmp_zone.csv", date.strftime("%Y%m%d"));
             let url = "https://mis.nyiso.com/public/P-2Alist.htm";
             let content = reqwest::blocking::get(url)?.text()?;
-            if content.contains(&tag) {
-                return Ok(true);
-            }
-            Ok(false)
+            Ok(content.contains(&tag))
         }
     }
 }

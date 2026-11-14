@@ -16,10 +16,7 @@ pub fn is_dalmp_published(date: Date) -> Result<bool, Box<dyn Error>> {
             let url = "https://www.iso-ne.com/isoexpress/web/reports/pricing/-/tree/lmps-da-hourly";
             let content = reqwest::blocking::get(url)?.text()?;
             let tag = format!("WW_DALMP_ISO_{}.csv", date.strftime("%Y%m%d"));
-            if content.contains(&tag) {
-                return Ok(true);
-            }
-            Ok(false)
+            Ok(content.contains(&tag))
         }
     }
 }
@@ -36,10 +33,7 @@ pub fn is_rtlmp_published(date: Date) -> Result<bool, Box<dyn Error>> {
                 "https://www.iso-ne.com/isoexpress/web/reports/pricing/-/tree/lmps-rt-hourly-final";
             let content = reqwest::blocking::get(url)?.text()?;
             let tag = format!("lmp_rt_final_{}.csv", date.strftime("%Y%m%d"));
-            if content.contains(&tag) {
-                return Ok(true);
-            }
-            Ok(false)
+            Ok(content.contains(&tag))
         }
     }
 }
