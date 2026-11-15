@@ -10,7 +10,7 @@ use crate::interval::{hour_tz::HourTz, interval_base::IntervalTzLike, term_tz::T
 use crate::time::calendar::{HolidayTrait, NERC_CALENDAR};
 
 pub trait BucketLike {
-    fn name(&self) -> String;
+    fn name(&self) -> &'static str;
     fn contains(&self, datetime: &Zoned) -> bool;
     fn count_hours<K: IntervalTzLike>(&self, term: &K) -> i32;
     fn timezone(&self) -> TimeZone;
@@ -91,19 +91,19 @@ fn parse_bucket(s: &str) -> Result<Bucket, ParseError> {
 }
 
 impl BucketLike for Bucket {
-    fn name(&self) -> String {
+    fn name(&self) -> &'static str {
         match self {
-            Bucket::Atc => String::from("ATC"),
-            Bucket::B5x16 => String::from("5x16"),
-            Bucket::B2x16H => String::from("2x16H"),
-            Bucket::B7x8 => String::from("7x8"),
-            Bucket::B7x16 => String::from("7x16"),
-            Bucket::Offpeak => String::from("Offpeak"),
-            Bucket::CaisoAtc => String::from("Caiso_ATC"),
-            Bucket::Caiso1x16H => String::from("Caiso_1x16H"),
-            Bucket::Caiso6x16 => String::from("Caiso_6x16"),
-            Bucket::Caiso7x8 => String::from("Caiso_7x8"),
-            Bucket::CaisoOffpeak => String::from("Caiso_Offpeak"),
+            Bucket::Atc => "ATC",
+            Bucket::B5x16 => "5x16",
+            Bucket::B2x16H => "2x16H",
+            Bucket::B7x8 => "7x8",
+            Bucket::B7x16 => "7x16",
+            Bucket::Offpeak => "Offpeak",
+            Bucket::CaisoAtc => "Caiso_ATC",
+            Bucket::Caiso1x16H => "Caiso_1x16H",
+            Bucket::Caiso6x16 => "Caiso_6x16",
+            Bucket::Caiso7x8 => "Caiso_7x8",
+            Bucket::CaisoOffpeak => "Caiso_Offpeak",
         }
     }
 

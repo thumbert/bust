@@ -147,7 +147,7 @@ pub fn count_hour_by_month(term: Term, file_path: &str) -> Result<(), Box<dyn st
     let mut wtr = csv::Writer::from_writer(file);
     wtr.write_record(["month", "bucket", "hour_count"]).unwrap();
     for e in &counts {
-        wtr.write_record(&[e.0.clone(), e.1.name(), e.2.to_string()])
+        wtr.write_record([e.0.as_str(), e.1.name(), &e.2.to_string()])
             .unwrap();
     }
     wtr.flush().unwrap();
